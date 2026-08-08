@@ -6,8 +6,8 @@ Two surfaces, deliberately.
 |---|---|---|
 | **Flutter Android app** (phone + tablet) | Shipping | The counter — billing, stock, khata. Works with no signal |
 | **Next.js admin web** (any browser) | Shipping | The owner — reports, purchasing, team, GST export |
+| **Flutter iOS app** | Builds in CI, never run on a device | Added on request; unproven and unsigned. See "iOS" below |
 | Windows desktop | Not shipped — see below | — |
-| iOS | Not planned | Android is the overwhelming majority of this market segment |
 | macOS / Linux | Not planned | No demand |
 
 ## Why not a desktop app
@@ -58,3 +58,57 @@ and print through the system printer, **3–5 days** to be usable on a counter
 PC, **1–2 weeks** to feel designed for a wide screen.
 
 Regenerating the scaffold is one command, so nothing is lost by not carrying it.
+
+## iOS
+
+Added 8 August 2026 at the owner's request, after the reasoning above was put
+to them. The table at the top still reflects where effort goes; iOS is built
+but unproven.
+
+**Nobody on this project can verify it locally.** Development happens on
+Windows and Xcode is macOS-only, so the iOS target cannot be compiled, run or
+tested here. `.github/workflows/flutter_ios_build.yml` runs on a GitHub-hosted
+macOS runner and is the only check that the build is not broken — treat a red
+run there as a failing test, because it is the sole signal.
+
+It builds `--no-codesign`. Signing needs an Apple Developer account
+(99 USD/year), a certificate and a provisioning profile, none of which exist.
+An unsigned build proves the code compiles, the pods resolve and no plugin has
+broken the target. It produces nothing installable on a phone.
+
+### Plugin position is much better than Windows
+
+Only one dependency is genuinely Android-only:
+
+| Plugin | iOS |
+|---|---|
+| `mobile_scanner` | supported |
+| `local_auth` (Face ID / Touch ID) | supported |
+| `flutter_contacts` | supported |
+| `blue_thermal_printer` | **not supported** |
+
+iOS does not expose Bluetooth Classic SPP to apps — Apple permits BLE, or
+accessories enrolled in the MFi programme — so a Classic-SPP thermal printer
+cannot work there at all. `ReceiptPrinterService.supportsBluetoothPrinting`
+now gates every entry point, throwing a `PrinterUnsupportedError` that names
+the alternative rather than a bare `MissingPluginException` at the till.
+`openCashDrawer` no-ops instead of throwing, because it is fired unawaited
+after a sale and an exception would surface long after the bill printed.
+
+Real iOS receipt printing would mean a BLE printer and a different package:
+**2–3 days**, not started.
+
+### Still required before anything ships to a phone
+
+- Apple Developer Program membership, 99 USD/year
+- A signing certificate and provisioning profile, added as repository secrets
+- A Mac or a paid cloud-Mac service for on-device testing; the CI job cannot
+  run the app, only build it
+- App Store review
+
+### Info.plist
+
+Five usage descriptions were added for camera, Face ID, contacts and photo
+library. Without them iOS terminates the app the first time a restricted API
+is touched, and review rejects the build. The wording is specific on purpose —
+reviewers reject vague strings such as "needed for the app to work".

@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
@@ -5,22 +6,59 @@ import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import '../models/mobile_models.dart';
 import '../pos/upi_qr.dart';
 
+/// Thrown instead of a bare MissingPluginException when Bluetooth printing is
+/// asked for on a platform that cannot do it.
+class PrinterUnsupportedError implements Exception {
+  const PrinterUnsupportedError(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class ReceiptPrinterService {
   final BlueThermalPrinter bluetooth = BlueThermalPrinter.instance;
 
+  /// Whether this device can drive a Bluetooth thermal printer at all.
+  ///
+  /// `blue_thermal_printer` speaks Bluetooth Classic SPP, which iOS does not
+  /// expose to apps — Apple only permits BLE, or accessories enrolled in the
+  /// MFi programme. So the plugin is Android-only, and on iOS every call would
+  /// otherwise fail with a bare MissingPluginException at the till.
+  ///
+  /// Callers should check this before offering a "print" action rather than
+  /// catching the failure afterwards: a cashier finding out at the counter is
+  /// the worst possible moment.
+  static bool get supportsBluetoothPrinting => Platform.isAndroid;
+
+  /// Guard every entry point that touches the plugin.
+  void _requireBluetooth() {
+    if (!supportsBluetoothPrinting) {
+      throw const PrinterUnsupportedError(
+        'Bluetooth receipt printing is only available on Android. '
+        'Use Share or Save as PDF to send the receipt instead.',
+      );
+    }
+  }
+
   Future<List<BluetoothDevice>> getDevices() async {
+    if (!supportsBluetoothPrinting) return const <BluetoothDevice>[];
     return await bluetooth.getBondedDevices();
   }
 
   Future<void> connect(BluetoothDevice device) async {
+    _requireBluetooth();
     await bluetooth.connect(device);
   }
 
   Future<void> disconnect() async {
+    if (!supportsBluetoothPrinting) return;
     await bluetooth.disconnect();
   }
 
   Future<void> printTaxInvoice(SaleRecordDetail detail, ShopInfo shop) async {
+    _requireBluetooth();
     final bool? isConnected = await bluetooth.isConnected;
     if (isConnected != true) {
       throw Exception('Printer is not connected.');
@@ -167,6 +205,10 @@ class ReceiptPrinterService {
   /// RJ11 port. No-op if no printer is connected. Verify the pulse pin/timing
   /// against your drawer if it doesn't open.
   Future<void> openCashDrawer() async {
+    // Silent no-op rather than a throw: this is fired unawaited after a sale
+    // completes, so an exception here would surface as an unhandled error long
+    // after the bill was already printed.
+    if (!supportsBluetoothPrinting) return;
     final isConnected = await bluetooth.isConnected ?? false;
     if (!isConnected) return;
     bluetooth.writeBytes(Uint8List.fromList(cashDrawerKickBytes()));

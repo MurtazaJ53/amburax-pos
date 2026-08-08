@@ -1,0 +1,76 @@
+name: Flutter iOS Build
+
+# The only way this project can verify an iOS build.
+#
+# Development happens on Windows, and Xcode is macOS-only, so nobody working on
+# this repository can compile, run or test the iOS target locally. This job on
+# a GitHub-hosted macOS runner is the sole check that the iOS build is not
+# broken. Treat a red run here the way you would a failing test.
+#
+# It builds WITHOUT code signing on purpose: signing needs an Apple Developer
+# account (99 USD/year), a certificate and a provisioning profile, none of
+# which exist yet. An unsigned build still proves the thing compiles, the pods
+# resolve, and no plugin has broken the iOS target -- which is the question
+# being asked. It produces nothing installable on a device.
+
+on:
+  push:
+    paths:
+      - 'apps/mobile_flutter/**'
+      - '.github/workflows/flutter_ios_build.yml'
+  pull_request:
+    paths:
+      - 'apps/mobile_flutter/**'
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    name: Build iOS (unsigned)
+    # macOS runners cost roughly ten times a Linux minute, which is why this is
+    # scoped to changes under apps/mobile_flutter rather than every push.
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Show toolchain
+        run: |
+          flutter --version
+          xcodebuild -version
+
+      - name: Install Dart dependencies
+        working-directory: apps/mobile_flutter
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: apps/mobile_flutter
+        run: flutter analyze
+
+      - name: Test
+        working-directory: apps/mobile_flutter
+        run: flutter test
+
+      # The step that actually earns this job: resolving CocoaPods is where an
+      # Android-only plugin, or one with no iOS platform declaration, shows up.
+      - name: Build iOS (no codesign)
+        working-directory: apps/mobile_flutter
+        run: flutter build ios --release --no-codesign
+
+      - name: Report app size
+        working-directory: apps/mobile_flutter
+        run: du -sh build/ios/iphoneos/Runner.app || true
+
+      - name: Upload unsigned app
+        uses: actions/upload-artifact@v4
+        with:
+          name: BusinessHub-iOS-unsigned
+          path: apps/mobile_flutter/build/ios/iphoneos/Runner.app
+          if-no-files-found: error
+          retention-days: 7
