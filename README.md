@@ -21,12 +21,14 @@ this file as the ground truth for "what runs today."
 
 | Path | Stack | Role | Status |
 |------|-------|------|--------|
-| [apps/mobile_flutter/](apps/mobile_flutter/) | Flutter / Dart, Riverpod, Drift (SQLite), go_router | **Active** — the current POS/mobile app | ✅ analyzes clean |
-| [apps/backend/](apps/backend/) | Django 6, DRF, PostgreSQL/SQLite, Celery, Redis | **Active** — target backend & API | ✅ check passes, 177/178 tests pass |
-| [apps/admin_web/](apps/admin_web/) | Next.js | Secondary admin surface | Not verified here |
-| [apps/desktop/](apps/desktop/) | Tauri + Vite | Secondary desktop shell | Not verified here |
-| [src/](src/) | React + Vite + Capacitor | **Legacy** web/mobile app | Being migrated off |
-| [functions/](functions/) | Firebase Cloud Functions | **Legacy** cloud backend | Being migrated off |
+| [apps/mobile_flutter/](apps/mobile_flutter/) | Flutter / Dart, Riverpod, Drift (SQLite), go_router | **Active** — the counter app; bills with no signal | ✅ analyzes clean, 320 tests pass |
+| [apps/backend/](apps/backend/) | Django 6, DRF, PostgreSQL, Celery | **Active** — authoritative for money, stock and permissions | ✅ 617 tests pass |
+| [apps/admin_web/](apps/admin_web/) | Next.js 16 (App Router) | **Active** — the owner's back-office | ✅ 98 tests, 68 routes smoke-checked |
+
+Two surfaces, deliberately — see [docs/platform-targets.md](docs/platform-targets.md)
+for why there is no desktop or iOS client, and what a Windows build would cost
+if one is ever wanted. The legacy React/Capacitor app, its Firebase Cloud
+Functions and a Tauri desktop shell have all been removed.
 
 The two **active** surfaces (Flutter mobile + Django backend) are the focus of this document.
 
