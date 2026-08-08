@@ -71,6 +71,7 @@ from platform_apps.projections.views import (
     ShopPulseSignalListView,
     ShopPulseSnapshotView,
 )
+from platform_apps.sales.daybook_views import DayBookView
 from platform_apps.sales.pulse_views import BestSellersView, CashFlowView
 from platform_apps.sales.views import (
     SaleStaffPerformanceView,
@@ -287,6 +288,11 @@ urlpatterns = [
     path("<uuid:shop_id>/sales/export/gstr1/", GSTR1ExportView.as_view(), name="sale-gstr1-export"),
     path("<uuid:shop_id>/sales/export/gstr3b/", GSTR3BExportView.as_view(), name="sale-gstr3b-export"),
     path("<uuid:shop_id>/sales/export/gst-pack/", GSTFilingPackView.as_view(), name="sale-gst-pack"),
+    path(
+        "<uuid:shop_id>/reports/day-book/",
+        DayBookView.as_view(),
+        name="report-day-book",
+    ),
     path("<uuid:shop_id>/sales/summary/", SaleSummaryView.as_view(), name="sale-summary"),
     path("<uuid:shop_id>/sales/summary/gst/", SaleGstSummaryView.as_view(), name="sale-gst-summary"),
     path("<uuid:shop_id>/sales/commands/", SaleCommandIngestionView.as_view(), name="sale-command-ingestion"),

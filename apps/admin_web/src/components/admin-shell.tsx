@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   ArrowLeftRight,
+  BookOpen,
   ClipboardList,
   Tags,
   LayoutDashboard,
@@ -58,6 +59,7 @@ type AdminShellProps = {
     | "suppliers"
     | "transfers"
     | "labels"
+    | "day-book"
     | "purchase-orders"
     | "purchases"
     | "chat"
@@ -114,6 +116,7 @@ export function AdminShell({
   ];
 
   const adminNav = [
+    { key: "day-book", label: "Day book (Roj Mel)", href: "/day-book", icon: BookOpen },
     { key: "insights", label: "Business pulse", href: "/insights", icon: TrendingUp },
     { key: "settings", label: t("settingsBusiness"), href: "/settings", icon: Settings },
     { key: "team", label: t("settingsStaff"), href: "/team", icon: Users },
