@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 import { LOCALE_COOKIE, TABLES } from "@/lib/i18n/shared";
 
 export type { Locale, MessageKey, WebMessageKey, AnyMessageKey } from "@/lib/i18n/shared";
-import type { AnyMessageKey, Locale } from "@/lib/i18n/shared";
+import type { Locale } from "@/lib/i18n/shared";
 // Re-exported for convenience; the definitions live in shared.ts so server
 // components can use them too.
 export { LOCALE_COOKIE, LOCALES, isLocale } from "@/lib/i18n/shared";
