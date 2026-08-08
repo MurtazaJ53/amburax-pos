@@ -19,6 +19,7 @@ import '../../../core/security/manager_gate.dart';
 import 'upi_qr_view.dart';
 import '../../../core/receipt/receipt_pdf.dart';
 import '../../../core/providers/mobile_data_providers.dart';
+import '../../../core/printer/receipt_printer.dart';
 import '../../../core/providers/printer_provider.dart';
 import '../../../core/runtime/mobile_runtime_config.dart';
 import '../../../core/session/mobile_session_controller.dart';
@@ -1141,6 +1142,7 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
           .read(salesRepositoryProvider)
           .getSaleDetail(saleId);
       if (detail == null) return;
+      if (!ReceiptPrinterService.supportsBluetoothPrinting) return;
       await ref.read(receiptPrinterProvider).printTaxInvoice(detail, shop);
     } catch (_) {
       // No printer connected (or it failed) — the receipt sheet still shows.
@@ -1265,6 +1267,11 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
                           ),
                     ),
                     const SizedBox(height: 24),
+                    // Bluetooth printing is Android-only: iOS does not expose
+                    // Bluetooth Classic SPP to apps. Offering a button that can
+                    // only fail is worse than not offering it, and the Share /
+                    // PDF action below works on both platforms.
+                    if (ReceiptPrinterService.supportsBluetoothPrinting)
                     SizedBox(
                       width: double.infinity,
                       height: 54,
@@ -1283,7 +1290,8 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
                         label: Text(printing ? 'Printing...' : 'Print receipt'),
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    if (ReceiptPrinterService.supportsBluetoothPrinting)
+                      const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
                       height: 54,

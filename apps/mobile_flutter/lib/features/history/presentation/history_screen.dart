@@ -13,6 +13,7 @@ import '../../../core/backend/backend_api_client.dart';
 import '../../../core/database/mobile_repository.dart';
 import '../../../core/insights/mobile_operational_insights.dart';
 import '../../../core/models/mobile_models.dart';
+import '../../../core/printer/receipt_printer.dart';
 import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/providers/printer_provider.dart';
 import '../../../core/receipt/receipt_pdf.dart';
@@ -785,6 +786,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         ),
                       ),
                       const SizedBox(height: 18),
+                      // Android only — iOS cannot drive a Bluetooth Classic
+                      // thermal printer, so the button is hidden there rather
+                      // than shown and then failing.
+                      if (ReceiptPrinterService.supportsBluetoothPrinting)
                       Consumer(
                         builder: (context, ref, child) {
                           return ElevatedButton.icon(
