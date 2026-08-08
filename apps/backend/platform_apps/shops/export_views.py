@@ -12,6 +12,9 @@ and can be read by whoever they move to next.
 from __future__ import annotations
 
 import json
+import zipfile
+import io
+import csv
 import uuid
 from decimal import Decimal
 
@@ -49,8 +52,63 @@ class _Encoder(json.JSONEncoder):
         return super().default(o)
 
 
+def _csv_bundle(payload: dict) -> bytes:
+    """The same export as a zip of spreadsheets.
+
+    JSON is the right format for re-importing and the wrong one for a
+    shopkeeper: the owner who most needs their own data out of the product is
+    the least likely to be able to read it. Each list in the payload becomes
+    one CSV that opens in Excel by double-clicking, and nested values are
+    flattened to text rather than dropped.
+
+    utf-8-sig, not utf-8: without the byte-order mark Excel on Windows renders
+    Hindi and Gujarati product names as mojibake, which for this audience makes
+    the file useless.
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as bundle:
+        for name, rows in payload.items():
+            if not isinstance(rows, list) or not rows:
+                continue
+            columns: list[str] = []
+            for row in rows:
+                for key in row:
+                    if key not in columns:
+                        columns.append(key)
+            text = io.StringIO()
+            writer = csv.DictWriter(
+                text, fieldnames=columns, extrasaction="ignore", lineterminator="\n"
+            )
+            writer.writeheader()
+            for row in rows:
+                writer.writerow(
+                    {
+                        k: ("" if v is None else str(v))
+                        for k, v in row.items()
+                        if k in columns
+                    }
+                )
+            bundle.writestr(f"{name}.csv", text.getvalue().encode("utf-8-sig"))
+
+        # The shop record is a single object, not a list, so it would otherwise
+        # be the one thing missing from the readable export.
+        shop = payload.get("shop") or {}
+        if shop:
+            text = io.StringIO()
+            writer = csv.writer(text, lineterminator="\n")
+            writer.writerow(["field", "value"])
+            for key, value in shop.items():
+                writer.writerow([key, "" if value is None else str(value)])
+            bundle.writestr("shop.csv", text.getvalue().encode("utf-8-sig"))
+    return buffer.getvalue()
+
+
 class ShopDataExportView(APIView):
-    """Everything this shop owns, as one JSON file."""
+    """Everything this shop owns — as JSON, or as a zip of spreadsheets.
+
+    `?output=csv` returns the readable version. The default stays JSON so any
+    existing caller keeps working.
+    """
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -149,9 +207,27 @@ class ShopDataExportView(APIView):
             ),
         }
 
-        body = json.dumps(payload, cls=_Encoder, indent=2)
         stamp = timezone.now().strftime("%Y-%m-%d")
-        filename = f"business-hub-{shop.slug or shop.id}-{stamp}.json"
+        base = f"business-hub-{shop.slug or shop.id}-{stamp}"
+
+        # NOT "format": Django REST Framework reserves that query parameter
+        # for renderer negotiation, so ?format=csv is intercepted before this
+        # view runs and answered with 404 "Not found" for an unknown renderer.
+        if request.query_params.get("output", "").lower() == "csv":
+            # Round-trip through the JSON encoder first so Decimals, UUIDs and
+            # datetimes are already strings; the CSV writer would otherwise
+            # emit Python reprs for them.
+            normalised = json.loads(json.dumps(payload, cls=_Encoder))
+            response = HttpResponse(
+                _csv_bundle(normalised), content_type="application/zip"
+            )
+            response["Content-Disposition"] = (
+                f'attachment; filename="{base}-spreadsheets.zip"'
+            )
+            return response
+
+        body = json.dumps(payload, cls=_Encoder, indent=2)
+        filename = f"{base}.json"
 
         response = HttpResponse(body, content_type="application/json")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
