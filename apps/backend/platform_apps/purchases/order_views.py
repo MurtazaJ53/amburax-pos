@@ -24,6 +24,7 @@ from rest_framework import exceptions, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from platform_apps.common.emailer import send_email
 from platform_apps.inventory.models import InventoryItem
 from platform_apps.purchases.models import (
     PurchaseOrder,
@@ -246,6 +247,122 @@ class PurchaseOrderDetailView(APIView):
         order.closed_at = timezone.now()
         order.save(update_fields=["status", "closed_at", "updated_at"])
         return Response(_serialize(order))
+
+
+def _order_email_html(order, lines) -> tuple[str, str]:
+    """The order as an email a supplier can act on.
+
+    Both HTML and plain text: many small-supplier mailboxes strip HTML, and a
+    purchase order that arrives as an empty message is worse than none.
+
+    Deliberately excludes anything the supplier should not see. They are told
+    what is being ordered and at what rate — not what the shop sells it for,
+    nor which other suppliers exist.
+    """
+    shop = order.shop
+    rows_html = "".join(
+        f"<tr><td style='padding:6px 10px;border-bottom:1px solid #eee'>{line.name_snapshot}</td>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid #eee'>{line.sku_snapshot}</td>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid #eee;text-align:right'>{line.quantity_ordered}</td>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid #eee;text-align:right'>{line.unit_cost}</td></tr>"
+        for line in lines
+    )
+    expected = (
+        f"<p>Expected by: <b>{order.expected_date}</b></p>" if order.expected_date else ""
+    )
+    note = f"<p>{order.note}</p>" if order.note.strip() else ""
+    html = (
+        f"<div style='font-family:sans-serif;max-width:600px'>"
+        f"<h2 style='margin-bottom:4px'>Purchase order {order.reference}</h2>"
+        f"<p style='color:#555;margin-top:0'>From <b>{shop.name}</b></p>"
+        f"{expected}"
+        f"<table style='border-collapse:collapse;width:100%;font-size:14px'>"
+        f"<thead><tr>"
+        f"<th style='text-align:left;padding:6px 10px;border-bottom:2px solid #333'>Item</th>"
+        f"<th style='text-align:left;padding:6px 10px;border-bottom:2px solid #333'>SKU</th>"
+        f"<th style='text-align:right;padding:6px 10px;border-bottom:2px solid #333'>Qty</th>"
+        f"<th style='text-align:right;padding:6px 10px;border-bottom:2px solid #333'>Rate</th>"
+        f"</tr></thead><tbody>{rows_html}</tbody></table>"
+        f"{note}"
+        f"<p style='color:#777;font-size:12px'>Please confirm availability and "
+        f"delivery date by replying to this email.</p></div>"
+    )
+
+    text_lines = [f"Purchase order {order.reference}", f"From: {shop.name}"]
+    if order.expected_date:
+        text_lines.append(f"Expected by: {order.expected_date}")
+    text_lines.append("")
+    for line in lines:
+        sku = f" ({line.sku_snapshot})" if line.sku_snapshot else ""
+        text_lines.append(
+            f"  {line.name_snapshot}{sku} — {line.quantity_ordered} @ {line.unit_cost}"
+        )
+    if order.note.strip():
+        text_lines += ["", order.note.strip()]
+    text_lines += ["", "Please confirm availability and delivery date by reply."]
+    return html, "\n".join(text_lines)
+
+
+class PurchaseOrderSendView(APIView):
+    """Email the order to the supplier.
+
+    Recording an order in the system does not tell the supplier anything, so
+    until now the shop still had to communicate it by whatever means it already
+    used. This closes that gap for suppliers who have an email address.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, shop_id, order_id):
+        membership = get_membership_or_403(request.user, shop_id, ORDER_ROLE)
+        order = get_object_or_404(PurchaseOrder, id=order_id, shop=membership.shop)
+
+        if order.status == PurchaseOrder.Status.CANCELLED:
+            raise exceptions.ValidationError(
+                {"status": "This order was cancelled."}
+            )
+
+        to = (request.data.get("email") or "").strip()
+        if not to and order.supplier_id:
+            to = (order.supplier.email or "").strip()
+        if not to:
+            raise exceptions.ValidationError(
+                {"email": "This supplier has no email address. Add one, or "
+                          "pass an address to send to."}
+            )
+
+        lines = list(order.lines.all())
+        if not lines:
+            raise exceptions.ValidationError({"lines": "This order has no items."})
+
+        html, text = _order_email_html(order, lines)
+        result = send_email(
+            to=to,
+            subject=f"Purchase order {order.reference} from {membership.shop.name}",
+            html=html,
+            text=text,
+        )
+
+        # A draft that has now been communicated is, in every sense that
+        # matters, an order. Sending it is the act of placing it.
+        if order.status == PurchaseOrder.Status.DRAFT and result.get("ok"):
+            order.status = PurchaseOrder.Status.ORDERED
+            order.ordered_at = timezone.now()
+            order.save(update_fields=["status", "ordered_at", "updated_at"])
+
+        # The provider's own outcome is passed through rather than flattened to
+        # "sent": a shop whose sending domain is unverified needs to know the
+        # supplier never received it.
+        return Response(
+            {
+                "sent": bool(result.get("ok")),
+                "skipped": bool(result.get("skipped")),
+                "to": to,
+                "detail": result.get("status") or result.get("error") or "",
+                "order": _serialize(order),
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class PurchaseOrderReceiveView(APIView):

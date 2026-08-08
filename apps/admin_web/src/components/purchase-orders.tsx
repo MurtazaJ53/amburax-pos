@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ClipboardList,
+  Mail,
   Package,
   Plus,
   RefreshCw,
@@ -85,6 +86,7 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [sentNote, setSentNote] = useState<string | null>(null);
 
   const [composing, setComposing] = useState(false);
   const [supplierId, setSupplierId] = useState("");
@@ -230,6 +232,38 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
     }
   };
 
+  /**
+   * Email the order to the supplier.
+   *
+   * The provider's own outcome is surfaced rather than a blanket "sent": a
+   * shop whose sending domain is unverified needs to know the supplier never
+   * received it, instead of waiting for goods nobody was asked for.
+   */
+  const send = async (order: Order) => {
+    setBusyId(order.id);
+    setError(null);
+    setSentNote(null);
+    try {
+      const res = await fetch(`/api/purchase-orders/${order.id}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Could not send this order.");
+      setSentNote(
+        body.sent
+          ? `Order ${order.reference} emailed to ${body.to}.`
+          : `Not sent — ${body.detail || "email is not configured on the server."}`,
+      );
+      await load();
+    } catch (err) {
+      setError(errorMessage(err, "Could not send this order."));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const cancel = async (order: Order) => {
     setBusyId(order.id);
     setError(null);
@@ -290,6 +324,12 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
           )}
         </div>
       </div>
+
+      {sentNote && (
+        <div className="rounded-2xl border border-[var(--primary)]/30 bg-[var(--primary)]/10 px-5 py-3 text-xs font-bold text-[var(--text-primary)]">
+          {sentNote}
+        </div>
+      )}
 
       {error && (
         <div className="rounded-2xl border border-[var(--error)]/30 bg-[var(--error)]/10 px-5 py-4 text-sm font-semibold text-[var(--error-strong)]">
@@ -543,12 +583,24 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
                   ))}
                 </div>
 
+                {canOrder && order.status !== "cancelled" && (
+                  <button
+                    type="button"
+                    onClick={() => void send(order)}
+                    disabled={busyId === order.id}
+                    className="mt-3.5 w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border)] px-6 py-2.5 text-xs font-extrabold text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--text-primary)] disabled:opacity-50"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    {busyId === order.id ? "Sending…" : "Email to supplier"}
+                  </button>
+                )}
+
                 {receivable && canOrder && (
                   <button
                     type="button"
                     onClick={() => void receive(order)}
                     disabled={busyId === order.id}
-                    className="mt-3.5 w-full rounded-2xl bg-[var(--success)] px-6 py-3 text-xs font-extrabold text-white hover:opacity-90 disabled:opacity-50"
+                    className="mt-2 w-full rounded-2xl bg-[var(--success)] px-6 py-3 text-xs font-extrabold text-white hover:opacity-90 disabled:opacity-50"
                   >
                     {busyId === order.id ? "Booking in…" : "Book in what arrived"}
                   </button>

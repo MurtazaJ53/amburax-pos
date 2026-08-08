@@ -63,6 +63,7 @@ from platform_apps.purchases.order_views import (
     PurchaseOrderDetailView,
     PurchaseOrderListCreateView,
     PurchaseOrderReceiveView,
+    PurchaseOrderSendView,
 )
 from platform_apps.projections.reports import ProfitAndLossView
 from platform_apps.projections.views import (
@@ -193,6 +194,11 @@ urlpatterns = [
         "<uuid:shop_id>/purchase-orders/<uuid:order_id>/",
         PurchaseOrderDetailView.as_view(),
         name="purchase-order-detail",
+    ),
+    path(
+        "<uuid:shop_id>/purchase-orders/<uuid:order_id>/send/",
+        PurchaseOrderSendView.as_view(),
+        name="purchase-order-send",
     ),
     path(
         "<uuid:shop_id>/purchase-orders/<uuid:order_id>/receive/",
