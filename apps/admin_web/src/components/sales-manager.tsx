@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
+
 import React, { useState, useMemo } from "react";
 import {
   Receipt,
@@ -98,6 +100,7 @@ function toSaleOrder(item: ApiSale): SaleOrder {
 }
 
 export function SalesManager({ initialSales }: SalesManagerProps) {
+  const t = useT();
   const mappedInitial = React.useMemo(() => {
     return (initialSales ?? []).map(toSaleOrder);
   }, [initialSales]);
@@ -320,7 +323,7 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
                     <th className="py-3 px-4 text-center">Items</th>
                     <th className="py-3 px-4 text-center">Payment Mode</th>
                     <th className="py-3 px-4 text-right">GST Tax</th>
-                    <th className="py-3 px-4 text-right">Grand Total</th>
+                    <th className="py-3 px-4 text-right">{t("webGrandTotal", "Grand Total")}</th>
                     <th className="py-3 px-4 text-right">Action</th>
                   </tr>
                 </thead>

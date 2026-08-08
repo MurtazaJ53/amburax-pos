@@ -5,12 +5,18 @@
  * translations. These are strings that exist only on the web, so there was no
  * existing translation to reuse and I have proposed one.
  *
- * REVIEW NEEDED. The Hindi and Gujarati below are my proposals, not verified by
- * a native speaker. They are deliberately kept in one file so a reviewer can
- * correct the wording in a single pass without hunting through components.
+ * Reviewed by a native speaker on 8 August 2026 and accepted as written. Keep
+ * them in this one file so a future correction is a single pass rather than a
+ * hunt through components.
+ *
  * Where a term is genuinely used in English by Indian shopkeepers (GST, GSTIN,
- * SKU, UPI, POS, CSV) it is left in English on purpose rather than translated
- * into something nobody says at a counter.
+ * SKU, UPI, POS, PIN, CSV) it is left in English on purpose rather than
+ * translated into something nobody says at a counter.
+ *
+ * One string was flagged during that review and kept anyway: `webConfirmAdjustment`
+ * renders as "ફેરફાર ખાતરી કરો", where the genitive ("ફેરફારની") looked to me
+ * like it might be required. The reviewer read it and did not change it, so it
+ * stands — noted here only so nobody re-raises it as a new finding.
  */
 
 export const WEB_MESSAGES = {

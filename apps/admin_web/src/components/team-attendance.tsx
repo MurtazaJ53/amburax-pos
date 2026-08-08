@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
+
 import React, { useState, useMemo } from "react";
 import {
   Plus,
@@ -27,6 +29,7 @@ interface TeamAttendanceProps {
 }
 
 export function TeamAttendance({ initialTeam, initialSessions, initialSummary }: TeamAttendanceProps) {
+  const t = useT();
   const [staff, setStaff] = useState<WorkspaceTeamMemberPayload[]>(initialTeam ?? []);
   const [attendance, setAttendance] = useState<AttendanceSession[]>(initialSessions ?? []);
   const [summary, setSummary] = useState<AttendanceSummaryPayload>(initialSummary ?? { total_sessions: 0, present_count: 0, leave_count: 0, active_workers_today: 0 });
@@ -301,7 +304,7 @@ export function TeamAttendance({ initialTeam, initialSessions, initialSummary }:
               <thead>
                 <tr className="bg-bg-soft border-b border-[var(--border-soft)] text-[var(--text-tertiary)] font-semibold uppercase tracking-wider text-[10px]">
                   <th className="py-3 px-4">Member Name</th>
-                  <th className="py-3 px-4">Email</th>
+                  <th className="py-3 px-4">{t("webEmail", "Email")}</th>
                   <th className="py-3 px-4">Role</th>
                   <th className="py-3 px-4">Phone</th>
                   <th className="py-3 px-4">Status</th>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
+
 import React, { useState, useEffect } from "react";
 import {
   Wallet,
@@ -25,6 +27,7 @@ interface ExpensesManagerProps {
 }
 
 export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesManagerProps) {
+  const t = useT();
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses ?? []);
   const [summary, setSummary] = useState<ExpenseSummaryPayload>(initialSummary ?? { total_expenses: 0, total_amount: "0.00", categories: {} });
   const [search, setSearch] = useState("");
@@ -246,7 +249,7 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
             <thead>
               <tr className="bg-bg-soft border-b border-[var(--border-soft)] text-[var(--text-tertiary)] font-semibold uppercase tracking-wider text-[10px]">
                 <th className="py-3 px-4">Expense Title</th>
-                <th className="py-3 px-4">Category</th>
+                <th className="py-3 px-4">{t("webCategory", "Category")}</th>
                 <th className="py-3 px-4">Date</th>
                 <th className="py-3 px-4 text-center">Payment Mode</th>
                 <th className="py-3 px-4">Reference / Voucher</th>

@@ -1,3 +1,4 @@
+import { getServerT } from "@/lib/i18n/server";
 import { formatCurrency } from "@/lib/formatters";
 import type { Customer } from "@/lib/types";
 
@@ -6,7 +7,8 @@ type CustomerTableProps = {
   currencyCode?: string;
 };
 
-export function CustomerTable({ customers, currencyCode = "INR" }: CustomerTableProps) {
+export async function CustomerTable({ customers, currencyCode = "INR" }: CustomerTableProps) {
+  const t = await getServerT();
   return (
     <div className="panel-soft overflow-hidden rounded-[28px]">
       <div className="overflow-x-auto">
@@ -15,7 +17,7 @@ export function CustomerTable({ customers, currencyCode = "INR" }: CustomerTable
             <tr className="border-b border-[var(--border-soft)] text-left text-xs uppercase tracking-[0.24em] text-[var(--text-muted)]">
               <th className="px-5 py-4 font-medium">Customer</th>
               <th className="px-5 py-4 font-medium">Phone</th>
-              <th className="px-5 py-4 font-medium">Email</th>
+              <th className="px-5 py-4 font-medium">{t("webEmail", "Email")}</th>
               <th className="px-5 py-4 font-medium">Outstanding</th>
               <th className="px-5 py-4 font-medium">Lifetime spend</th>
               <th className="px-5 py-4 font-medium">Status</th>

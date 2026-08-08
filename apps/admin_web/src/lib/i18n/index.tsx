@@ -2,26 +2,15 @@
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
-import { MESSAGES, type Locale, type MessageKey } from "@/lib/i18n/messages.generated";
-import { WEB_MESSAGES, type WebMessageKey } from "@/lib/i18n/web-messages";
-import { LOCALE_COOKIE } from "@/lib/i18n/shared";
+import { LOCALE_COOKIE, TABLES } from "@/lib/i18n/shared";
 
-export type { Locale, MessageKey, WebMessageKey };
-
-/** Any key from either table: the app's reviewed strings or the web-only ones. */
-export type AnyMessageKey = MessageKey | WebMessageKey;
-
-/** The app's translations win on a key collision: they are the reviewed ones. */
-const TABLES: Record<Locale, Record<string, string>> = {
-  en: { ...WEB_MESSAGES.en, ...MESSAGES.en },
-  hi: { ...WEB_MESSAGES.hi, ...MESSAGES.hi },
-  gu: { ...WEB_MESSAGES.gu, ...MESSAGES.gu },
-};
+export type { Locale, MessageKey, WebMessageKey, AnyMessageKey } from "@/lib/i18n/shared";
+import type { AnyMessageKey, Locale } from "@/lib/i18n/shared";
 // Re-exported for convenience; the definitions live in shared.ts so server
 // components can use them too.
 export { LOCALE_COOKIE, LOCALES, isLocale } from "@/lib/i18n/shared";
 
-type Translate = (key: AnyMessageKey, fallback?: string) => string;
+import type { Translate } from "@/lib/i18n/shared";
 
 const LocaleContext = createContext<{ locale: Locale; setLocale: (l: Locale) => void; t: Translate }>({
   locale: "en",

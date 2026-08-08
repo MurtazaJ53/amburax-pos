@@ -1,3 +1,4 @@
+import { getServerT } from "@/lib/i18n/server";
 import { formatCurrency } from "@/lib/formatters";
 import type { InventoryItem } from "@/lib/types";
 
@@ -8,12 +9,13 @@ type InventoryTableProps = {
   showPurchaseColumn?: boolean;
 };
 
-export function InventoryTable({
+export async function InventoryTable({
   items,
   currencyCode = "INR",
   showSupplierColumn = false,
   showPurchaseColumn = false,
 }: InventoryTableProps) {
+  const t = await getServerT();
   const columnCount = 6 + (showSupplierColumn ? 1 : 0) + (showPurchaseColumn ? 1 : 0);
   return (
     <div className="panel-soft overflow-hidden rounded-[28px]">
@@ -22,7 +24,7 @@ export function InventoryTable({
           <thead>
             <tr className="border-b border-[var(--border-soft)] text-left text-xs uppercase tracking-[0.24em] text-[var(--text-muted)]">
               <th className="px-5 py-4 font-medium">Item</th>
-              <th className="px-5 py-4 font-medium">Category</th>
+              <th className="px-5 py-4 font-medium">{t("webCategory", "Category")}</th>
               <th className="px-5 py-4 font-medium">SKU</th>
               <th className="px-5 py-4 font-medium">Stock</th>
               <th className="px-5 py-4 font-medium">Sell price</th>

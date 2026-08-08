@@ -1,3 +1,4 @@
+import { getServerT } from "@/lib/i18n/server";
 import { formatCurrency } from "@/lib/formatters";
 import type { Expense } from "@/lib/types";
 
@@ -6,14 +7,15 @@ type ExpenseTableProps = {
   currencyCode?: string;
 };
 
-export function ExpenseTable({ expenses, currencyCode = "INR" }: ExpenseTableProps) {
+export async function ExpenseTable({ expenses, currencyCode = "INR" }: ExpenseTableProps) {
+  const t = await getServerT();
   return (
     <div className="panel-soft overflow-hidden rounded-[28px]">
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead>
             <tr className="border-b border-[var(--border-soft)] text-left text-xs uppercase tracking-[0.24em] text-[var(--text-muted)]">
-              <th className="px-5 py-4 font-medium">Category</th>
+              <th className="px-5 py-4 font-medium">{t("webCategory", "Category")}</th>
               <th className="px-5 py-4 font-medium">Description</th>
               <th className="px-5 py-4 font-medium">Method</th>
               <th className="px-5 py-4 font-medium">Date</th>
