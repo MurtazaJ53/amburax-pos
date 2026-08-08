@@ -164,6 +164,43 @@ def _on_order_by_item(shop) -> dict[str, Decimal]:
     return out
 
 
+def _in_transit_by_item(shop) -> dict[str, Decimal]:
+    """How much stock is on its way to this shop from another of its own shops.
+
+    Dispatching a transfer removes the stock from the source immediately; it
+    only appears here once someone confirms it arrived. In between, the
+    destination looks short of an item that is sitting in a van — and the
+    buying list would tell the shop to purchase more of it.
+
+    Transfer lines reference the SOURCE shop's item, and the destination row is
+    not resolved until receipt, so each line has to be mapped to the local item
+    using the same barcode → SKU → name+size rule receiving uses. That rule is
+    imported rather than restated: two copies would drift, and the symptom
+    would be exactly the double-ordering this exists to prevent.
+    """
+    from platform_apps.inventory.transfer_views import find_destination_item
+    from platform_apps.inventory.models import StockTransfer, StockTransferLine
+
+    lines = (
+        StockTransferLine.objects.filter(
+            transfer__destination_shop=shop,
+            transfer__status=StockTransfer.Status.IN_TRANSIT,
+        )
+        .select_related("source_item")
+    )
+
+    out: dict[str, Decimal] = {}
+    for line in lines:
+        local = find_destination_item(shop, line.source_item)
+        # No local row yet means the shop has never stocked it, so it cannot be
+        # below a reorder level and cannot appear on the buying list anyway.
+        if local is None:
+            continue
+        key = str(local.id)
+        out[key] = out.get(key, _ZERO) + line.quantity
+    return out
+
+
 class ReorderListView(APIView):
     """Everything at or below its reorder level — the full buying list.
 
@@ -198,13 +235,18 @@ class ReorderListView(APIView):
         )
 
         on_order = _on_order_by_item(membership.shop)
+        in_transit = _in_transit_by_item(membership.shop)
 
         items = []
         fully_covered = 0
         for item in rows:
             level = int(item.effective_reorder_level)
             stock = item.stock or _ZERO
-            incoming = on_order.get(str(item.id), _ZERO)
+            # Both count as stock already secured: one bought from a supplier,
+            # one already paid for and moving between the owner's own shops.
+            incoming = on_order.get(str(item.id), _ZERO) + in_transit.get(
+                str(item.id), _ZERO
+            )
 
             # Buy up to twice the reorder level so the shop isn't back at the
             # threshold the day after restocking. Always at least 1.
@@ -234,7 +276,9 @@ class ReorderListView(APIView):
                     "stock": stock,
                     "reorder_level": level,
                     "uses_default_level": item.reorder_level is None,
-                    "on_order": incoming,
+                    "on_order": on_order.get(str(item.id), _ZERO),
+                    "in_transit": in_transit.get(str(item.id), _ZERO),
+                    "incoming_total": incoming,
                     "suggested_qty": suggested,
                     "cost_price": cost,
                     "estimated_cost": None if cost is None else cost * suggested,
@@ -250,8 +294,9 @@ class ReorderListView(APIView):
             {
                 "default_reorder_level": DEFAULT_REORDER_LEVEL,
                 "out_of_stock_count": sum(1 for row in items if row["out_of_stock"]),
-                # Low, but already ordered. Surfaced as a count so the absence
-                # of these rows is visible rather than looking like a bug.
+                # Low, but already ordered or already in transit. Surfaced as
+                # a count so the absence of these rows reads as deliberate
+                # rather than as a bug.
                 "covered_by_open_orders": fully_covered,
                 # Null rather than a partial sum: a half-counted buying budget
                 # is worse than none.

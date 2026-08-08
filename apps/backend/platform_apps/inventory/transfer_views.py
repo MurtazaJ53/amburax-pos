@@ -255,13 +255,18 @@ class StockTransferListCreateView(APIView):
         return Response(_serialize(transfer), status=status.HTTP_201_CREATED)
 
 
-def _matching_destination_item(shop, source_item: InventoryItem) -> InventoryItem:
-    """Find the destination shop's row for this product, or create it.
+def find_destination_item(shop, source_item: InventoryItem) -> InventoryItem | None:
+    """The destination shop's existing row for this product, or None.
 
     Matched on barcode first, then SKU, then name+size — the same precedence
     the data-health duplicate scan uses, so the two agree about what counts as
-    "the same product". Created rows carry the source's selling price and GST
-    setup but not its stock: stock arrives through the ledger entry.
+    "the same product".
+
+    Read-only and public because the reorder list needs to answer the same
+    question — "which local item is this incoming transfer line?" — without
+    creating anything. A second copy of this rule in the reports module would
+    drift from this one, and then a shop would be told to buy stock that is
+    already on its way.
     """
     barcode = (source_item.barcode or "").strip()
     if barcode:
@@ -279,14 +284,24 @@ def _matching_destination_item(shop, source_item: InventoryItem) -> InventoryIte
         if match:
             return match
 
-    match = InventoryItem.objects.filter(
+    return InventoryItem.objects.filter(
         shop=shop,
         name__iexact=(source_item.name or "").strip(),
         size__iexact=(source_item.size or "").strip(),
         tombstone=False,
     ).first()
-    if match:
-        return match
+
+
+def _matching_destination_item(shop, source_item: InventoryItem) -> InventoryItem:
+    """As find_destination_item, but creates the row when there is no match.
+
+    A transfer can be sent to a shop that does not stock the item yet. Created
+    rows carry the source's selling price and GST setup but not its stock:
+    stock arrives through the ledger entry.
+    """
+    existing = find_destination_item(shop, source_item)
+    if existing is not None:
+        return existing
 
     return InventoryItem.objects.create(
         shop=shop,

@@ -353,3 +353,169 @@ class ReorderListOnOrderTests(TestCase):
         self.assertEqual(Decimal(str(row["on_order"])), Decimal("0"))
         self.assertEqual(Decimal(str(row["suggested_qty"])), Decimal("8"))
         self.assertEqual(self._fetch().data["covered_by_open_orders"], 0)
+
+
+class ReorderListInTransitTests(TestCase):
+    """Stock already moving between the owner's own shops must not be re-bought.
+
+    Dispatch removes stock from the source at once but adds nothing at the
+    destination until receipt. In between, the destination looks short of
+    something sitting in a van.
+    """
+
+    def setUp(self):
+        self.owner = PlatformUser.objects.create_user(
+            email="transit@example.com", password="secret", full_name="Owner"
+        )
+        self.main = Shop.objects.create(name="Main", slug="t-main")
+        self.branch = Shop.objects.create(name="Branch", slug="t-branch")
+        for shop in (self.main, self.branch):
+            ShopMembership.objects.create(
+                user=self.owner,
+                shop=shop,
+                role=ShopMembership.Role.OWNER,
+                status=ShopMembership.Status.ACTIVE,
+            )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.owner)
+
+    def _item(self, shop, name, *, stock, level=5, sku="", barcode=""):
+        item = InventoryItem.objects.create(
+            shop=shop, name=name, sku=sku, barcode=barcode,
+            sell_price=Decimal("100.00"), reorder_level=level,
+        )
+        if stock:
+            InventoryStockLedger.objects.create(
+                shop=shop, item=item,
+                event_type=InventoryStockLedger.EventType.OPENING_BALANCE,
+                quantity_delta=Decimal(str(stock)), occurred_at=timezone.now(),
+            )
+        return item
+
+    def _dispatch(self, item, qty, *, to):
+        return self.client.post(
+            reverse("stock-transfer-list", args=[item.shop_id]),
+            {"destination_shop_id": str(to.id),
+             "lines": [{"item_id": str(item.id), "quantity": str(qty)}]},
+            format="json",
+        )
+
+    def _reorder(self, shop):
+        return self.client.get(reverse("report-reorder-list", args=[shop.id])).data
+
+    def test_incoming_transfer_reduces_the_suggestion(self):
+        source = self._item(self.main, "Kurta", stock=20, sku="K-1")
+        # Branch: level 5, stock 2 -> target 10, so 8 without anything incoming.
+        self._item(self.branch, "Kurta", stock=2, level=5, sku="K-1")
+
+        self._dispatch(source, 3, to=self.branch)
+        row = self._reorder(self.branch)["items"][0]
+
+        self.assertEqual(Decimal(str(row["in_transit"])), Decimal("3"))
+        self.assertEqual(Decimal(str(row["suggested_qty"])), Decimal("5"))
+
+    def test_fully_covered_by_a_transfer_leaves_the_list(self):
+        source = self._item(self.main, "Saree", stock=50, sku="S-1")
+        self._item(self.branch, "Saree", stock=2, level=5, sku="S-1")
+
+        self._dispatch(source, 20, to=self.branch)
+        payload = self._reorder(self.branch)
+
+        self.assertEqual(payload["items"], [])
+        self.assertEqual(payload["covered_by_open_orders"], 1)
+
+    def test_the_sending_shop_is_not_credited(self):
+        """Stock leaving must not look like stock arriving."""
+        source = self._item(self.main, "Shirt", stock=6, level=5, sku="SH-1")
+        self._item(self.branch, "Shirt", stock=50, level=5, sku="SH-1")
+
+        self._dispatch(source, 4, to=self.branch)
+        rows = self._reorder(self.main)["items"]
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(Decimal(str(rows[0]["in_transit"])), Decimal("0"))
+        # 6 dispatched down to 2; target 10 -> buy 8.
+        self.assertEqual(Decimal(str(rows[0]["suggested_qty"])), Decimal("8"))
+
+    def test_a_received_transfer_stops_counting(self):
+        source = self._item(self.main, "Jeans", stock=20, sku="J-1")
+        self._item(self.branch, "Jeans", stock=2, level=5, sku="J-1")
+        transfer_id = self._dispatch(source, 3, to=self.branch).data["id"]
+
+        self.client.post(
+            reverse("stock-transfer-receive", args=[self.branch.id, transfer_id])
+        )
+        row = self._reorder(self.branch)["items"][0]
+
+        # The stock is real now, so it counts as stock rather than as incoming.
+        self.assertEqual(Decimal(str(row["in_transit"])), Decimal("0"))
+        self.assertEqual(Decimal(str(row["stock"])), Decimal("5"))
+
+    def test_a_cancelled_transfer_stops_counting(self):
+        source = self._item(self.main, "Towel", stock=20, sku="T-1")
+        self._item(self.branch, "Towel", stock=2, level=5, sku="T-1")
+        transfer_id = self._dispatch(source, 3, to=self.branch).data["id"]
+
+        self.client.post(
+            reverse("stock-transfer-cancel", args=[self.main.id, transfer_id])
+        )
+
+        self.assertEqual(
+            Decimal(str(self._reorder(self.branch)["items"][0]["in_transit"])),
+            Decimal("0"),
+        )
+
+    def test_matching_uses_barcode_not_just_name(self):
+        """Same rule as receiving, or the credit lands on the wrong local item."""
+        source = self._item(self.main, "Cap", stock=20, barcode="890999")
+        # Local row has a different name but the same barcode: it is the item.
+        local = self._item(
+            self.branch, "Cap Blue", stock=1, level=5, barcode="890999"
+        )
+        self._item(self.branch, "Cap", stock=1, level=5)
+
+        # 4, not 9: at 9 the item would be fully covered (1 in stock + 9
+        # incoming reaches the target of 10) and correctly drop off the list,
+        # which would prove nothing about which row got the credit.
+        self._dispatch(source, 4, to=self.branch)
+        rows = {r["id"]: r for r in self._reorder(self.branch)["items"]}
+
+        self.assertEqual(
+            Decimal(str(rows[str(local.id)]["in_transit"])), Decimal("4")
+        )
+        # And the same-named row must NOT have been credited.
+        same_name = [r for r in rows.values() if r["name"] == "Cap"][0]
+        self.assertEqual(Decimal(str(same_name["in_transit"])), Decimal("0"))
+
+    def test_an_item_the_branch_never_stocked_is_ignored(self):
+        """Nothing to reorder, so nothing to correct — and no crash."""
+        source = self._item(self.main, "Brand New", stock=20, sku="BN-1")
+        self._item(self.branch, "Something Else", stock=2, level=5, sku="SE-1")
+
+        self._dispatch(source, 5, to=self.branch)
+        payload = self._reorder(self.branch)
+
+        self.assertEqual(len(payload["items"]), 1)
+        self.assertEqual(payload["items"][0]["name"], "Something Else")
+
+    def test_purchase_orders_and_transfers_add_up_together(self):
+        source = self._item(self.main, "Rice", stock=50, sku="R-1")
+        local = self._item(self.branch, "Rice", stock=0, level=5, sku="R-1")
+        supplier = Supplier.objects.create(shop=self.branch, name="Mills")
+        order = PurchaseOrder.objects.create(
+            shop=self.branch, supplier=supplier, reference="PO-X",
+            status=PurchaseOrder.Status.ORDERED, ordered_at=timezone.now(),
+        )
+        PurchaseOrderLine.objects.create(
+            order=order, inventory_item=local, name_snapshot=local.name,
+            quantity_ordered=Decimal("4"), unit_cost=Decimal("10"),
+        )
+
+        self._dispatch(source, 3, to=self.branch)
+        row = self._reorder(self.branch)["items"][0]
+
+        self.assertEqual(Decimal(str(row["on_order"])), Decimal("4"))
+        self.assertEqual(Decimal(str(row["in_transit"])), Decimal("3"))
+        self.assertEqual(Decimal(str(row["incoming_total"])), Decimal("7"))
+        # target 10 - stock 0 - incoming 7 = 3
+        self.assertEqual(Decimal(str(row["suggested_qty"])), Decimal("3"))
