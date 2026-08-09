@@ -128,3 +128,45 @@ The backend is served from `api.indianwasteportal.com`, a domain belonging to
 an unrelated project. It works, but it is visible in the address bar during
 payment flows and should be replaced with a Business Hub domain before
 customers use it.
+
+## Scheduled alerts
+
+Two alerts a day, per shop, in the shop's own timezone:
+
+| Time | Alert | To |
+|---|---|---|
+| 09:00 | What is out of stock or running low | Owners and admins |
+| 21:00 | The day's takings | Owners and admins |
+
+They are sent by a management command, driven by cron. Add this on the droplet
+with `crontab -e`:
+
+```cron
+0 * * * * cd /opt/bhub && docker compose -f docker-compose.demo.yml exec -T api python manage.py send_scheduled_alerts >> /var/log/bhub-alerts.log 2>&1
+```
+
+**Hourly, not twice daily.** Shops can sit in different timezones, the
+container clock is UTC, and a missed run should not silently skip a day. The
+command works out which shops are due from each shop's local time and records
+what it sent, so running it more often than necessary costs nothing and running
+it twice sends nothing twice.
+
+A Celery beat schedule would be the tidier home for this, but the deployment
+runs Celery in-process (`USE_INMEMORY_CHANNELS=1`) with no beat process, so
+cron is the mechanism that actually exists.
+
+To test without waiting for the hour:
+
+```bash
+docker compose -f docker-compose.demo.yml exec -T api \
+  python manage.py send_scheduled_alerts --slot=morning
+```
+
+The once-a-day guard still applies, so a second run that day sends nothing.
+
+### Email delivery
+
+Alerts always create an in-app notification, and additionally email each
+recipient **if `RESEND_API_KEY` is set**. It is not set on the droplet today,
+so alerts currently appear in the app only. The same key enables khata
+reminders and purchase-order emails.
