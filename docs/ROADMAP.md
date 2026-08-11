@@ -2,6 +2,9 @@
 
 Last reviewed 9 August 2026.
 
+> **Sequencing lives in [PHASES.md](PHASES.md).** This page is the inventory of
+> what exists and what does not; that one is the order to do it in, and why.
+
 Written to be honest rather than encouraging. Anything marked **not started**
 has no implementation behind it, and the estimates are the ones I would defend,
 not the ones that sound good.
