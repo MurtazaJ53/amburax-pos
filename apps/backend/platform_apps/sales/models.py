@@ -181,3 +181,88 @@ class SaleCommandReceipt(UUIDStampedModel):
 
     def __str__(self) -> str:
         return f"{self.shop.name}:{self.command_id}"
+
+
+class SaleReturn(SourceTrackedModel):
+    """Goods coming back against an original bill.
+
+    Voiding already existed and cancels a whole sale. That is the wrong tool
+    for the common case: a customer brings one shirt back out of four items,
+    or swaps it for a different size. Doing that with a void plus a fresh bill
+    destroys the record of what was actually sold, and the ledger this system
+    is built on stops explaining itself.
+
+    A return is therefore its own record, linked to the sale it reverses, and
+    lines are returned individually. Stock goes back through the same
+    append-only ledger as everything else.
+
+    Kept out of the Sale table on purpose: a return recorded as a sale with
+    negative amounts would quietly distort every revenue aggregate that does
+    not know to exclude it, and there are a lot of those.
+    """
+
+    class RefundMode(models.TextChoices):
+        CASH = "CASH", "Cash"
+        UPI = "UPI", "UPI"
+        BANK = "BANK", "Bank"
+        CARD = "CARD", "Card"
+        #: Reduces what the customer owes instead of paying money out.
+        KHATA = "KHATA", "Against khata"
+        #: No money moves — the value is being carried into a replacement bill.
+        EXCHANGE = "EXCHANGE", "Exchange"
+
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="sale_returns")
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="returns")
+    actor_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="sale_returns",
+        blank=True,
+        null=True,
+    )
+    reference = models.CharField(max_length=32, blank=True)
+    refund_mode = models.CharField(
+        max_length=16, choices=RefundMode.choices, default=RefundMode.CASH
+    )
+    refund_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00")
+    )
+    note = models.TextField(blank=True)
+    occurred_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["-occurred_at", "-created_at"]
+        indexes = [
+            models.Index(fields=["shop", "occurred_at"]),
+            models.Index(fields=["sale"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.reference or self.pk} against {self.sale_id}"
+
+
+class SaleReturnLine(SourceTrackedModel):
+    """One item coming back, and how much of it."""
+
+    sale_return = models.ForeignKey(
+        SaleReturn, on_delete=models.CASCADE, related_name="lines"
+    )
+    #: The line on the original bill, so a partial return can be checked
+    #: against what was actually sold.
+    sale_item = models.ForeignKey(
+        SaleItem, on_delete=models.PROTECT, related_name="return_lines"
+    )
+    inventory_item = models.ForeignKey(
+        "inventory.InventoryItem",
+        on_delete=models.SET_NULL,
+        related_name="sale_return_lines",
+        blank=True,
+        null=True,
+    )
+    name_snapshot = models.CharField(max_length=255)
+    quantity = models.DecimalField(max_digits=12, decimal_places=3)
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    line_total = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+
+    def __str__(self) -> str:
+        return f"{self.name_snapshot} x{self.quantity}"

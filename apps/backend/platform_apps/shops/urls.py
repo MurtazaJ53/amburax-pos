@@ -73,6 +73,11 @@ from platform_apps.projections.views import (
     ShopPulseSnapshotView,
 )
 from platform_apps.sales.daybook_views import DayBookView
+from platform_apps.sales.return_views import (
+    SaleReturnCreateView,
+    SaleReturnListView,
+    SaleReturnableView,
+)
 from platform_apps.sales.pulse_views import BestSellersView, CashFlowView
 from platform_apps.sales.views import (
     SaleStaffPerformanceView,
@@ -305,6 +310,17 @@ urlpatterns = [
     path("<uuid:shop_id>/sales/history-import/", SaleHistoryBulkImportView.as_view(), name="sale-history-import"),
     path("<uuid:shop_id>/sales/<uuid:sale_id>/", SaleDetailView.as_view(), name="sale-detail"),
     path("<uuid:shop_id>/sales/<uuid:sale_id>/void/", SaleVoidView.as_view(), name="sale-void"),
+    path(
+        "<uuid:shop_id>/sales/<uuid:sale_id>/returnable/",
+        SaleReturnableView.as_view(),
+        name="sale-returnable",
+    ),
+    path(
+        "<uuid:shop_id>/sales/<uuid:sale_id>/return/",
+        SaleReturnCreateView.as_view(),
+        name="sale-return",
+    ),
+    path("<uuid:shop_id>/returns/", SaleReturnListView.as_view(), name="sale-return-list"),
     path(
         "<uuid:shop_id>/inventory/<uuid:item_id>/adjust-stock/",
         InventoryItemAdjustmentView.as_view(),
