@@ -1,6 +1,6 @@
 # Remaining work and future scope
 
-Last reviewed 8 August 2026.
+Last reviewed 9 August 2026.
 
 Written to be honest rather than encouraging. Anything marked **not started**
 has no implementation behind it, and the estimates are the ones I would defend,
@@ -12,12 +12,13 @@ not the ones that sound good.
 
 | | |
 |---|---|
-| Backend tests | 617 passing |
-| Counter app tests | 320 passing, `flutter analyze` clean |
-| Admin web tests | 98 passing, 68 routes smoke-checked, `tsc` clean |
+| Backend tests | 670 passing |
+| Counter app tests | 327 passing, `flutter analyze` clean |
+| Admin web tests | 98 passing, 70 routes smoke-checked, `tsc` clean |
 | Outstanding lint | 0 errors, 25 warnings (`set-state-in-effect`, audited — see eslint.config.mjs) |
 | Surfaces | Android counter app + admin web, both shipping. An iOS target builds in CI but has never run on a device. See [platform-targets.md](platform-targets.md) |
 | Live to users | **No.** Reachable only through an SSH tunnel |
+| Deployed | Yes — the droplet now runs current code and all migrations |
 
 The product is feature-complete for a first shop. It is not launched, and the
 gap between those two states is almost entirely operational.
@@ -45,20 +46,21 @@ belonging to an unrelated project. It works, but it is visible in the address
 bar during payment flows and should move to a Business Hub domain at the same
 time.
 
-### Deploy what is already built
+### ~~Deploy what is already built~~ — done 9 August 2026
 
-The droplet still pulls from `BUSINESS-HUB/main`, which is now a frozen
-archive. It needs repointing at the current repository, and it is behind by
-three migrations:
+The droplet was repointed from the frozen `BUSINESS-HUB` archive to the
+current repository, rebuilt, and all pending migrations applied. Verified by
+running the alerts command against it, which reported three shops checked.
 
-```
-inventory/0007   stock transfers
-customers/0007   khata statement links
-purchases/0002   purchase orders and goods receipt
-```
+One task remains here: add the hourly cron entry for scheduled alerts. See
+`apps/admin_web/DEPLOY.md`.
 
-Until that runs, stock transfers, purchase orders, statement links, bulk
-reminders, camera scanning and data export exist only in git.
+### Set RESEND_API_KEY
+
+Not set on the droplet, so nothing the product sends actually leaves it.
+Scheduled alerts appear in-app only, khata reminders cannot email, and
+purchase orders cannot reach a supplier. One environment variable unblocks all
+three, and it is the highest-value configuration change outstanding.
 
 ### Rotate the exposed credentials
 
@@ -81,14 +83,11 @@ cannot recover it.
 
 ## 2. Engineering worth doing next
 
-Ordered by value per day of work.
-
-### Reorder list should subtract stock in transit
-
-Purchase orders are now accounted for, but stock moving between the owner's own
-shops is not. An item can look low at the destination while a transfer is on the
-way. Same class of bug as the purchase-order gap, same fix.
-**Small — under a day.**
+Ordered by value per day of work. Shipped since the last review and removed
+from this list: the reorder list now subtracts stock both on order and in
+transit; the day book (Roj Mel) and the 09:00/21:00 scheduled alerts cover the
+daily closing summary; purchase orders can be emailed to suppliers; the shop's
+data exports as spreadsheets as well as JSON.
 
 ### Import reconciliation should say which rows failed
 
@@ -110,13 +109,6 @@ The ledger already has a `return` event type, but there is no flow for taking
 goods back against an original bill — particularly an exchange for a different
 size, which is routine in garment retail.
 **3–5 days.**
-
-### Daily closing summary
-
-A short evening message to the owner: takings, top items, cash expected. Email
-delivery is already wired through Resend, so this is mostly scheduling and
-wording.
-**1–2 days.**
 
 ### Supplier price history
 
