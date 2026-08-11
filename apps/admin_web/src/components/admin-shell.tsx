@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   ArrowLeftRight,
+  ClipboardCheck,
   BookOpen,
   ClipboardList,
   Tags,
@@ -59,6 +60,7 @@ type AdminShellProps = {
     | "suppliers"
     | "transfers"
     | "labels"
+    | "stocktake"
     | "day-book"
     | "purchase-orders"
     | "purchases"
@@ -124,6 +126,7 @@ export function AdminShell({
     { key: "expenses", label: t("settingsExpenses"), href: "/expenses", icon: TrendingDown },
     { key: "suppliers", label: t("settingsPurchases"), href: "/suppliers", icon: Truck },
     { key: "purchase-orders", label: "Purchase orders", href: "/purchase-orders", icon: ClipboardList },
+    { key: "stocktake", label: "Stocktake", href: "/stocktake", icon: ClipboardCheck },
     { key: "transfers", label: "Stock transfers", href: "/transfers", icon: ArrowLeftRight },
     { key: "labels", label: "Barcode labels", href: "/labels", icon: Tags },
     { key: "import", label: t("settingsImport"), href: "/import", icon: Upload },
