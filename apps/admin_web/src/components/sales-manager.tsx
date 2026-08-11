@@ -8,8 +8,10 @@ import {
   Search,
   RotateCcw,
   Lock,
+  Undo2,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { SaleReturnSheet } from "@/components/sale-return-sheet";
 import { ThermalReceiptModal } from "@/components/thermal-receipt-modal";
 import type { CartItem, SplitPaymentTender } from "@/lib/types";
 
@@ -115,6 +117,7 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
 
   // Receipt Modal state
   const [viewingReceipt, setViewingReceipt] = useState<SaleOrder | null>(null);
+  const [returningSaleId, setReturningSaleId] = useState<string | null>(null);
 
   // Day Close Form state
   const [openingCash] = useState(5000);
@@ -397,6 +400,17 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
                                 Voided
                               </span>
                             ) : (
+                              <>
+                              {/* Return takes back individual lines and leaves
+                                  the bill intact; Void cancels the whole sale.
+                                  Different jobs, so both are offered. */}
+                              <button
+                                onClick={() => setReturningSaleId(sale.id)}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--warning)]/10 hover:bg-[var(--warning)]/20 text-[var(--warning-strong)] rounded-lg text-[11px] transition-colors border border-[var(--warning)]/20"
+                              >
+                                <Undo2 className="w-3 h-3" />
+                                <span>Return</span>
+                              </button>
                               <button
                                 onClick={() => handleVoidSale(sale.id)}
                                 className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--error)]/10 hover:bg-[var(--error)]/20 text-[var(--error)] hover:text-[var(--error)] rounded-lg text-[11px] transition-colors border border-[var(--error)]/20"
@@ -404,6 +418,7 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
                                 <RotateCcw className="w-3 h-3" />
                                 <span>Void</span>
                               </button>
+                              </>
                             )}
                           </div>
                         </td>
@@ -529,6 +544,16 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
       )}
 
       {/* Viewing Receipt Modal */}
+      {returningSaleId && (
+        <SaleReturnSheet
+          saleId={returningSaleId}
+          onClose={() => setReturningSaleId(null)}
+          // Balances and stock have moved, so the list must be re-read rather
+          // than patched locally.
+          onDone={() => void fetchSales()}
+        />
+      )}
+
       {viewingReceipt && (
         <ThermalReceiptModal
           isOpen={true}
