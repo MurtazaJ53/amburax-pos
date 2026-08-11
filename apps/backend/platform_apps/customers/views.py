@@ -24,6 +24,7 @@ from platform_apps.customers.serializers import (
     CustomerSerializer,
     CustomerSummarySerializer,
 )
+from platform_apps.inventory.views import MAX_REPORTED_ERRORS, _row_error
 from platform_apps.shops.models import ShopMembership
 from platform_apps.shops.permissions import get_membership_or_403, has_feature_enabled
 
@@ -124,7 +125,7 @@ class CustomerBulkCreateView(ShopScopedMixin, APIView):
             for idx, raw in enumerate(rows):
                 serializer = CustomerSerializer(data=raw, context=context)
                 if not serializer.is_valid():
-                    errors.append({"index": idx, "errors": serializer.errors})
+                    errors.append(_row_error(idx, raw, serializer.errors))
                     continue
                 data = serializer.validated_data
                 phone = str(raw.get("phone") or "").strip()
@@ -151,7 +152,8 @@ class CustomerBulkCreateView(ShopScopedMixin, APIView):
                 "created": created,
                 "updated": updated,
                 "skipped": len(errors),
-                "errors": errors[:20],
+                "errors": errors[:MAX_REPORTED_ERRORS],
+                "error_count": len(errors),
             },
             status=201,
         )

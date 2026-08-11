@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, FileUp, Loader2, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, FileUp, Loader2, Upload } from "lucide-react";
 
 import { readXlsx, looksLikeXlsx, type XlsxSheet } from "@/lib/xlsx";
 import {
@@ -20,12 +20,53 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+/** A rejected row, described so it can be found in the original spreadsheet. */
+type RowError = {
+  /** 1-based row number as it appears in Excel, header included. */
+  row: number;
+  name: string;
+  sku: string;
+  message: string;
+};
+
 type ImportResult = {
   created: number;
   updated: number;
   skipped: number;
-  errors: unknown[];
+  errors: RowError[];
+  /** Total rejected, which can exceed errors.length — that list is capped. */
+  errorCount?: number;
 };
+
+/**
+ * The rejected rows as a spreadsheet the shop can work through.
+ *
+ * Fifty rows in a scrolling panel is fine to glance at and hopeless to fix
+ * from — the person correcting them is in Excel, and needs the list beside the
+ * file rather than in a browser tab.
+ *
+ * utf-8-sig, like the data export: without the byte-order mark Excel on
+ * Windows renders Hindi and Gujarati product names as mojibake.
+ */
+function downloadErrorReport(errors: RowError[]) {
+  const escape = (value: string) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const csv = [
+    "row,item,sku,problem",
+    ...errors.map((e) =>
+      [e.row, escape(e.name), escape(e.sku), escape(e.message)].join(","),
+    ),
+  ].join("\r\n");
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csv], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `import-errors-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 const KINDS: { key: ImportKind; label: string; hint: string }[] = [
   { key: "products", label: "Products", hint: "Your stock list — names, prices, quantities" },
@@ -179,6 +220,60 @@ export function SpreadsheetImport() {
                   Rows matching an existing SKU or name were updated rather than
                   duplicated, so re-importing the same sheet is safe.
                 </p>
+              )}
+
+              {/* Until now the rejected rows were counted and then discarded.
+                  A count is unusable: it tells a shop that 340 of 2,000
+                  products did not import and nothing about which ones. */}
+              {result.errors?.length > 0 && (
+                <div className="mt-4 rounded-2xl border border-[var(--warning)]/30 bg-[var(--warning)]/10 p-4">
+                  <p className="text-xs font-black text-[var(--warning-strong)]">
+                    {result.errorCount ?? result.errors.length} row
+                    {(result.errorCount ?? result.errors.length) === 1 ? "" : "s"} could not be imported
+                    {result.errorCount && result.errorCount > result.errors.length
+                      ? ` — showing the first ${result.errors.length}`
+                      : ""}
+                  </p>
+                  <p className="mt-1 text-[11px] font-semibold text-text-secondary">
+                    Row numbers match your spreadsheet. Fix these rows and import
+                    the same file again — rows that already landed will be
+                    updated, not duplicated.
+                  </p>
+                  <div className="mt-3 max-h-56 overflow-y-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="text-[10px] font-extrabold uppercase tracking-wider text-text-tertiary">
+                          <th className="pb-1.5 pr-3">Row</th>
+                          <th className="pb-1.5 pr-3">Item</th>
+                          <th className="pb-1.5">Problem</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.errors.map((e, i) => (
+                          <tr key={`${e.row}-${i}`} className="align-top">
+                            <td className="py-1 pr-3 font-mono text-[11px] font-bold text-text-primary tabular-nums">
+                              {e.row}
+                            </td>
+                            <td className="py-1 pr-3 text-[11px] font-semibold text-text-primary">
+                              {e.name || e.sku || <span className="text-text-tertiary">(blank)</span>}
+                            </td>
+                            <td className="py-1 text-[11px] font-medium text-text-secondary">
+                              {e.message}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => downloadErrorReport(result.errors)}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-[var(--border)] px-3.5 py-2 text-[11px] font-extrabold text-text-secondary hover:text-text-primary"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download as CSV
+                  </button>
+                </div>
               )}
               <button
                 type="button"

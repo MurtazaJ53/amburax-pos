@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { toRowError, type RowError } from "@/lib/import-rows";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -9,6 +10,11 @@ const API_BASE_URL = process.env.BUSINESS_HUB_API_BASE_URL || "http://127.0.0.1:
 
 /** The backend caps a batch at 1000 rows, so send in chunks under that. */
 const CHUNK_SIZE = 500;
+
+/** Enough to act on; the true total travels as `errorCount`. */
+const MAX_SHOWN_ERRORS = 50;
+
+
 
 const TARGETS = {
   products: { path: "inventory/bulk/", key: "items" },
@@ -39,7 +45,8 @@ export async function POST(req: NextRequest) {
     let created = 0;
     let updated = 0;
     let skipped = 0;
-    const errors: unknown[] = [];
+    let errorCount = 0;
+    const errors: RowError[] = [];
 
     // Sequential, not parallel: the backend matches each row against existing
     // items to avoid creating duplicates, and concurrent batches could both
@@ -66,6 +73,7 @@ export async function POST(req: NextRequest) {
             updated,
             skipped,
             errors,
+            errorCount,
           },
           { status: res.status }
         );
@@ -75,10 +83,25 @@ export async function POST(req: NextRequest) {
       created += result.created ?? 0;
       updated += result.updated ?? 0;
       skipped += result.skipped ?? 0;
-      if (Array.isArray(result.errors)) errors.push(...result.errors);
+      errorCount += result.error_count ?? result.skipped ?? 0;
+
+      // The backend numbers rejected rows within ITS request, so every chunk
+      // restarts at zero. Without adding the chunk offset, a 2,000-row import
+      // reports four different failures all as "row 5" and none of them can be
+      // found in the spreadsheet. Converted to a 1-based row number including
+      // the header, so it matches what the person sees in Excel.
+      if (Array.isArray(result.errors)) {
+        for (const raw of result.errors) errors.push(toRowError(start, raw));
+      }
     }
 
-    return NextResponse.json({ created, updated, skipped, errors: errors.slice(0, 20) });
+    return NextResponse.json({
+      created,
+      updated,
+      skipped,
+      errors: errors.slice(0, MAX_SHOWN_ERRORS),
+      errorCount,
+    });
   } catch (error) {
     return NextResponse.json(
       { error: errorMessage(error, "Internal server error") },

@@ -135,6 +135,41 @@ class InventoryItemListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
         )
 
 
+#: How many failed rows travel back. The count of ALL failures is reported
+#: separately, so the caller can say "showing 20 of 340" rather than implying
+#: there were only 20.
+MAX_REPORTED_ERRORS = 50
+
+
+def _row_error(index: int, raw: dict, errors: dict) -> dict:
+    """Describe a rejected row in terms the person holding the spreadsheet can use.
+
+    A serializer error dict alone is useless to a shopkeeper: it names a field
+    and a rule, but not which of two thousand rows it belongs to. Including the
+    name and SKU from the row means the row can be found by searching the sheet
+    even if the row number has shifted, and the flattened message says what to
+    change rather than what validator failed.
+    """
+    fields = []
+    for field, detail in (errors or {}).items():
+        if isinstance(detail, (list, tuple)):
+            text = "; ".join(str(d) for d in detail)
+        else:
+            text = str(detail)
+        label = "row" if field == "non_field_errors" else field
+        fields.append(f"{label}: {text}")
+
+    return {
+        "index": index,
+        # Whatever identifies the row to a human, taken from the raw input so
+        # it survives even when validation rejected the parsed value.
+        "name": str((raw or {}).get("name") or "").strip(),
+        "sku": str((raw or {}).get("sku") or "").strip(),
+        "message": " · ".join(fields) or "Could not be read.",
+        "errors": errors,
+    }
+
+
 class InventoryItemBulkCreateView(ShopScopedMixin, APIView):
     """Create many inventory items in one request (spreadsheet import). Valid
     rows are saved; invalid rows are skipped and reported, so one bad row never
@@ -165,7 +200,7 @@ class InventoryItemBulkCreateView(ShopScopedMixin, APIView):
             for idx, raw in enumerate(rows):
                 serializer = InventoryItemSerializer(data=raw, context=context)
                 if not serializer.is_valid():
-                    errors.append({"index": idx, "errors": serializer.errors})
+                    errors.append(_row_error(idx, raw, serializer.errors))
                     continue
 
                 # Re-importing the same sheet used to create a second copy of
@@ -211,7 +246,11 @@ class InventoryItemBulkCreateView(ShopScopedMixin, APIView):
                 "created": created,
                 "updated": updated,
                 "skipped": len(errors),
-                "errors": errors[:20],
+                # Capped so a wholly malformed sheet cannot return megabytes,
+                # but the true count travels separately -- "showing 20 of 340"
+                # is actionable, "20 errors" when there were 340 is a lie.
+                "errors": errors[:MAX_REPORTED_ERRORS],
+                "error_count": len(errors),
             },
             status=status.HTTP_201_CREATED,
         )
