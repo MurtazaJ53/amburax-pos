@@ -664,6 +664,55 @@ class BackendApiClient {
     );
   }
 
+  // ---------------------------------------------------------------------
+  //  Returns
+  // ---------------------------------------------------------------------
+
+  /// What is still returnable on a bill, after any earlier returns.
+  ///
+  /// The counter cannot work this out on its own. Local sale lines carry no
+  /// server-side `sale_item_id`, and an earlier return processed on the web or
+  /// from another device would be invisible here — so the remaining quantity
+  /// has to come from the server or the phone will happily offer to take back
+  /// goods that already came back once.
+  Future<Map<String, dynamic>> fetchReturnableSale({
+    required User user,
+    required String shopId,
+    required String saleId,
+  }) async {
+    return _request(
+      user: user,
+      method: 'GET',
+      path: '/shops/$shopId/sales/$saleId/returnable/',
+    );
+  }
+
+  /// Take part of a bill back: stock returns, money is refunded or credited.
+  ///
+  /// Each line is `{'sale_item_id': ..., 'quantity': ...}`. [refundMode] is one
+  /// of CASH, UPI, BANK, CARD, KHATA or EXCHANGE; the server rejects KHATA on a
+  /// bill with no customer, and EXCHANGE records a zero refund because the
+  /// value carries into the replacement bill.
+  Future<Map<String, dynamic>> createSaleReturn({
+    required User user,
+    required String shopId,
+    required String saleId,
+    required List<Map<String, dynamic>> lines,
+    String refundMode = 'CASH',
+    String note = '',
+  }) async {
+    return _request(
+      user: user,
+      method: 'POST',
+      path: '/shops/$shopId/sales/$saleId/return/',
+      body: <String, dynamic>{
+        'lines': lines,
+        'refund_mode': refundMode,
+        if (note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+  }
+
   Future<void> deleteCustomer({
     required User user,
     required String shopId,

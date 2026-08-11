@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 
 import 'dead_letter_banner.dart';
+import 'sale_return_sheet.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
@@ -856,10 +858,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           ),
                         ),
                       ),
+                      // A partial return is a counter action the server lets
+                      // staff perform; voiding the whole bill is not. So the
+                      // button appears for anyone when the bill has synced,
+                      // and only for a manager when the local void is the one
+                      // path available.
                       if (detail.total >= 0 &&
                           detail.syncState != CommerceSyncState.refunded &&
                           !(detail.footerNote ?? '').contains('RETURN') &&
-                          _canRefund()) ...<Widget>[
+                          (_hasBackendId(detail) || _canRefund())) ...<Widget>[
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
                           onPressed: () =>
@@ -907,7 +914,72 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
   }
 
+  /// Whether the server knows about this bill, and so whether a partial return
+  /// is possible at all. A sale that has not synced exists only on this phone.
+  bool _hasBackendId(SaleRecordDetail detail) =>
+      (detail.backendSaleId ?? '').trim().isNotEmpty;
+
+  /// Take goods back against a bill.
+  ///
+  /// The good path is a partial return on the server: one shirt out of four,
+  /// or a swap for a different size, with the rest of the bill left intact.
+  /// That needs the sale to exist server-side, because the quantity still
+  /// returnable depends on returns this device may never have seen.
+  ///
+  /// When the bill has not synced there is nothing to return against, so the
+  /// only honest option is the old all-or-nothing local void — offered with
+  /// the reason stated rather than silently doing something different from
+  /// what the same button does on every other bill.
   Future<void> _startReturn(
+    BuildContext sheetContext,
+    SaleRecordDetail detail,
+    SalesRepository salesRepository,
+  ) async {
+    if (_hasBackendId(detail)) {
+      final done = await showModalBottomSheet<bool>(
+        context: sheetContext,
+        isScrollControlled: true,
+        backgroundColor: AppColors.of(sheetContext).surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (_) => SaleReturnSheet(
+          backendSaleId: detail.backendSaleId!.trim(),
+          // A local placeholder; the sheet shows the server's receipt number
+          // once the bill loads.
+          receiptNumber: detail.id,
+        ),
+      );
+      if (done == true) {
+        // Server totals move; the local sale record correctly does not, since
+        // the sale really did happen as recorded.
+        ref.invalidate(historyServerSummaryProvider);
+        if (sheetContext.mounted) Navigator.pop(sheetContext);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Return recorded.')),
+          );
+        }
+      }
+      return;
+    }
+
+    if (!_canRefund()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'This bill has not reached the server yet. A manager can void it, '
+            'or wait for it to sync to return part of it.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    await _voidWholeSale(sheetContext, detail, salesRepository);
+  }
+
+  Future<void> _voidWholeSale(
     BuildContext sheetContext,
     SaleRecordDetail detail,
     SalesRepository salesRepository,
@@ -950,17 +1022,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final shopId = session?.shopId;
     if (session == null || shopId == null || shopId.isEmpty) return;
     try {
-      // Void on the server first (reverses stock + customer ledger + marks the
-      // sale VOID). Then remove it locally + restock. A sale that never synced
-      // has no backend id, so we just void it locally.
-      final backendId = detail.backendSaleId;
-      if (backendId != null && backendId.trim().isNotEmpty) {
-        await ref.read(backendApiClientProvider).voidSale(
-              user: session.user,
-              shopId: shopId,
-              saleId: backendId.trim(),
-            );
-      }
+      // Local only. _startReturn sends every synced bill to the partial-return
+      // sheet, so by the time execution reaches here the server has no record
+      // of this sale to void.
       await salesRepository.recordReturn(
         shopId: shopId,
         original: detail,
