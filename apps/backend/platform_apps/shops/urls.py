@@ -36,6 +36,13 @@ from platform_apps.customers.statement_views import (
 )
 from platform_apps.inventory.health_views import DataHealthView
 from platform_apps.inventory.report_views import DeadStockView, ReorderListView
+from platform_apps.inventory.stocktake_views import (
+    StocktakeApplyView,
+    StocktakeCancelView,
+    StocktakeCountView,
+    StocktakeDetailView,
+    StocktakeListCreateView,
+)
 from platform_apps.inventory.transfer_views import (
     StockTransferCancelView,
     StockTransferListCreateView,
@@ -330,6 +337,31 @@ urlpatterns = [
     # receives, the source cancels. Each view checks the transfer really has
     # that shop on that side, so a valid id from the wrong shop is rejected
     # rather than quietly accepted.
+    path(
+        "<uuid:shop_id>/inventory/stocktakes/",
+        StocktakeListCreateView.as_view(),
+        name="stocktake-list",
+    ),
+    path(
+        "<uuid:shop_id>/inventory/stocktakes/<uuid:stocktake_id>/",
+        StocktakeDetailView.as_view(),
+        name="stocktake-detail",
+    ),
+    path(
+        "<uuid:shop_id>/inventory/stocktakes/<uuid:stocktake_id>/count/",
+        StocktakeCountView.as_view(),
+        name="stocktake-count",
+    ),
+    path(
+        "<uuid:shop_id>/inventory/stocktakes/<uuid:stocktake_id>/apply/",
+        StocktakeApplyView.as_view(),
+        name="stocktake-apply",
+    ),
+    path(
+        "<uuid:shop_id>/inventory/stocktakes/<uuid:stocktake_id>/cancel/",
+        StocktakeCancelView.as_view(),
+        name="stocktake-cancel",
+    ),
     path(
         "<uuid:shop_id>/inventory/transfers/",
         StockTransferListCreateView.as_view(),

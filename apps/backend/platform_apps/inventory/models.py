@@ -210,3 +210,93 @@ class StockTransferLine(SourceTrackedModel):
 
     def __str__(self) -> str:
         return f"{self.source_item.name} x{self.quantity}"
+
+
+class Stocktake(SourceTrackedModel):
+    """A physical count of the shelves, reconciled against the ledger.
+
+    Correcting stock one item at a time already worked, and nobody does it for
+    a whole shop — so the figures drift until they are not trusted, which
+    quietly undermines every report built on them.
+
+    The design decision that matters is in how the correction is applied. Each
+    line records what the ledger said **at the moment it was counted**, and
+    applying the count posts the DIFFERENCE, not the counted figure.
+
+    Counting a shop takes hours and the shop keeps trading. Suppose an item
+    reads 10, the counter finds 8, and three more sell before the count is
+    applied. Setting stock to 8 would silently undo those three sales. Posting
+    the variance of -2 against a ledger that now reads 7 gives 5, which is what
+    is actually on the shelf.
+    """
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Counting"
+        APPLIED = "applied", "Applied"
+        CANCELLED = "cancelled", "Cancelled"
+
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="stocktakes")
+    reference = models.CharField(max_length=32, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.OPEN)
+    note = models.TextField(blank=True)
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="stocktakes_started",
+        blank=True,
+        null=True,
+    )
+    applied_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="stocktakes_applied",
+        blank=True,
+        null=True,
+    )
+    started_at = models.DateTimeField()
+    applied_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["-started_at", "-created_at"]
+        indexes = [models.Index(fields=["shop", "status"])]
+
+    def __str__(self) -> str:
+        return f"{self.reference or self.pk} ({self.get_status_display()})"
+
+
+class StocktakeLine(SourceTrackedModel):
+    """One counted item: what the books said, and what was on the shelf."""
+
+    stocktake = models.ForeignKey(
+        Stocktake, on_delete=models.CASCADE, related_name="lines"
+    )
+    item = models.ForeignKey(
+        InventoryItem, on_delete=models.CASCADE, related_name="stocktake_lines"
+    )
+    name_snapshot = models.CharField(max_length=255)
+    #: Ledger balance at the moment this line was counted, NOT at apply time.
+    #: The variance is measured against this, so trading during the count does
+    #: not corrupt it.
+    expected_quantity = models.DecimalField(max_digits=12, decimal_places=3)
+    counted_quantity = models.DecimalField(max_digits=12, decimal_places=3)
+    #: Cost at count time, so the shrinkage figure cannot drift afterwards.
+    unit_cost = models.DecimalField(
+        max_digits=12, decimal_places=2, blank=True, null=True
+    )
+    counted_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["stocktake", "item"],
+                name="uniq_stocktake_line_per_item",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name_snapshot}: {self.counted_quantity}/{self.expected_quantity}"
+
+    @property
+    def variance(self):
+        """Negative means missing stock; positive means more than the books say."""
+        return self.counted_quantity - self.expected_quantity
