@@ -13,6 +13,7 @@ import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/sync/mobile_sync_coordinator.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../settings/presentation/quick_settings_sheet.dart';
 
 final List<GlobalKey<NavigatorState>> mobileShellBranchNavigatorKeys =
     List<GlobalKey<NavigatorState>>.generate(
@@ -69,8 +70,14 @@ class _MobileShellScreenState extends ConsumerState<MobileShellScreen> {
     widget.navigationShell.goBranch(branchIndex);
   }
 
+  /// The header control opens quick settings, not the full settings screen.
+  ///
+  /// Language and day/night are the two a shopkeeper actually reaches for
+  /// mid-shift; everything else is a sit-down task. The sheet carries an "All
+  /// settings" button, so the full screen is one further tap rather than
+  /// unreachable.
   void _openSettings() {
-    context.push('/settings');
+    showQuickSettings(context);
   }
 
   @override
