@@ -1,6 +1,6 @@
 # Business Hub — phased plan
 
-Written 9 August 2026.
+Written 9 August 2026. Phase 2 engineering closed 12 August 2026.
 
 Each phase has an **exit criterion**: the thing that must be true before the
 next one starts. A phase is not finished when its tasks are done, it is
@@ -14,9 +14,9 @@ it is next.
 
 | | |
 |---|---|
-| Backend tests | 679 |
-| Counter app tests | 327 |
-| Admin web tests | 105 |
+| Backend tests | 717 |
+| Counter app tests | 349 |
+| Admin web tests | 113 |
 | Features complete for a first shop | Yes |
 | **Real users** | **Zero** |
 
@@ -62,21 +62,34 @@ calculator.**
 Phase 1 will produce a list of what actually breaks. This is what I expect that
 list to contain, and it should be re-ordered once real usage contradicts it.
 
-### Returns and exchanges — 3–5 days
+### Returns and exchanges — DONE
 
-The ledger already has a `return` event type and there is no flow that uses it.
-A customer bringing a shirt back for a different size is routine in garment
-retail, and today the shopkeeper has to fake it with an adjustment and a fresh
-bill, which breaks the audit trail the whole design rests on.
+Partial returns against an original bill, on both platforms. A customer can
+bring one shirt back out of four, or swap it for a different size, and the rest
+of the bill stays intact. Refunds go out as cash, UPI, card, bank, a reduction
+of what the customer owes, or an exchange worth nothing because the value
+carries into the replacement bill.
 
-**This is the largest hole in daily operation and should be built first.**
+Building the counter side exposed something the plan had not anticipated: the
+phone's existing "Refund" button **voided the whole sale**, so the same control
+meant two different things on the two platforms. That divergence is now closed,
+and it is the kind of thing only building both sides finds.
 
-### Stocktake mode — 3–5 days
+### Stocktake mode — DONE
 
-A guided physical count: scan the shelves, see counted against expected, post
-one reconciled set of adjustments with a variance report. Today a stocktake
-means correcting items one at a time, which nobody will do for a whole shop —
-so nobody does it, and the stock figures drift until they are not trusted.
+A guided physical count on both platforms, with the counter app as the one that
+matters — a stocktake happens on foot in front of shelves.
+
+The decision worth recording: applying a count posts the **difference** each
+item is out by, not the counted figure. Setting stock to what was counted would
+silently erase anything sold during the hours a count takes. The expected
+quantity is also hidden until asked for, because showing it invites confirming
+the books rather than counting the shelf.
+
+### Remaining in this phase
+
+Nothing planned. The exit criterion is about a week of real use, not about
+features, and it cannot be met from a keyboard.
 
 ### Whatever Phase 1 exposes — unknown
 
