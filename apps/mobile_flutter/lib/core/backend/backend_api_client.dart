@@ -1422,6 +1422,85 @@ class BackendApiClient {
   }
 
   // ---------------------------------------------------------------------
+  //  Stocktakes
+  // ---------------------------------------------------------------------
+
+  /// Counts for this shop, newest first. At most one is open.
+  Future<Map<String, dynamic>> fetchStocktakes({
+    required User user,
+    required String shopId,
+  }) async {
+    return _request(
+      user: user,
+      method: 'GET',
+      path: '/shops/$shopId/inventory/stocktakes/',
+    );
+  }
+
+  /// Begin a count. The server refuses a second open one, because two counts
+  /// measuring against the same books would double every correction.
+  Future<Map<String, dynamic>> startStocktake({
+    required User user,
+    required String shopId,
+    String note = '',
+  }) async {
+    return _request(
+      user: user,
+      method: 'POST',
+      path: '/shops/$shopId/inventory/stocktakes/',
+      body: <String, dynamic>{
+        if (note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+  }
+
+  /// Record what is on the shelf for one item. Counting the same item again
+  /// replaces the earlier figure rather than adding to it.
+  Future<Map<String, dynamic>> recordStocktakeCount({
+    required User user,
+    required String shopId,
+    required String stocktakeId,
+    required String itemId,
+    required String countedQuantity,
+  }) async {
+    return _request(
+      user: user,
+      method: 'POST',
+      path: '/shops/$shopId/inventory/stocktakes/$stocktakeId/count/',
+      body: <String, dynamic>{
+        'item_id': itemId,
+        'counted_quantity': countedQuantity,
+      },
+    );
+  }
+
+  /// Post the corrections and close the count. Manager or above.
+  Future<Map<String, dynamic>> applyStocktake({
+    required User user,
+    required String shopId,
+    required String stocktakeId,
+  }) async {
+    return _request(
+      user: user,
+      method: 'POST',
+      path: '/shops/$shopId/inventory/stocktakes/$stocktakeId/apply/',
+    );
+  }
+
+  /// Abandon a count without touching stock.
+  Future<Map<String, dynamic>> cancelStocktake({
+    required User user,
+    required String shopId,
+    required String stocktakeId,
+  }) async {
+    return _request(
+      user: user,
+      method: 'POST',
+      path: '/shops/$shopId/inventory/stocktakes/$stocktakeId/cancel/',
+    );
+  }
+
+  // ---------------------------------------------------------------------
   //  Purchase orders
   // ---------------------------------------------------------------------
 

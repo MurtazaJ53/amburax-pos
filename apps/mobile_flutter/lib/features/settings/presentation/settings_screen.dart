@@ -145,6 +145,15 @@ class SettingsScreen extends ConsumerWidget {
             leadingIcon: Icons.swap_horiz_rounded,
             onTap: () => context.push('/settings/transfers'),
           ),
+          // Counting happens on your feet in front of a shelf, so staff reach
+          // it too — applying the count is what needs a manager, and the
+          // screen itself says so.
+          MobileListTile(
+            title: 'Stocktake',
+            subtitle: 'Count the shelves and fix what the books say',
+            leadingIcon: Icons.fact_check_rounded,
+            onTap: () => context.push('/settings/stocktake'),
+          ),
           // The plan screen and its route already existed but nothing linked to
           // it, so owners had no way to see or change their plan in the app.
           if (owner)
