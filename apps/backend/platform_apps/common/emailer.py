@@ -19,11 +19,12 @@ logger = logging.getLogger(__name__)
 _RESEND_ENDPOINT = "https://api.resend.com/emails"
 
 
-def _api_key() -> str:
+def resend_api_key() -> str:
+    """Public so configuration checks read exactly what the sender reads."""
     return os.getenv("RESEND_API_KEY", "").strip()
 
 
-def _from_address() -> str:
+def resend_from_address() -> str:
     # Resend requires a verified sender; onboarding@resend.dev works out of the
     # box for testing before a domain is verified.
     return os.getenv("RESEND_FROM", "Business Hub <onboarding@resend.dev>")
@@ -46,7 +47,7 @@ def send_email(*, to: str, subject: str, html: str, text: str = "") -> dict:
     Transient failures (5xx / network) are retried with backoff; permanent 4xx
     failures (bad recipient, unverified domain) are not.
     """
-    key = _api_key()
+    key = resend_api_key()
     if not key:
         logger.info("Email skipped (no RESEND_API_KEY): to=[REDACTED] subject=%s", subject)
         return {"ok": False, "skipped": True, "id": "", "error": "",
@@ -54,7 +55,7 @@ def send_email(*, to: str, subject: str, html: str, text: str = "") -> dict:
 
     payload = json.dumps(
         {
-            "from": _from_address(),
+            "from": resend_from_address(),
             "to": [to],
             "subject": subject,
             "html": html,
