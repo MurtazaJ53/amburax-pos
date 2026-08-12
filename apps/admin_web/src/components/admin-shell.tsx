@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import {
   ArrowLeftRight,
   ClipboardCheck,
+  LineChart,
   BookOpen,
   ClipboardList,
   Tags,
@@ -61,6 +62,7 @@ type AdminShellProps = {
     | "transfers"
     | "labels"
     | "stocktake"
+    | "price-history"
     | "day-book"
     | "purchase-orders"
     | "purchases"
@@ -126,6 +128,7 @@ export function AdminShell({
     { key: "expenses", label: t("settingsExpenses"), href: "/expenses", icon: TrendingDown },
     { key: "suppliers", label: t("settingsPurchases"), href: "/suppliers", icon: Truck },
     { key: "purchase-orders", label: "Purchase orders", href: "/purchase-orders", icon: ClipboardList },
+    { key: "price-history", label: "Supplier prices", href: "/price-history", icon: LineChart },
     { key: "stocktake", label: "Stocktake", href: "/stocktake", icon: ClipboardCheck },
     { key: "transfers", label: "Stock transfers", href: "/transfers", icon: ArrowLeftRight },
     { key: "labels", label: "Barcode labels", href: "/labels", icon: Tags },

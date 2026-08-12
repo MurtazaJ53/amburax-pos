@@ -57,6 +57,7 @@ from platform_apps.inventory.views import (
 )
 from platform_apps.payments.views import SalePaymentCommandIngestionView, SalePaymentListView
 from platform_apps.payments.views import SalePaymentSummaryView
+from platform_apps.purchases.price_history_views import SupplierPriceHistoryView
 from platform_apps.purchases.views import (
     PurchaseDetailView,
     PurchaseListCreateView,
@@ -227,6 +228,11 @@ urlpatterns = [
     ),
     path("<uuid:shop_id>/purchases/", PurchaseListCreateView.as_view(), name="purchase-list"),
     path("<uuid:shop_id>/purchases/summary/", PurchaseSummaryView.as_view(), name="purchase-summary"),
+    path(
+        "<uuid:shop_id>/purchases/price-history/",
+        SupplierPriceHistoryView.as_view(),
+        name="supplier-price-history",
+    ),
     path("<uuid:shop_id>/purchases/<uuid:purchase_id>/", PurchaseDetailView.as_view(), name="purchase-detail"),
     path("<uuid:shop_id>/expenses/", ExpenseListCreateView.as_view(), name="expense-list"),
     path("<uuid:shop_id>/expenses/summary/", ExpenseSummaryView.as_view(), name="expense-summary"),
