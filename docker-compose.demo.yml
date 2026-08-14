@@ -50,6 +50,11 @@ services:
       # a Docker-internal name in their .env, where it does not belong.
       # env_list() drops empty entries, so an unset variable is harmless.
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS},api
+      # Behind Nginx on a real domain these must reach Django or every form
+      # post from the admin site is rejected as a CSRF failure. They were
+      # absent, so setting them in .env.demo silently did nothing.
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+      DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-}
       # One container, no external broker: Celery runs eagerly, channels/cache
       # stay in-memory, so no Redis is needed for the demo.
       USE_INMEMORY_CHANNELS: "1"

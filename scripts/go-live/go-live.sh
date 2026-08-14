@@ -19,6 +19,10 @@ APP_DOMAIN="${1:-}"
 API_DOMAIN="${2:-}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.demo.yml}"
 PROJECT_DIR="${PROJECT_DIR:-/opt/bhub}"
+# This deployment keeps its secrets in .env.demo, and compose only reads them
+# when pointed at it explicitly.
+ENV_FILE="${ENV_FILE:-.env.demo}"
+COMPOSE=(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 
 if [[ -z "$APP_DOMAIN" || -z "$API_DOMAIN" ]]; then
   echo "Usage: sudo bash go-live.sh <app-domain> <api-domain>" >&2
@@ -70,42 +74,53 @@ systemctl reload nginx
 # ---------------------------------------------------------------------------
 say "3/6  Tightening the Django environment"
 # ---------------------------------------------------------------------------
-[[ -f .env ]] || die ".env not found in $PROJECT_DIR"
-cp .env ".env.backup.$(date +%Y%m%d%H%M%S)"
+[[ -f "$ENV_FILE" ]] || die "$ENV_FILE not found in $PROJECT_DIR"
+cp "$ENV_FILE" "${ENV_FILE}.backup.$(date +%Y%m%d%H%M%S)"
 
 set_env() {
   local key="$1" value="$2"
-  if grep -q "^${key}=" .env; then
+  if grep -q "^${key}=" "$ENV_FILE"; then
     # The value can contain slashes and commas, so use | as the delimiter.
-    sed -i "s|^${key}=.*|${key}=${value}|" .env
+    sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
   else
-    printf '%s=%s\n' "$key" "$value" >> .env
+    printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
   fi
   echo "    $key set"
 }
 
-set_env DJANGO_DEBUG "False"
-set_env DJANGO_ENV "production"
+# DJANGO_DEBUG is hardcoded False in the compose file, so it is not set here —
+# writing it would imply a switch that does nothing.
+#
+# DJANGO_ENV=production makes settings.py refuse to boot without DATABASE_URL
+# and RESEND_API_KEY. That guard is the point of it, but flipping the switch
+# before the key exists would leave a container that will not start and an
+# operator with no obvious way back, so check first.
+if grep -q "^RESEND_API_KEY=." "$ENV_FILE"; then
+  set_env DJANGO_ENV "production"
+else
+  warn "RESEND_API_KEY is empty, so DJANGO_ENV stays as it is."
+  warn "Setting it to production now would stop the container booting at all."
+fi
 set_env DJANGO_ALLOWED_HOSTS "$APP_DOMAIN,$API_DOMAIN,127.0.0.1,localhost"
 set_env DJANGO_CSRF_TRUSTED_ORIGINS "https://$APP_DOMAIN,https://$API_DOMAIN"
 set_env DJANGO_CORS_ALLOWED_ORIGINS "https://$APP_DOMAIN"
 
-if ! grep -q "^BLIND_INDEX_PEPPER=" .env; then
+if ! grep -q "^BLIND_INDEX_PEPPER=" "$ENV_FILE"; then
   # Generated once, here, and never again. Rotating it makes every encrypted
   # customer phone permanently unsearchable, so the only safe moment to set it
   # is before a shop has entered any customers.
   pepper="$(openssl rand -hex 32)"
-  printf 'BLIND_INDEX_PEPPER=%s\n' "$pepper" >> .env
+  printf 'BLIND_INDEX_PEPPER=%s\n' "$pepper" >> "$ENV_FILE"
   warn "Generated BLIND_INDEX_PEPPER. Back it up now - it can never be changed."
 fi
 
 # ---------------------------------------------------------------------------
 say "4/6  Restarting and running preflight"
 # ---------------------------------------------------------------------------
-docker compose -f "$COMPOSE_FILE" up -d
+"${COMPOSE[@]}" up -d
 # A moment for gunicorn to bind before the check tries to reach it.
 sleep 8
-if ! docker compose -f "$COMPOSE_FILE" exec -T api python manage.py preflight; then
+if ! "${COMPOSE[@]}" exec -T api python manage.py preflight; then
   die "preflight found blocking problems. Fix them and re-run this script."
 fi
 
@@ -115,7 +130,7 @@ say "5/6  Scheduling the daily alerts"
 # Hourly, not twice daily: shops sit in different timezones, the container
 # clock is UTC, and the command works out from each shop's local time whether
 # it is due. Running it more often than necessary sends nothing twice.
-CRON_LINE="0 * * * * cd $PROJECT_DIR && docker compose -f $COMPOSE_FILE exec -T api python manage.py send_scheduled_alerts >> /var/log/bhub-alerts.log 2>&1"
+CRON_LINE="0 * * * * cd $PROJECT_DIR && docker compose -f $COMPOSE_FILE --env-file $ENV_FILE exec -T api python manage.py send_scheduled_alerts >> /var/log/bhub-alerts.log 2>&1"
 if crontab -l 2>/dev/null | grep -qF "send_scheduled_alerts"; then
   echo "    Already scheduled."
 else
@@ -144,7 +159,7 @@ Still yours to do, because no script should:
        ENSURE_PLATFORM_ADMIN_PASSWORD, and the platform admin login.
   2. Clear the shell history that holds POSTGRES_PASSWORD:
        history -c && rm -f ~/.bash_history
-  3. Back up .env somewhere off this droplet. SECRET_KEY and
+  3. Back up $ENV_FILE somewhere off this droplet. SECRET_KEY and
      BLIND_INDEX_PEPPER cannot be regenerated - losing them makes every
      encrypted customer record permanently unreadable.
   4. Confirm the alerts really fire, rather than assuming:
