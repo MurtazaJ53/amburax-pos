@@ -1,0 +1,8 @@
+# Rust build output. 260 MB of it was committed once, across 797 files — every
+# `cargo build` then reported them all as modified, so any real desktop change
+# arrived buried in an enormous meaningless diff.
+src-tauri/target/
+
+# Node build output for the desktop shell.
+node_modules/
+dist/

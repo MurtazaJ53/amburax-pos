@@ -340,23 +340,6 @@ class BackendApiClient {
     return _mapAttendanceSession(decoded);
   }
 
-  Future<ExpenseSummarySnapshot> getExpenseSummary({
-    required User user,
-    required String shopId,
-  }) async {
-    final decoded = await _request(
-      user: user,
-      method: 'GET',
-      path: '/shops/$shopId/expenses/summary/',
-    );
-    return ExpenseSummarySnapshot(
-      totalEntries: _asInt(decoded['total_entries']),
-      totalAmount: _asDouble(decoded['total_amount']),
-      uniqueCategories: _asInt(decoded['unique_categories']),
-      biggestCategory: _nullableText(decoded['biggest_category']),
-    );
-  }
-
   Future<List<ExpenseRecord>> getExpenses({
     required User user,
     required String shopId,
@@ -685,20 +668,6 @@ class BackendApiClient {
     );
   }
 
-  /// Void (refund) a sale on the server — reverses stock + customer ledger and
-  /// marks the sale VOID, so it drops out of totals.
-  Future<void> voidSale({
-    required User user,
-    required String shopId,
-    required String saleId,
-  }) async {
-    await _request(
-      user: user,
-      method: 'PATCH',
-      path: '/shops/$shopId/sales/$saleId/void/',
-    );
-  }
-
   // ---------------------------------------------------------------------
   //  Returns
   // ---------------------------------------------------------------------
@@ -748,17 +717,13 @@ class BackendApiClient {
     );
   }
 
-  Future<void> deleteCustomer({
-    required User user,
-    required String shopId,
-    required String customerId,
-  }) async {
-    await _request(
-      user: user,
-      method: 'DELETE',
-      path: '/shops/$shopId/customers/$customerId/',
-    );
-  }
+  // Deliberately absent: voidSale, deleteCustomer, getExpenseSummary and
+  // createCustomerLedgerEntry. The counter app is offline-first — it writes to
+  // the local database and lets the sync coordinator reconcile — so a REST
+  // call that bypasses that produces a change the device does not know it
+  // made. Expense summaries are computed locally from the same data. Returns
+  // go through the partial-return sheet, which is what left voidSale without
+  // a caller.
 
   Future<List<Map<String, dynamic>>> fetchInventoryItems({
     required User user,
@@ -985,29 +950,6 @@ class BackendApiClient {
           ),
         )
         .toList(growable: false);
-  }
-
-  Future<CustomerLedgerPreviewEntry> createCustomerLedgerEntry({
-    required User user,
-    required String shopId,
-    required String customerId,
-    required CustomerLedgerMutationDraft draft,
-  }) async {
-    final decoded = await _request(
-      user: user,
-      method: 'POST',
-      path: '/shops/$shopId/customers/$customerId/ledger/',
-      body: draft.toJson(),
-    );
-
-    return CustomerLedgerPreviewEntry(
-      id: (decoded['id'] ?? '').toString(),
-      eventType: (decoded['event_type'] ?? draft.eventType).toString(),
-      amountDelta: _asDouble(decoded['amount_delta'] ?? draft.amountDelta),
-      occurredAt: _asDateTime(decoded['occurred_at'] ?? draft.occurredAt),
-      note: _nullableText(decoded['note'] ?? draft.note),
-      actorName: _nullableText(decoded['actor_name']),
-    );
   }
 
   Future<WorkspaceAccessSessionHeartbeatResult> sendWorkspaceSessionHeartbeat({

@@ -13,7 +13,6 @@ import {
   DollarSign,
   UserCheck,
   BarChart3,
-  MessageSquare,
   ShieldCheck,
   Building2,
   PlusCircle,
@@ -67,12 +66,15 @@ const COMMANDS: CommandItem[] = [
     keywords: "expense spend payment cash rent bill salary",
   },
   {
-    id: "day-close",
-    title: "Day Close Cash Reconciliation",
+    id: "day-book",
+    title: "Day Book (Roj Mel)",
     category: "Quick Action",
     icon: Clock,
-    url: "/day-close",
-    keywords: "day close cash drawer float count discrepancy register",
+    // Was /day-close, which has never existed and answered 404. The day book
+    // is the screen that reconciles the drawer, so it is what the entry was
+    // reaching for.
+    url: "/day-book",
+    keywords: "day book roj mel close cash drawer jama udhaar float register",
   },
   {
     id: "nav-dashboard",
@@ -129,14 +131,6 @@ const COMMANDS: CommandItem[] = [
     icon: BarChart3,
     url: "/reports",
     keywords: "reports profit loss pnl analytics revenue taxes gst",
-  },
-  {
-    id: "nav-chat",
-    title: "In-Shop Team Chat",
-    category: "Navigation",
-    icon: MessageSquare,
-    url: "/chat",
-    keywords: "chat messages discussion communication team files",
   },
   {
     id: "nav-security",

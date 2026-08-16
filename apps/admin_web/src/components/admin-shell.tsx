@@ -66,7 +66,6 @@ type AdminShellProps = {
     | "day-book"
     | "purchase-orders"
     | "purchases"
-    | "chat"
     | "settings"
     | "pulse"
     | "team"
