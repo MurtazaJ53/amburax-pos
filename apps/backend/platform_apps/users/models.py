@@ -19,6 +19,15 @@ class PlatformUser(SourceTrackedModel, AbstractUser):
     mfa_totp_enabled_at = models.DateTimeField(blank=True, null=True)
     mfa_totp_last_verified_at = models.DateTimeField(blank=True, null=True)
 
+    #: Bumped whenever this user's access must be withdrawn. Every token carries
+    #: the value it was minted with, and authentication rejects any token whose
+    #: value has fallen behind — which is what makes a token revocable at all.
+    #:
+    #: Without this the only way out of an issued token was waiting for it to
+    #: expire. "Sign out all devices" wrote a REVOKED row that nothing read, so
+    #: it reported success while the token kept working.
+    token_version = models.PositiveIntegerField(default=0)
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
 

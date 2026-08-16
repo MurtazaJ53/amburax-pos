@@ -4,9 +4,16 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../database/mobile_repository.dart';
 import '../models/mobile_auth_user.dart';
 import '../models/mobile_models.dart';
 import '../runtime/mobile_runtime_config.dart';
+
+/// Storage keys shared with the session controller. Duplicated deliberately
+/// rather than imported: the session controller depends on this file, and
+/// importing it back would make the cycle real.
+const String _storedAccessKey = 'jwt_access';
+const String _storedRefreshKey = 'jwt_refresh';
 
 final backendApiClientProvider = Provider<BackendApiClient>((ref) {
   return BackendApiClient(
@@ -14,6 +21,13 @@ final backendApiClientProvider = Provider<BackendApiClient>((ref) {
       'BUSINESS_HUB_API_BASE_URL',
       defaultValue: 'https://api.indianwasteportal.com/api/v1',
     ),
+    readRefreshToken: () async =>
+        ref.read(shopRepositoryProvider).readSetting(_storedRefreshKey),
+    onTokensRefreshed: (access, refresh) async {
+      final repo = ref.read(shopRepositoryProvider);
+      await repo.writeSetting(_storedAccessKey, access);
+      await repo.writeSetting(_storedRefreshKey, refresh);
+    },
   );
 });
 
@@ -92,9 +106,30 @@ class UserMfaVerifyPayload {
 }
 
 class BackendApiClient {
-  BackendApiClient({required this.baseUrl});
+  BackendApiClient({
+    required this.baseUrl,
+    this.readRefreshToken,
+    this.onTokensRefreshed,
+  });
 
   final String baseUrl;
+
+  /// Reads the stored refresh token. Injected rather than imported so the API
+  /// client keeps no dependency on session storage.
+  final Future<String?> Function()? readRefreshToken;
+
+  /// Persists a newly minted pair. Both are stored: the server rotates the
+  /// refresh token on every exchange, so keeping only the access token would
+  /// leave the next refresh presenting one that has already been spent.
+  final Future<void> Function(String access, String refresh)? onTokensRefreshed;
+
+  /// A single in-flight refresh, shared by every request waiting on one.
+  ///
+  /// A screen that opens with five parallel requests produces five 401s at
+  /// once. Without this each would refresh independently, and with rotating
+  /// refresh tokens four of those five exchanges would be spending a token
+  /// another had already replaced.
+  Future<String?>? _inFlightRefresh;
   static const Duration _requestTimeout = Duration(
     milliseconds: MobileRuntimeConfig.backendTimeoutMs,
   );
@@ -1616,6 +1651,11 @@ class BackendApiClient {
       );
     }
 
+    // One refresh attempt per call. A second 401 after refreshing means the
+    // session is genuinely gone, and retrying again would loop.
+    var refreshed = false;
+    String? freshToken;
+
     for (var attempt = 1; ; attempt++) {
       final client = HttpClient();
       client.connectionTimeout = _requestTimeout;
@@ -1625,7 +1665,7 @@ class BackendApiClient {
             .openUrl(method, url)
             .timeout(_requestTimeout);
         request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-        await _attachAuthHeaders(request, user);
+        await _attachAuthHeaders(request, user, overrideToken: freshToken);
         if (body != null) {
           request.headers
               .set(HttpHeaders.contentTypeHeader, 'application/json');
@@ -1651,6 +1691,17 @@ class BackendApiClient {
               attempt < _maxAttempts) {
             await Future<void>.delayed(Duration(seconds: 5 * attempt));
             continue;
+          }
+          // The access token expired, or was withdrawn. Trade the refresh
+          // token for a new one and try the same request once more, so the
+          // shopkeeper never sees a login screen mid-sale.
+          if (response.statusCode == 401 && !refreshed) {
+            refreshed = true;
+            final renewed = await _refreshOnce();
+            if (renewed != null && renewed.isNotEmpty) {
+              freshToken = renewed;
+              continue;
+            }
           }
           throw BackendApiException(
             'Backend request failed (${response.statusCode}) for $path: $bodyText',
@@ -1689,6 +1740,11 @@ class BackendApiClient {
       );
     }
 
+    // One refresh attempt per call. A second 401 after refreshing means the
+    // session is genuinely gone, and retrying again would loop.
+    var refreshed = false;
+    String? freshToken;
+
     for (var attempt = 1; ; attempt++) {
       final client = HttpClient();
       client.connectionTimeout = _requestTimeout;
@@ -1698,7 +1754,7 @@ class BackendApiClient {
           .openUrl(method, url)
           .timeout(_requestTimeout);
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      await _attachAuthHeaders(request, user);
+      await _attachAuthHeaders(request, user, overrideToken: freshToken);
 
       final response = await request.close().timeout(_requestTimeout);
       final bodyText = await utf8
@@ -1709,6 +1765,17 @@ class BackendApiClient {
             attempt < _maxAttempts) {
           await Future<void>.delayed(Duration(seconds: 5 * attempt));
           continue;
+        }
+        // Same one-shot refresh as _request: the token expired or was
+        // withdrawn, so renew it and repeat the call rather than surfacing a
+        // sign-out to somebody mid-sale.
+        if (response.statusCode == 401 && !refreshed) {
+          refreshed = true;
+          final renewed = await _refreshOnce();
+          if (renewed != null && renewed.isNotEmpty) {
+            freshToken = renewed;
+            continue;
+          }
         }
         throw BackendApiException(
           'Backend request failed (${response.statusCode}) for $path: $bodyText',
@@ -1823,6 +1890,44 @@ class BackendApiClient {
     return (decoded['access'] ?? '').toString();
   }
 
+  /// Swap the stored refresh token for a new pair, or null if that is not
+  /// possible. Never throws: a failed refresh must surface as the original
+  /// 401, not as a different error from a recovery attempt.
+  Future<String?> _refreshOnce() {
+    final existing = _inFlightRefresh;
+    if (existing != null) return existing;
+    final started = _performRefresh();
+    _inFlightRefresh = started;
+    return started.whenComplete(() {
+      _inFlightRefresh = null;
+    });
+  }
+
+  Future<String?> _performRefresh() async {
+    final read = readRefreshToken;
+    if (read == null) return null;
+    try {
+      final refresh = (await read())?.trim() ?? '';
+      if (refresh.isEmpty) return null;
+      final decoded = await _postUnauthenticated(
+        '/session/token/refresh/',
+        <String, dynamic>{'refresh': refresh},
+      );
+      final access = (decoded['access'] ?? '').toString();
+      if (access.isEmpty) return null;
+      await onTokensRefreshed?.call(
+        access,
+        (decoded['refresh'] ?? refresh).toString(),
+      );
+      return access;
+    } catch (_) {
+      // The refresh token is expired, or the session was signed out on the
+      // server. Either way there is no way back in from here — the heartbeat
+      // in the sync coordinator owns signing the app out.
+      return null;
+    }
+  }
+
   /// POST without auth headers, with a long timeout: a free-tier backend can
   /// cold-start slowly (30-50s), which the normal short timeout would abort.
   Future<Map<String, dynamic>> _postUnauthenticated(
@@ -1856,6 +1961,8 @@ class BackendApiClient {
             await Future<void>.delayed(Duration(seconds: 5 * attempt));
             continue;
           }
+          // No refresh retry here on purpose: this method performs the
+          // refresh exchange itself, so a 401 means the refresh token is dead.
           throw BackendApiException(
             _firstErrorMessage(text, response.statusCode),
             statusCode: response.statusCode,
@@ -1899,8 +2006,14 @@ class BackendApiClient {
     return 'Request failed ($statusCode). Please try again.';
   }
 
-  Future<void> _attachAuthHeaders(HttpClientRequest request, User user) async {
-    final token = await user.getIdToken();
+  Future<void> _attachAuthHeaders(
+    HttpClientRequest request,
+    User user, {
+    String? overrideToken,
+  }) async {
+    // On a retry after refreshing, the in-memory User still holds the token
+    // that just failed, so the fresh one has to be passed in explicitly.
+    final token = overrideToken ?? await user.getIdToken();
     if (token != null && token.isNotEmpty) {
       request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
       return;

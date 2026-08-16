@@ -65,7 +65,9 @@ class MobileSessionNotifier extends AsyncNotifier<MobileSession?> {
   Future<MobileSession?> build() async {
     // In cloud (JWT) mode, restore a persisted login so the user stays signed
     // in across restarts. The stored access token is reused directly; if it has
-    // expired, the next backend call fails and the user re-signs in.
+    // expired, the API client swaps the refresh token for a new pair on the
+    // first 401 and repeats the call, so nobody is bounced to a login screen
+    // in the middle of a sale.
     if (_cloudAuthMode) {
       final repo = ref.read(shopRepositoryProvider);
       final access = await repo.readSetting(_jwtAccessKey) ?? '';

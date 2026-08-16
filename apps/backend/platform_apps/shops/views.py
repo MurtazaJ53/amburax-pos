@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from django.contrib.auth import get_user_model
+from django.db.models import F
 from django.utils import timezone
 from rest_framework import exceptions
 from rest_framework.response import Response
@@ -18,6 +20,7 @@ from platform_apps.jobs.readiness import build_pilot_signoff
 from platform_apps.jobs.models import MigrationDomainControl
 from platform_apps.shops.invites import build_invite_link, create_invite
 from platform_apps.shops.models import ShopMembership, ShopPlanRequest, WorkspaceAccessSession
+from platform_apps.users.jwt_auth import revoke_user_tokens
 from platform_apps.shops.permissions import get_membership_or_403
 from platform_apps.shops.serializers import (
     ShopDomainStateSerializer,
@@ -465,6 +468,11 @@ class WorkspaceAccessSessionDetailView(APIView):
         serializer.is_valid(raise_exception=True)
         updated_session = serializer.apply()
         action = serializer.validated_data["action"]
+        if action == "revoke":
+            # Withdraw the tokens as well as the row. Marking the session
+            # REVOKED alone left the device's JWT working, so the screen
+            # reported a sign-out that had not happened.
+            revoke_user_tokens(updated_session.user)
         event_type = {
             "revoke": "workspace.session.revoked",
             "request_wipe": "workspace.session.wipe_requested",
@@ -521,11 +529,19 @@ class WorkspaceAccessSessionRevokeAllView(APIView):
         )
         if keep:
             qs = qs.exclude(app_instance_id=keep)
+        # Collected before the update, because afterwards the rows no longer
+        # match the ACTIVE filter and the users behind them cannot be found.
+        affected_user_ids = list(qs.values_list("user_id", flat=True).distinct())
         count = qs.update(
             status=WorkspaceAccessSession.Status.REVOKED,
             revoke_reason="Signed out from all devices by an admin.",
             revoked_at=timezone.now(),
             revoked_by_user=request.user,
+        )
+        # The part that makes the sign-out real. Without it this endpoint only
+        # asked the clients to leave and trusted them to comply.
+        get_user_model().objects.filter(id__in=affected_user_ids).update(
+            token_version=F("token_version") + 1
         )
         create_workspace_audit_event(
             shop=actor_membership.shop,

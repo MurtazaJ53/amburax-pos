@@ -9,7 +9,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle
 
-from platform_apps.users.jwt_auth import decode_token, issue_tokens
+from platform_apps.users.jwt_auth import (
+    decode_token,
+    issue_tokens,
+    token_version_matches,
+)
 
 class LoginRateThrottle(AnonRateThrottle):
     rate = '5/min'
@@ -77,5 +81,13 @@ class SessionTokenRefreshView(APIView):
         if user is None:
             return Response(
                 {"detail": "User for token not found."}, status=status.HTTP_401_UNAUTHORIZED
+            )
+        if not token_version_matches(user, payload):
+            # Without this the refresh token is a way back in after being signed
+            # out: the access token would be rejected, and the client would
+            # quietly trade its refresh token for a working one.
+            return Response(
+                {"detail": "Session was signed out."},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         return Response(issue_tokens(user), status=status.HTTP_200_OK)

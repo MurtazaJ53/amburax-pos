@@ -16,14 +16,28 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db.models import F
 from rest_framework import authentication, exceptions
 
 User = get_user_model()
 
 _ALGORITHM = "HS256"
 _ISSUER = "business-hub"
-ACCESS_TOKEN_LIFETIME = timedelta(days=365)
-REFRESH_TOKEN_LIFETIME = timedelta(days=365 * 2)
+#: Short, because a leaked access token cannot be individually withdrawn — only
+#: the whole account can be (see revoke_user_tokens). Twelve hours covers a
+#: full trading day, so a shop that opens and closes never refreshes mid-sale,
+#: and a token copied off a device is worthless by the next morning.
+#:
+#: This was 365 days. Shortening it was only safe once the counter app learned
+#: to renew on a 401; before that, any reduction would have logged every till
+#: out at the moment the token expired.
+ACCESS_TOKEN_LIFETIME = timedelta(hours=12)
+
+#: Long, because this is what keeps a shopkeeper signed in between days. It is
+#: exchanged for a new pair on every use and is revocable through the same
+#: token_version check, so its length is not the exposure the access token's
+#: length was.
+REFRESH_TOKEN_LIFETIME = timedelta(days=180)
 
 
 def _encode(*, user, token_type: str, lifetime: timedelta) -> str:
@@ -36,6 +50,10 @@ def _encode(*, user, token_type: str, lifetime: timedelta) -> str:
         "iat": int(now.timestamp()),
         "exp": int((now + lifetime).timestamp()),
         "jti": uuid.uuid4().hex,
+        # The user's revocation counter at the moment of minting. Authentication
+        # compares this against the stored value, so bumping the stored value
+        # invalidates every token issued before the bump.
+        "tv": int(getattr(user, "token_version", 0) or 0),
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=_ALGORITHM)
 
@@ -61,6 +79,10 @@ def decode_token(token: str, *, expected_type: str) -> dict:
         settings.SECRET_KEY,
         algorithms=[_ALGORITHM],
         issuer=_ISSUER,
+        # "tv" is deliberately NOT required. Tokens minted before this claim
+        # existed are still legitimately signed, and rejecting them outright
+        # would sign out every shop at deploy time. They are treated as version
+        # 0 below, so the first revocation invalidates them like any other.
         options={"require": ["exp", "sub", "token_type"]},
     )
     if payload.get("token_type") != expected_type:
@@ -69,6 +91,28 @@ def decode_token(token: str, *, expected_type: str) -> dict:
         # invalid token (JWTAuthentication falls through; refresh view -> 401).
         raise jwt.InvalidTokenError("Wrong token type.")
     return payload
+
+
+def token_version_matches(user, payload: dict) -> bool:
+    """Whether this token was minted before the user's access was withdrawn.
+
+    A token with no ``tv`` claim predates the field and counts as version 0, so
+    existing sessions survive the deploy and are revocable from then on.
+    """
+    return int(payload.get("tv", 0) or 0) == int(getattr(user, "token_version", 0) or 0)
+
+
+def revoke_user_tokens(user) -> None:
+    """Withdraw every token this user currently holds.
+
+    Deliberately account-wide rather than per-device: the token is minted at
+    login, which never learns which device asked, so there is nothing in it to
+    revoke selectively. Signing a person out of all their devices when an admin
+    revokes one is a wider action than requested, but it is the safe direction
+    to err — and it is strictly better than the previous behaviour, which
+    revoked nothing at all.
+    """
+    type(user).objects.filter(pk=user.pk).update(token_version=F("token_version") + 1)
 
 
 class JWTAuthentication(authentication.BaseAuthentication):
@@ -97,6 +141,11 @@ class JWTAuthentication(authentication.BaseAuthentication):
             raise exceptions.AuthenticationFailed("User for token not found.") from exc
         if not user.is_active:
             raise exceptions.AuthenticationFailed("User is inactive.")
+        if not token_version_matches(user, payload):
+            # Signed, unexpired, and withdrawn. This is the check that makes
+            # "sign out all devices" mean something on the server rather than
+            # being a request the client is trusted to honour.
+            raise exceptions.AuthenticationFailed("Session was signed out.")
         return (user, token)
 
     def authenticate_header(self, request):
