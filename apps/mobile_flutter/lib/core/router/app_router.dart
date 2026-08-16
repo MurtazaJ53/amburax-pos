@@ -22,6 +22,8 @@ import '../../features/inventory/presentation/purchase_orders_screen.dart';
 import '../../features/inventory/presentation/reorder_list_screen.dart';
 import '../../features/inventory/presentation/stock_transfers_screen.dart';
 import '../../features/inventory/presentation/stocktake_screen.dart';
+import '../../features/reports/presentation/day_book_screen.dart';
+import '../../features/settings/presentation/notifications_screen.dart';
 import '../../features/onboarding/presentation/setup_wizard_screen.dart';
 import '../../features/reports/presentation/business_pulse_screen.dart';
 import '../../features/reports/presentation/dead_stock_screen.dart';
@@ -160,6 +162,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'data-health',
             pageBuilder: (context, state) =>
                 const NoTransitionPage<void>(child: DataHealthScreen()),
+          ),
+          GoRoute(
+            parentNavigatorKey: appRootNavigatorKey,
+            path: 'alerts',
+            pageBuilder: (context, state) =>
+                const NoTransitionPage<void>(child: NotificationsScreen()),
+          ),
+          GoRoute(
+            parentNavigatorKey: appRootNavigatorKey,
+            path: 'day-book',
+            pageBuilder: (context, state) =>
+                const NoTransitionPage<void>(child: DayBookScreen()),
           ),
           GoRoute(
             parentNavigatorKey: appRootNavigatorKey,

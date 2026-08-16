@@ -131,6 +131,20 @@ class SettingsScreen extends ConsumerWidget {
             leadingIcon: Icons.local_shipping_rounded,
             onTap: () => context.push('/settings/purchases'),
           ),
+          // The 09:00 low-stock alert and the 21:00 takings summary were being
+          // sent to owners who had nowhere in the app to read them.
+          MobileListTile(
+            title: 'Alerts',
+            subtitle: 'Low stock in the morning, takings at night',
+            leadingIcon: Icons.notifications_active_rounded,
+            onTap: () => context.push('/settings/alerts'),
+          ),
+          MobileListTile(
+            title: 'Day book (Roj Mel)',
+            subtitle: 'What came in today, and what went out on credit',
+            leadingIcon: Icons.menu_book_rounded,
+            onTap: () => context.push('/settings/day-book'),
+          ),
           // Both of these are for the person at the back door with cartons in
           // their hands, which is why they belong on the phone at all.
           MobileListTile(

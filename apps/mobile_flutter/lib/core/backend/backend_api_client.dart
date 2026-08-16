@@ -1398,6 +1398,67 @@ class BackendApiClient {
     );
   }
 
+  /// The day's Roj Mel: money in on one side, credit given on the other.
+  ///
+  /// [date] is an ISO date; omitted means today in the shop's own timezone,
+  /// which is the server's job to know rather than the phone's.
+  Future<Map<String, dynamic>> fetchDayBook({
+    required User user,
+    required String shopId,
+    String date = '',
+  }) async {
+    final suffix = date.trim().isEmpty ? '' : '?date=${date.trim()}';
+    return _request(
+      user: user,
+      method: 'GET',
+      path: '/shops/$shopId/reports/day-book/$suffix',
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  //  Notifications
+  // ---------------------------------------------------------------------
+
+  /// The alert feed for the signed-in user.
+  ///
+  /// User-scoped rather than shop-scoped on the server, with the shop as a
+  /// filter, because one person can hold memberships in several shops and the
+  /// 09:00 stock alert is addressed to them rather than to a shop.
+  Future<List<Map<String, dynamic>>> fetchNotifications({
+    required User user,
+    required String shopId,
+  }) async {
+    return _requestList(
+      user: user,
+      method: 'GET',
+      path: '/notifications/?shop_id=$shopId',
+    );
+  }
+
+  Future<void> markNotificationRead({
+    required User user,
+    required String notificationId,
+  }) async {
+    await _request(
+      user: user,
+      method: 'POST',
+      path: '/notifications/$notificationId/read/',
+    );
+  }
+
+  Future<int> markAllNotificationsRead({
+    required User user,
+    required String shopId,
+  }) async {
+    final decoded = await _request(
+      user: user,
+      method: 'POST',
+      path: '/notifications/read-all/',
+      body: <String, dynamic>{'shop_id': shopId},
+    );
+    return _asInt(decoded['updated_count']);
+  }
+
   // ---------------------------------------------------------------------
   //  Stocktakes
   // ---------------------------------------------------------------------
