@@ -1469,7 +1469,15 @@ class DeadStockItem {
 
   /// Cash tied up, valued at cost where known. Falls back to selling price so
   /// an item without a cost price still shows up rather than reading as free.
-  double get tiedUpValue => stock * (costPrice ?? price);
+  ///
+  /// A stored 0.00 counts as "not recorded", not "free" — the server's version
+  /// of this report says exactly that. Treating it as zero valued the shelf at
+  /// nothing and sorted the worst offenders to the bottom of the list, which
+  /// is the problem the report exists to surface.
+  double get tiedUpValue {
+    final cost = costPrice;
+    return stock * (cost != null && cost > 0 ? cost : price);
+  }
 
   String get lastSoldLabel {
     if (neverSold) return 'Never sold';

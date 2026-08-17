@@ -32,6 +32,10 @@ class SettingsScreen extends ConsumerWidget {
 
     final l = L.of(context);
     final owner = session?.isOwnerLike ?? false;
+    // Manager and above. Several screens here are computed on the device from
+    // its own database, so the server's role check never runs — the gate has
+    // to be repeated here or the two platforms disagree about who may look.
+    final managerUp = owner || (session?.isManager ?? false);
 
     return MobileStandaloneScaffold(
       title: l.settingsTitle,
@@ -192,18 +196,27 @@ class SettingsScreen extends ConsumerWidget {
               leadingIcon: Icons.emoji_events_rounded,
               onTap: () => context.push('/settings/staff-performance'),
             ),
-          MobileListTile(
-            title: 'Business pulse',
-            subtitle: 'Best sellers and cash flow',
-            leadingIcon: Icons.insights_rounded,
-            onTap: () => context.push('/settings/pulse'),
-          ),
-          MobileListTile(
-            title: 'Dead stock',
-            subtitle: 'Money sitting in items that are not selling',
-            leadingIcon: Icons.inventory_rounded,
-            onTap: () => context.push('/settings/dead-stock'),
-          ),
+          // Manager and above, matching the server. It gates the cash-flow
+          // report at MANAGER, and this screen shows cash flow beside best
+          // sellers — leaving it open let a cashier read on the phone what the
+          // website would refuse them.
+          if (managerUp)
+            MobileListTile(
+              title: 'Business pulse',
+              subtitle: 'Best sellers and cash flow',
+              leadingIcon: Icons.insights_rounded,
+              onTap: () => context.push('/settings/pulse'),
+            ),
+          // MANAGER on the server, because the figures are built from cost
+          // prices. The phone computes this from its own database, so without
+          // the same gate a cashier saw a report the API answers 403 to.
+          if (managerUp)
+            MobileListTile(
+              title: 'Dead stock',
+              subtitle: 'Money sitting in items that are not selling',
+              leadingIcon: Icons.inventory_rounded,
+              onTap: () => context.push('/settings/dead-stock'),
+            ),
           MobileListTile(
             title: 'Data health',
             subtitle: 'Find and fix duplicates and bad counts',

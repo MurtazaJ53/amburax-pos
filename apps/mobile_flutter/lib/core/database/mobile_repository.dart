@@ -513,7 +513,10 @@ class InventoryRepository {
             WHERE i.tombstone = 0
               AND i.stock > 0
               AND (last_sold_at IS NULL OR last_sold_at < ?)
-            ORDER BY (i.stock * COALESCE(p.cost_price, i.price)) DESC;
+            -- NULLIF so a stored 0.00 cost falls back to the sell price like
+            -- a missing one does. Without it those items value at zero and
+            -- sort to the bottom, hiding the biggest problems on the shelf.
+            ORDER BY (i.stock * COALESCE(NULLIF(p.cost_price, 0), i.price)) DESC;
           """,
           variables: [Variable<int>(cutoff)],
           readsFrom: {
