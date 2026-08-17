@@ -148,10 +148,29 @@ if DATABASE_URL:
         )
     }
 else:
+    # SQLite is the local fallback only; production always sets DATABASE_URL.
+    #
+    # The defaults are unusable for this app. SQLite's rollback journal takes a
+    # database-wide write lock, and several endpoints write during a GET — the
+    # dashboard materialises its projection on first read, so creating a shop
+    # and landing on the dashboard is two writes in quick succession. On the
+    # threaded dev server that reliably produced "database is locked" and a 500
+    # on the first page a new shop ever sees.
+    #
+    # WAL lets a reader and a writer coexist, and the timeout makes a competing
+    # writer wait rather than fail instantly. Neither affects production.
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "dev.sqlite3",
+            "OPTIONS": {
+                "timeout": 30,
+                "init_command": "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;",
+                # Take the write lock when the transaction starts rather than
+                # on its first write, so two concurrent writers queue instead
+                # of one discovering the conflict half way through.
+                "transaction_mode": "IMMEDIATE",
+            },
         }
     }
 
