@@ -247,6 +247,21 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle"
     ],
+    # How many proxies sit in front of Django, so it knows which entry of
+    # X-Forwarded-For is the real client.
+    #
+    # Left unset, DRF uses the whole header verbatim as the throttle key — and
+    # the header is supplied by the caller. Anyone could hand themselves a
+    # fresh bucket on every request, which made the 5/min login limit no limit
+    # at all: measured at eight failed sign-ins with a rotating header and not
+    # one 429, against a lockout on the sixth without it.
+    #
+    # 1 = the single nginx hop in front of this. Nginx appends the peer address
+    # it actually observed to the end of the header, so counting from the end
+    # ignores anything the client put there. With no proxy in front (local
+    # runs), no header arrives and DRF falls back to REMOTE_ADDR, so this is
+    # safe in both shapes.
+    "NUM_PROXIES": int(os.getenv("DJANGO_NUM_PROXIES", "1")),
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/hour",
         "user": "1000/hour",
