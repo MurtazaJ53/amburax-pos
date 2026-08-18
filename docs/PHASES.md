@@ -40,7 +40,7 @@ somebody else's blocker.
 |---|---|---|
 | Point `app.amburax.com` at the droplet, certbot, nginx | Owner | 20 min |
 | Tighten `DJANGO_ALLOWED_HOSTS` off `*`, add CSRF origins | Owner | 5 min |
-| Move the backend to `api.amburax.com` | Owner | 15 min |
+| ~~Move the backend to `api.amburax.com`~~ — decided against | — | — |
 | Add the hourly cron entry for alerts | Owner | 1 min |
 | Rotate the two exposed passwords, clear bash history | Owner | 5 min |
 | Hindi/Gujarati review of the counter app | Owner | 1–2 hrs |
@@ -48,6 +48,11 @@ somebody else's blocker.
 
 `amburax.com` already exists on Cloudflare, so the domain that blocked this for
 weeks is no longer a blocker.
+
+The API stays on `api.indianwasteportal.com` permanently. That hostname is
+compiled into every Android build already installed in a shop, and a phone in
+somebody's hand cannot be repointed remotely — so retiring it would break the
+tills that are hardest to reach. Only the admin website moves to `amburax.com`.
 
 **Roughly half a day of work, and it is worth more than everything in Phase 2.**
 Until a real shop uses this, every priority below is a guess.

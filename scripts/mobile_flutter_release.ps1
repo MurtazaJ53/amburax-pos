@@ -4,6 +4,11 @@ param(
   [string]$ReleaseTag,
   [string]$ReleaseChannel = 'pilot',
   [string]$PilotScope = 'pilot-unspecified',
+  # The API a released build talks to. Defaults to the hostname already
+  # compiled into every installed build; overriding it produces an APK that
+  # points somewhere else, which is occasionally what a test build wants and
+  # never what a shop build wants by accident.
+  [string]$ApiBaseUrl = 'https://api.indianwasteportal.com/api/v1',
   [string]$ArtifactRoot = 'release-artifacts\mobile-local',
   [switch]$PreflightOnly,
   [switch]$SkipPubGet,
@@ -638,6 +643,12 @@ try {
       'build',
       'apk',
       '--release',
+      # Pinned, not left to the default in backend_api_client.dart. The URL a
+      # shop's phone talks to is a release decision, and it should be visible
+      # in the build command rather than buried in source. Every installed
+      # build already carries this hostname, so it does not change without a
+      # plan for the phones that cannot be updated remotely.
+      "--dart-define=BUSINESS_HUB_API_BASE_URL=$ApiBaseUrl",
       "--dart-define=BUSINESS_HUB_RELEASE_CHANNEL=$ReleaseChannel",
       "--dart-define=BUSINESS_HUB_RELEASE_SHA=$shortSha",
       "--dart-define=BUSINESS_HUB_RELEASE_TAG=$resolvedReleaseTag",

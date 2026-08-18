@@ -11,12 +11,20 @@
 # half-finished attempt can be resumed rather than unpicked.
 #
 # Usage, on the droplet:
-#   sudo bash go-live.sh app.yourdomain.com api.yourdomain.com
+#   sudo bash go-live.sh app.yourdomain.com
+#
+# The API hostname defaults to api.indianwasteportal.com and should stay that
+# way: it is compiled into every Android build already installed in a shop, and
+# those cannot be repointed remotely. Pass a second argument only if you are
+# deliberately moving it and have a plan for the phones.
 #
 set -euo pipefail
 
 APP_DOMAIN="${1:-}"
-API_DOMAIN="${2:-}"
+# The API keeps answering on api.indianwasteportal.com permanently. Every
+# Android build already compiled that hostname in, so retiring it would break
+# phones that are already in shops — and those cannot be updated remotely.
+API_DOMAIN="${2:-api.indianwasteportal.com}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.demo.yml}"
 PROJECT_DIR="${PROJECT_DIR:-/opt/bhub}"
 # This deployment keeps its secrets in .env.demo, and compose only reads them
@@ -24,9 +32,11 @@ PROJECT_DIR="${PROJECT_DIR:-/opt/bhub}"
 ENV_FILE="${ENV_FILE:-.env.demo}"
 COMPOSE=(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 
-if [[ -z "$APP_DOMAIN" || -z "$API_DOMAIN" ]]; then
-  echo "Usage: sudo bash go-live.sh <app-domain> <api-domain>" >&2
-  echo "  e.g. sudo bash go-live.sh app.amburax.com api.amburax.com" >&2
+if [[ -z "$APP_DOMAIN" ]]; then
+  echo "Usage: sudo bash go-live.sh <app-domain> [api-domain]" >&2
+  echo "  e.g. sudo bash go-live.sh app.amburax.com" >&2
+  echo "  The API defaults to api.indianwasteportal.com, which is the" >&2
+  echo "  hostname already compiled into every Android build." >&2
   exit 2
 fi
 
