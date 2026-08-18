@@ -372,6 +372,16 @@ class SaleSerializer(serializers.ModelSerializer):
 
         payment_mode = payment_payloads[0]["payment_method"] if len(payment_payloads) == 1 else Sale.PaymentMode.SPLIT
 
+        # Drop the client's own subtotal/total. They are writable so a caller
+        # can send them, and validate() already checked them against the figures
+        # computed from the items — but they are a cross-check, never the stored
+        # value. Left in validated_data they arrive as a second value for a
+        # keyword create() is already given below, and Python raises
+        # "got multiple values for keyword argument", which surfaces as a 500 on
+        # the one action a shop performs most: completing a sale.
+        validated_data.pop("subtotal_amount", None)
+        validated_data.pop("total_amount", None)
+
         sale = Sale.objects.create(
             shop=shop,
             actor_user=actor,
