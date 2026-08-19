@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers as nextHeaders } from "next/headers";
 import { NextResponse } from "next/server";
 
 /**
@@ -16,6 +16,12 @@ type ProxyContext = { token: string; shopId: string };
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+/** The client address as nginx recorded it, for onward rate limiting. */
+export async function clientAddress(): Promise<string> {
+  const incoming = await nextHeaders();
+  return incoming.get("x-forwarded-for") ?? incoming.get("x-real-ip") ?? "";
 }
 
 async function readContext(): Promise<ProxyContext | null> {
@@ -47,6 +53,15 @@ export async function proxyToApi(
       Authorization: `Bearer ${context.token}`,
       Accept: "application/json",
     };
+    // Pass the caller's address through to Django. Without it every request
+    // arrives from this container, so the whole site shares one rate-limit
+    // bucket and five failed sign-ins lock everybody out at once.
+    //
+    // Forwarded exactly as received: nginx appends the peer address it observed
+    // to the end of the chain, and Django counts from the end (NUM_PROXIES), so
+    // a value the browser invented sits earlier in the list and is ignored.
+    const forwarded = await clientAddress();
+    if (forwarded) headers["X-Forwarded-For"] = forwarded;
     if (init.body !== undefined) headers["Content-Type"] = "application/json";
 
     const res = await fetch(`${API_BASE_URL}${buildPath(context.shopId)}`, {

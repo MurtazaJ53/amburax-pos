@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+import { clientAddress } from "@/lib/proxy";
+
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
@@ -23,10 +25,20 @@ export async function POST(req: NextRequest) {
 
     // 1. Call Backend Session Token API
     let tokenRes: Response;
+    const forwardedFor = await clientAddress();
+
     try {
       tokenRes = await fetch(`${API_BASE_URL}/session/token/`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        // The caller's address, so Django rate-limits sign-in attempts per
+        // person rather than lumping the whole website into one bucket. This
+        // is the endpoint where that matters most: five failed attempts from
+        // anyone would otherwise lock out everybody.
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...(forwardedFor ? { "X-Forwarded-For": forwardedFor } : {}),
+        },
         body: JSON.stringify({ email: email.trim(), password }),
       });
     } catch {

@@ -11,6 +11,7 @@ works without a live Firebase project.
 from __future__ import annotations
 
 import uuid
+import os
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -31,13 +32,17 @@ _ISSUER = "business-hub"
 #: This was 365 days. Shortening it was only safe once the counter app learned
 #: to renew on a 401; before that, any reduction would have logged every till
 #: out at the moment the token expired.
-ACCESS_TOKEN_LIFETIME = timedelta(hours=12)
+ACCESS_TOKEN_LIFETIME = timedelta(
+    hours=int(os.getenv("ACCESS_TOKEN_LIFETIME_HOURS", "12"))
+)
 
 #: Long, because this is what keeps a shopkeeper signed in between days. It is
 #: exchanged for a new pair on every use and is revocable through the same
 #: token_version check, so its length is not the exposure the access token's
 #: length was.
-REFRESH_TOKEN_LIFETIME = timedelta(days=180)
+REFRESH_TOKEN_LIFETIME = timedelta(
+    days=int(os.getenv("REFRESH_TOKEN_LIFETIME_DAYS", "180"))
+)
 
 
 def _encode(*, user, token_type: str, lifetime: timedelta) -> str:
