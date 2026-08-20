@@ -337,22 +337,11 @@ export function AuthLogin() {
                   Real buttons, 48px tall, thumb-reachable, in frequency order:
                   staff sign in many times a day, a shop is created once ever. */}
               <div className="pt-4 mt-1 border-t border-[var(--border-soft)] space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setPanelMode("pin")}
-                  className="w-full min-h-[48px] flex items-center gap-3 px-4 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] hover:border-[var(--primary)] hover:bg-[var(--surface)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] transition-colors text-left"
-                >
-                  <KeyRound className="w-4 h-4 shrink-0 text-[var(--primary)]" />
-                  <span className="min-w-0">
-                    <span className="block text-xs font-extrabold text-[var(--text-primary)]">
-                      {t("webStaffPinLogin")}
-                    </span>
-                    <span className="block text-[11px] font-semibold text-[var(--text-secondary)]">
-                      Counter staff — sign in with a PIN
-                    </span>
-                  </span>
-                </button>
-
+                {/* Staff PIN is deliberately absent here. It unlocks a session
+                    that already exists, so on a signed-out browser — which is
+                    every first run — there is nothing for it to unlock, and no
+                    shop, and no staff. Offering it was a door to nowhere. It
+                    lives on the locked POS screen instead. */}
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -436,7 +425,7 @@ export function AuthLogin() {
                   type="tel"
                   value={regMobile}
                   onChange={(e) => setRegMobile(e.target.value)}
-                  placeholder="Mobile (optional)"
+                  placeholder="Mobile number *"
                   className="w-full px-3.5 py-3 bg-[var(--bg-base)] border border-[var(--border-soft)] focus:border-[var(--primary)] focus:bg-[var(--surface)] rounded-2xl text-xs font-semibold text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none"
                 />
               </div>

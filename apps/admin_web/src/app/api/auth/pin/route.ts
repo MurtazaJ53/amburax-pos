@@ -20,7 +20,21 @@ export async function POST(req: NextRequest) {
     }
 
     const cookieStore = await cookies();
+
+    // A PIN here re-opens a session that already exists; it is not a way in.
+    // The endpoint used to hand role=cashier to any caller who posted four
+    // digits, with no shop, no session and no check against pos_pin_hash —
+    // a gate labelled SECURE PIN that verified nothing. Requiring a signed-in
+    // session first makes it a screen lock, which is what it actually is.
+    const token = cookieStore.get("bh_access_token")?.value;
     const activeShop = cookieStore.get("bh_active_shop")?.value;
+    if (!token || !activeShop) {
+      return NextResponse.json(
+        { error: "Sign in on this device first. The PIN unlocks an existing session." },
+        { status: 401 }
+      );
+    }
+
     const currentEmail = cookieStore.get("bh_user_email")?.value || "pos.terminal@businesshub.local";
 
     // Set PIN session / cashier role

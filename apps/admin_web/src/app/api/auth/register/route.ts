@@ -33,13 +33,27 @@ export async function POST(req: NextRequest) {
       owner_name: (ownerName || owner_name || "").trim(),
       email: (email || "").trim().toLowerCase(),
       password,
-      mobile: (mobile || "9876543210").trim(),
+      // No placeholder fallback. This used to default to "9876543210", which
+      // gave every shop that skipped the field a fake number indistinguishable
+      // from a real one — unreachable, and impossible to spot later.
+      mobile: (mobile || "").trim(),
       business_name: (businessName || business_name || "").trim(),
       business_type: businessType || business_type || "retail",
       state_code: (stateCode || state_code || "").trim(),
       gstin: (gstin || "").trim(),
       plan_tier: planTier || plan_tier || "starter",
     };
+
+    // Mobile is required, not optional. It is how a shop owner is reached
+    // about their own account, and the only number WhatsApp reminders can
+    // ever send from. Enforced here rather than only in the form, so the
+    // rule holds for any caller.
+    if (!payload.mobile || payload.mobile.replace(/\D/g, "").length < 10) {
+      return NextResponse.json(
+        { error: "A 10-digit mobile number is required" },
+        { status: 400 }
+      );
+    }
 
     if (!payload.email || !payload.password || !payload.owner_name || !payload.business_name) {
       return NextResponse.json(
