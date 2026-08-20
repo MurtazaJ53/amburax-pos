@@ -34,6 +34,9 @@ export interface ProductItem {
   is_low_stock?: boolean;
   status?: string;
   tax_rate?: number;
+  /** How the shop counts this item — "kg", "litre", "piece". Blank for most.
+   *  Only meaningful to a shop with weight selling turned on. */
+  unit?: string;
   created_at?: string;
   updated_at?: string;
 }

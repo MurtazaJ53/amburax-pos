@@ -7,6 +7,7 @@ from platform_apps.shops.invite_views import (
 from platform_apps.shops.permission_catalog import PermissionCatalogView
 from platform_apps.shops.export_views import ShopDataExportView
 from platform_apps.shops.settings_views import ShopSettingsView
+from platform_apps.shops.pos_pin_views import PosPinVerifyView
 from platform_apps.audit.views import WorkspaceAuditEventListView
 from platform_apps.attendance.views import (
     AttendanceSessionDetailView,
@@ -129,6 +130,7 @@ urlpatterns = [
     path("<uuid:shop_id>/team/", WorkspaceTeamListCreateView.as_view(), name="workspace-team"),
     path("<uuid:shop_id>/team/<uuid:membership_id>/", WorkspaceTeamDetailView.as_view(), name="workspace-team-detail"),
     path("<uuid:shop_id>/settings/", ShopSettingsView.as_view(), name="shop-settings"),
+    path("<uuid:shop_id>/pos-pin/verify/", PosPinVerifyView.as_view(), name="pos-pin-verify"),
     path("<uuid:shop_id>/export/", ShopDataExportView.as_view(), name="shop-data-export"),
     path("<uuid:shop_id>/permission-catalog/", PermissionCatalogView.as_view(), name="permission-catalog"),
     path("<uuid:shop_id>/invites/", ShopInviteListCreateView.as_view(), name="shop-invites"),

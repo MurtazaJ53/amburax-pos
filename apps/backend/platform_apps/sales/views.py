@@ -24,7 +24,7 @@ from platform_apps.common.migration_guards import (
     assert_postgres_primary_write_enabled_multi,
 )
 from platform_apps.payments.models import SalePayment
-from platform_apps.projections.services import refresh_shop_dashboard_projection
+from platform_apps.projections.services import refresh_projection_after_write
 from platform_apps.sales.models import Sale, SaleItem
 from platform_apps.sales.models import SaleCommandReceipt
 from platform_apps.sales.tally import build_tally_xml
@@ -478,7 +478,7 @@ class SaleCommandIngestionView(ShopScopedMixin, generics.GenericAPIView):
                 update_fields=["sale", "result_status", "applied_at", "payload_json"]
             )
 
-        refresh_shop_dashboard_projection(membership.shop)
+        refresh_projection_after_write(membership.shop, context="a sale")
         sale = _get_sale_queryset_for_shop(shop_id=str(membership.shop_id)).get(pk=sale.id)
         return Response(
             {

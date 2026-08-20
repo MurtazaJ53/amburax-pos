@@ -24,7 +24,7 @@ from platform_apps.payments.serializers import (
     SalePaymentSerializer,
     SalePaymentSummarySerializer,
 )
-from platform_apps.projections.services import refresh_shop_dashboard_projection
+from platform_apps.projections.services import refresh_projection_after_write
 from platform_apps.sales.models import Sale
 from platform_apps.shops.models import ShopMembership
 from platform_apps.shops.permissions import get_membership_or_403, has_feature_enabled
@@ -306,7 +306,7 @@ class SalePaymentCommandIngestionView(ShopScopedMixin, generics.GenericAPIView):
                 ]
             )
 
-        refresh_shop_dashboard_projection(membership.shop)
+        refresh_projection_after_write(membership.shop, context="a payment")
         payment = SalePayment.objects.select_related("sale", "actor_user").get(pk=payment.id)
         create_workspace_audit_event(
             shop=membership.shop,

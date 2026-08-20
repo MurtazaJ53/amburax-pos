@@ -45,6 +45,7 @@ type ApiInventoryRow = {
   hsn_code?: string;
   size?: string;
   description?: string;
+  unit?: string;
 };
 
 type PosTerminalProps = {
@@ -93,9 +94,32 @@ export function PosTerminal({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [cart, setCart] = useState<CartItem[]>([]);
+  // Whether this shop sells loose goods by weight. Off for most shops, and the
+  // whole product for a kirana: without it the quantity is integer-only, so
+  // 1.25 kg of dal simply cannot be rung up.
+  const [weightSelling, setWeightSelling] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/settings");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setWeightSelling(data?.features?.weight_selling === true);
+      } catch {
+        // Left off on a failure, deliberately. The till must open whatever the
+        // settings endpoint is doing, and an integer quantity is the behaviour
+        // every shop had until now — wrong for a grocer, but not broken.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     async function _loadData() {
@@ -119,6 +143,7 @@ export function PosTerminal({
           tax_rate: parseFloat(item.gst_rate || "0"),
           is_low_stock: false,
           status: item.status ?? "active",
+          unit: item.unit ?? "",
         }));
         setProducts(mappedProducts);
 
@@ -249,6 +274,7 @@ export function PosTerminal({
         discount_amount: 0,
         total_price: product.selling_price,
         available_stock: product.current_stock,
+        unit: product.unit || "",
       };
       return [...prev, newItem];
     });
@@ -259,6 +285,10 @@ export function PosTerminal({
       removeFromCart(cartItemId);
       return;
     }
+    // The backend stores quantity to three decimals. Rounding here keeps the
+    // line total the customer is shown identical to the one that gets stored,
+    // rather than off by a fraction of a paisa that nobody can explain.
+    newQty = Math.round(newQty * 1000) / 1000;
     setCart((prev) =>
       prev.map((item) =>
         item.id === cartItemId
@@ -402,6 +432,7 @@ export function PosTerminal({
           tax_rate: parseFloat(item.gst_rate || "0"),
           is_low_stock: false,
           status: item.status ?? "active",
+          unit: item.unit ?? "",
         }));
         setProducts(mappedProducts);
       }
@@ -529,7 +560,10 @@ export function PosTerminal({
               {t("webCurrentCart")}
             </span>
             <span className="px-2.5 py-0.5 text-xs font-extrabold bg-[var(--primary)] text-white rounded-full">
-              {cart.reduce((s, i) => s + i.quantity, 0)}
+              {/* Rounded: adding 0.1 + 0.2 in binary floating point gives
+                  0.30000000000000004, and a badge on a till reading that
+                  destroys confidence in every other number on the screen. */}
+              {Math.round(cart.reduce((s, i) => s + i.quantity, 0) * 1000) / 1000}
             </span>
           </div>
 
@@ -656,9 +690,37 @@ export function PosTerminal({
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </button>
-                      <span className="px-2.5 text-xs font-black text-[var(--text-primary)]">
-                        {item.quantity}
-                      </span>
+                      {weightSelling ? (
+                        // Typed, not stepped. Reaching 1.25 kg by pressing +
+                        // is not a slower way to do this; it is impossible.
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="0.001"
+                          min="0"
+                          aria-label={`Quantity${item.unit ? ` in ${item.unit}` : ""} for ${item.name}`}
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const next = parseFloat(e.target.value);
+                            // An empty or half-typed box (".", "-") parses to
+                            // NaN. Removing the line as someone clears it to
+                            // retype would be maddening, so it is ignored.
+                            if (Number.isFinite(next) && next > 0) {
+                              updateQuantity(item.id, next);
+                            }
+                          }}
+                          className="w-16 px-1 py-0.5 text-center text-xs font-black text-[var(--text-primary)] bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-[var(--primary)] rounded"
+                        />
+                      ) : (
+                        <span className="px-2.5 text-xs font-black text-[var(--text-primary)]">
+                          {item.quantity}
+                        </span>
+                      )}
+                      {weightSelling && item.unit && (
+                        <span className="pr-1.5 text-[10px] font-bold text-[var(--text-tertiary)]">
+                          {item.unit}
+                        </span>
+                      )}
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"

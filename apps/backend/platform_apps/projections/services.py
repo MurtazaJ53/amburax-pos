@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 
 from django.db import models, transaction
@@ -13,6 +14,40 @@ from platform_apps.payments.models import SalePayment
 from platform_apps.projections.models import ShopDashboardSnapshot, ShopLowStockSnapshot
 from platform_apps.sales.models import Sale
 from platform_apps.shops.models import Shop
+
+
+logger = logging.getLogger(__name__)
+
+
+def refresh_projection_after_write(shop: Shop, *, context: str) -> None:
+    """Refresh the dashboard after a write that has already been committed.
+
+    The dashboard is derived data: every number on it can be rebuilt from the
+    sales and payments it summarises, and a scheduled job rebuilds it anyway.
+    The sale is not derived. So when the refresh fails after the sale has
+    committed, the sale is the thing that matters and the caller must still
+    report success.
+
+    It used to raise straight through. The sale was written, the projection
+    then failed, and the cashier saw a 500 for a sale that was in fact in the
+    database — so they rang it up again, and the shop's own till was the thing
+    creating duplicate sales. A stale dashboard until the next refresh is a
+    strictly smaller problem than a double-charged customer.
+
+    Logged at ERROR with the shop id, because a projection that fails every
+    time is a real fault; it just is not the till's emergency.
+    """
+    try:
+        refresh_shop_dashboard_projection(shop)
+    except Exception:
+        logger.error(
+            "Dashboard projection refresh failed after %s for shop %s. The write "
+            "itself is committed and correct; the dashboard will be stale until "
+            "the next refresh.",
+            context,
+            shop.id,
+            exc_info=True,
+        )
 
 
 def refresh_shop_dashboard_projection(shop: Shop) -> ShopDashboardSnapshot:

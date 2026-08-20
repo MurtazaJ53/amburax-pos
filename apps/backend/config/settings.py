@@ -293,6 +293,10 @@ REST_FRAMEWORK = {
         # rate a busy shop's customers checking balances would exhaust the
         # 100/hour that also covers login and registration.
         "khata_statement": "60/hour",
+        # A four-digit PIN is 10,000 guesses. This is the whole of its
+        # brute-force protection, so it is tuned for a shift change (a cashier
+        # mistypes once or twice) rather than for a script.
+        "pos_pin": "10/min",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": int(os.getenv("API_PAGE_SIZE", "50")),

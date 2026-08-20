@@ -1546,6 +1546,10 @@ export type CartItem = {
   discount_amount: number;
   total_price: number;
   available_stock: number;
+  /** Carried from the product so the line can say "1.25 kg" rather than
+   *  "1.25", which on a weighed line is the difference between a price a
+   *  customer can check and a number they cannot. */
+  unit?: string;
 };
 
 export type SplitPaymentTender = {
