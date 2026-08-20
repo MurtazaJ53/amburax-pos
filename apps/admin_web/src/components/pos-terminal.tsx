@@ -98,6 +98,15 @@ export function PosTerminal({
   // whole product for a kirana: without it the quantity is integer-only, so
   // 1.25 kg of dal simply cannot be rung up.
   const [weightSelling, setWeightSelling] = useState(false);
+  // Stops a second submit while the first is in flight. There was no guard at
+  // all, and the only disabled= on the pay button was "is the cart empty" — so
+  // an impatient second press on a slow connection rang the bill twice.
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  //: One id per CART, not per attempt. Generated when the cart becomes
+  //: non-empty and held until the sale completes, so every retry of the same
+  //: bill carries the same id and the server can recognise it as one sale.
+  //: Regenerating per attempt would make the whole mechanism useless.
+  const commandIdRef = useRef<string>("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
@@ -350,6 +359,11 @@ export function PosTerminal({
   }, [cartSubtotal, cartDiscounts, cartTaxBreakdown]);
 
   const handleCompleteSale = async (payments: SplitPaymentTender, changeDue: number) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    if (!commandIdRef.current) {
+      commandIdRef.current = crypto.randomUUID();
+    }
     try {
       const backendPayments = [];
       if (payments.cash > 0) {
@@ -380,6 +394,10 @@ export function PosTerminal({
           unit_price: item.unit_price.toFixed(2),
         })),
         payments: backendPayments,
+        // Makes this bill identifiable across retries. The server keeps a
+        // receipt per (shop, command_id) and returns the original sale rather
+        // than creating a second one.
+        command_id: commandIdRef.current,
       };
 
       const res = await fetch("/api/sales", {
@@ -390,7 +408,15 @@ export function PosTerminal({
 
       if (!res.ok) {
         const errText = await res.text();
-        alert(`Failed to save sale to cloud backend: ${errText}`);
+        // Safe to say "try again" now: the bill carries a command_id, so a
+        // retry that reaches a server which already recorded it returns the
+        // original sale instead of ringing a second one.
+        alert(
+          `Could not save the sale: ${errText}
+
+Press Pay again to retry — ` +
+          `the bill will not be charged twice.`
+        );
         return;
       }
 
@@ -414,6 +440,10 @@ export function PosTerminal({
       setIsReceiptOpen(true);
       setCart([]);
       setSelectedCustomer(null);
+      // This bill is done; the next cart gets a fresh id. Deliberately here
+      // and not in a finally block — on failure the id must SURVIVE so the
+      // retry is recognised as the same sale.
+      commandIdRef.current = "";
       
       // Reload inventory from backend to update stock indicators
       const invRes = await fetch("/api/inventory");
@@ -438,6 +468,13 @@ export function PosTerminal({
       }
     } catch (err) {
       alert(`Error submitting sale: ${errorMessage(err, "Unknown error")}`);
+    } finally {
+      // Always. Without this the button stays disabled after the first sale
+      // and the till is dead for the rest of the shift — a far worse failure
+      // than the double-submit being prevented. The early return on a failed
+      // response makes it easy to miss, which is exactly why it is in finally
+      // rather than at the end of the happy path.
+      setIsSubmitting(false);
     }
   };
 
@@ -783,7 +820,7 @@ export function PosTerminal({
             </div>
 
             <button
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || isSubmitting}
               onClick={() => setIsCheckoutOpen(true)}
               className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-[var(--primary-light)] to-[var(--primary-hover)] hover:from-[var(--primary)] hover:to-[var(--primary-dark)] disabled:opacity-40 text-text-primary font-extrabold text-xs rounded-2xl shadow-[0_8px_20px_rgba(14,165,233,0.35)] transition-all cursor-pointer"
             >

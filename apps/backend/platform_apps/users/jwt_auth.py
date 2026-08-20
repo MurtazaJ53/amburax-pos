@@ -60,7 +60,11 @@ def _encode(*, user, token_type: str, lifetime: timedelta) -> str:
         # invalidates every token issued before the bump.
         "tv": int(getattr(user, "token_version", 0) or 0),
     }
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=_ALGORITHM)
+    # Signed with JWT_SIGNING_KEY, which defaults to SECRET_KEY but can be set
+    # to something long and random independently. See the settings note: the
+    # encryption half of SECRET_KEY makes it unrotatable, and an 11-character
+    # key signing tokens is brute-forceable offline from any cashier's token.
+    return jwt.encode(payload, settings.JWT_SIGNING_KEY, algorithm=_ALGORITHM)
 
 
 def issue_tokens(user) -> dict[str, object]:
@@ -73,23 +77,58 @@ def issue_tokens(user) -> dict[str, object]:
     }
 
 
+def _decode_with_either_key(token: str) -> dict:
+    """Verify against the current signing key, then the old one.
+
+    Rotating JWT_SIGNING_KEY invalidates every token signed with the previous
+    value. Accepting the old key too means a rotation does not sign every shop
+    out at the moment of deploy — tokens minted before the change keep working
+    until they expire on their own.
+
+    When JWT_SIGNING_KEY is unset the two are the same string and this is a
+    single attempt, so nothing is weakened by the fallback existing. Once the
+    old key is genuinely retired, drop SECRET_KEY from the list; leaving a
+    known-weak key permanently accepted would waste the whole point of moving
+    away from it.
+    """
+    options = {"require": ["exp", "sub", "token_type"]}
+    keys = [settings.JWT_SIGNING_KEY]
+    if settings.SECRET_KEY != settings.JWT_SIGNING_KEY:
+        keys.append(settings.SECRET_KEY)
+
+    last_error: jwt.InvalidTokenError | None = None
+    for key in keys:
+        try:
+            return jwt.decode(
+                token,
+                key,
+                algorithms=[_ALGORITHM],
+                issuer=_ISSUER,
+                # "tv" is deliberately NOT required. Tokens minted before that
+                # claim existed are still legitimately signed, and rejecting
+                # them outright would sign out every shop at deploy time. They
+                # are treated as version 0, so the first revocation invalidates
+                # them like any other.
+                options=options,
+            )
+        except jwt.ExpiredSignatureError:
+            # Expiry is not a key problem — trying the other key cannot help,
+            # and swallowing it would turn "your session ended" into "not our
+            # token", which makes the client fall through to another
+            # authenticator instead of refreshing.
+            raise
+        except jwt.InvalidTokenError as exc:
+            last_error = exc
+    raise last_error or jwt.InvalidTokenError("Token could not be verified.")
+
+
 def decode_token(token: str, *, expected_type: str) -> dict:
     """Decode one of *our* tokens or raise AuthenticationFailed.
 
     Raises ``InvalidTokenError`` (subclass) when the token is not ours so callers
     can distinguish "not my token" from "my token but bad".
     """
-    payload = jwt.decode(
-        token,
-        settings.SECRET_KEY,
-        algorithms=[_ALGORITHM],
-        issuer=_ISSUER,
-        # "tv" is deliberately NOT required. Tokens minted before this claim
-        # existed are still legitimately signed, and rejecting them outright
-        # would sign out every shop at deploy time. They are treated as version
-        # 0 below, so the first revocation invalidates them like any other.
-        options={"require": ["exp", "sub", "token_type"]},
-    )
+    payload = _decode_with_either_key(token)
     if payload.get("token_type") != expected_type:
         # Not the token we expected here (e.g. an access token at the refresh
         # endpoint). Raise the jwt error type so callers treat it like any other

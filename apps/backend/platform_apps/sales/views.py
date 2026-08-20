@@ -108,6 +108,59 @@ class SaleListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
         )
         return context
 
+    def create(self, request, *args, **kwargs):
+        """Create a sale, at most once per command_id.
+
+        The website posted sales with no idempotency key and no in-flight
+        guard, so a lost response — a timeout, a dropped connection, a cashier
+        pressing the button twice — produced a committed sale, a scary error,
+        and a re-ring. The result is a duplicate sale, a duplicate stock
+        deduction and, for a credit customer, a duplicate khata entry. Indian
+        retail connectivity is not something this app can fix; losing or
+        doubling the bill is.
+
+        SaleCommandReceipt already existed for the counter app's sync, with a
+        UniqueConstraint on (shop, command_id). It is reused here rather than
+        converging the two endpoints into one command bus, which would be a
+        multi-day refactor of the busiest write path for no extra safety.
+
+        command_id is optional: older clients keep working exactly as before.
+        """
+        command_id = str(request.data.get("command_id") or "").strip()
+        if not command_id:
+            return super().create(request, *args, **kwargs)
+
+        membership = self.get_membership()
+        receipt, created = SaleCommandReceipt.objects.get_or_create(
+            shop=membership.shop,
+            command_id=command_id,
+            defaults={
+                "actor_user": request.user,
+                "source_surface": "admin_web",
+                "base_domain_epoch": 0,
+                "payload_json": {"source_surface": "admin_web"},
+            },
+        )
+        if not created and receipt.sale_id:
+            # The retry of a request that already succeeded. Returning the
+            # original sale is what makes a retry safe to attempt at all.
+            sale = _get_sale_queryset_for_shop(
+                shop_id=str(membership.shop_id)
+            ).get(pk=receipt.sale_id)
+            return Response(SaleSerializer(sale).data, status=status.HTTP_200_OK)
+
+        response = super().create(request, *args, **kwargs)
+
+        sale_id = response.data.get("id") if hasattr(response, "data") else None
+        if sale_id:
+            receipt.sale_id = sale_id
+            receipt.result_status = SaleCommandReceipt.ResultStatus.ACCEPTED
+            receipt.applied_at = timezone.now()
+            receipt.save(
+                update_fields=["sale", "result_status", "applied_at", "updated_at"]
+            )
+        return response
+
     def perform_create(self, serializer):
         membership = get_membership_or_403(self.request.user, self.kwargs["shop_id"], ShopMembership.Role.STAFF)
         guarded_domains = [

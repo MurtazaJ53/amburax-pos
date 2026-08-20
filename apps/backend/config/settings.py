@@ -102,6 +102,30 @@ BLIND_INDEX_PEPPER = os.getenv("BLIND_INDEX_PEPPER") or SECRET_KEY
 # NEVER change this once data exists, for the same reason as the pepper.
 CRYPTOGRAPHY_KEY = os.getenv("CRYPTOGRAPHY_KEY") or None
 
+# The key that signs API tokens. Separate from SECRET_KEY on purpose.
+#
+# SECRET_KEY signs every JWT (platform_apps/users/jwt_auth.py) AND, through
+# django_cryptography, encrypts customer phone numbers. The encryption half
+# makes it unrotatable — see the CRYPTOGRAPHY_KEY note above — and the live
+# deployment is therefore stuck on an 11-character key.
+#
+# That is worse than it sounds for auth. Every signed-in user, down to the
+# lowest-privilege cashier, holds a valid HS256 token: a signature pair that
+# can be brute-forced OFFLINE, with no rate limit, no audit trail and nothing
+# touching the server. Recovering an 11-character key lets an attacker mint a
+# token for any user id, including a platform admin.
+#
+# PyJWT has nothing to do with django_cryptography, so this half decouples
+# freely. Set JWT_SIGNING_KEY to something long and random and tokens stop
+# depending on SECRET_KEY's strength — no data migration, no re-encryption,
+# nothing touched but the signature.
+#
+# Falls back to SECRET_KEY when unset so existing deployments keep working;
+# jwt_auth also VERIFIES against SECRET_KEY as a fallback, so tokens minted
+# before the switch stay valid until they expire rather than signing everyone
+# out at deploy time.
+JWT_SIGNING_KEY = os.getenv("JWT_SIGNING_KEY") or SECRET_KEY
+
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1", "testserver"])
 CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_ALL_ORIGINS = False
@@ -352,14 +376,35 @@ _USE_INMEMORY_INFRA = _running_tests or os.getenv(
 _redis_cache = (
     REDIS_URL.startswith("redis://") or REDIS_URL.startswith("rediss://")
 ) and not _USE_INMEMORY_INFRA
+
+# Three backends, because "no Redis" is not one situation but two.
+#
+# LocMemCache is per-PROCESS. Gunicorn runs 2 workers in production, so every
+# DRF throttle counted in it was silently doubled — the 5/min login limit was
+# really 10/min depending which worker answered — and max_requests recycling a
+# worker wiped the counters outright. The login-throttle tests passed because
+# the test runner is one process; they proved nothing about the deployment.
+#
+# So without Redis, production uses the DATABASE. One small table, no extra
+# container, no memory on a 2 GB box, and correct across workers — which is the
+# only property that matters for a rate limit. Redis would be faster and is
+# still preferred when configured, but adding a container to fix a correctness
+# bug is the wrong trade here.
+#
+# Tests keep LocMemCache: per-process is exactly right when the process is the
+# whole world, and it avoids needing createcachetable in every suite.
+from platform_apps.common.cache_backend import select_cache_backend  # noqa: E402
+
+_cache_backend, _cache_location = select_cache_backend(
+    redis_url=REDIS_URL,
+    use_redis=_redis_cache,
+    running_tests=_running_tests,
+)
+
 CACHES = {
     "default": {
-        "BACKEND": (
-            "django.core.cache.backends.redis.RedisCache"
-            if _redis_cache
-            else "django.core.cache.backends.locmem.LocMemCache"
-        ),
-        "LOCATION": REDIS_URL if _redis_cache else "business-hub-dev-cache",
+        "BACKEND": _cache_backend,
+        "LOCATION": _cache_location,
     }
 }
 

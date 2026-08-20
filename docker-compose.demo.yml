@@ -37,6 +37,7 @@ services:
       dockerfile: Dockerfile
     command: >
       sh -c "python manage.py migrate --noinput &&
+             python manage.py createcachetable &&
              gunicorn config.wsgi:application -c gunicorn.conf.py"
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-bhub}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-business_hub}
