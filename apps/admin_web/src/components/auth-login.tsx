@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { GST_STATES, gstinStateMismatch } from "@/lib/gst-states";
+import { BUSINESS_TYPE_OPTIONS } from "@/lib/business-types";
 import {
   Store,
   Mail,
@@ -436,16 +437,17 @@ export function AuthLogin() {
                   onChange={(e) => setRegBusinessType(e.target.value)}
                   className="w-full px-3.5 py-3 bg-[var(--bg-base)] border border-[var(--border-soft)] focus:border-[var(--primary)] focus:bg-[var(--surface)] rounded-2xl text-xs font-semibold text-[var(--text-primary)] outline-none"
                 >
-                  <option value="retail">Retail</option>
-                  <option value="wholesale">Wholesale</option>
-                  <option value="grocery">Grocery</option>
-                  {/* Pharmacy and Restaurant are deliberately absent until the
+                  {/* Shared with the settings page, so the two can never drift.
+                      Pharmacy and Restaurant are deliberately absent until the
                       app does what picking them implies — batch and expiry for
                       a pharmacy, tables and orders for a restaurant. Both are
                       planned. Offering a choice the product cannot honour
                       misleads on the first screen anyone meets. */}
-                  <option value="service">Service</option>
-                  <option value="other">Other</option>
+                  {BUSINESS_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
 
                 {/* A named list, not a two-digit box. This code decides

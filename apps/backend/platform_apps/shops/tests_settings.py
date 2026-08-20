@@ -118,3 +118,160 @@ class ShopSettingsTests(TestCase):
         client = APIClient()
         client.force_authenticate(user=stranger)
         self.assertEqual(client.get(self.url).status_code, 403)
+
+
+class ShopBusinessTypeSettingsTests(TestCase):
+    """Phase 4: the business type and its flags are changeable after signup.
+
+    The type is chosen in the first thirty seconds a shopkeeper spends with the
+    product, long before they know what the words mean. If getting it wrong
+    needed a support call, most would simply live with the wrong one.
+    """
+
+    def setUp(self):
+        self.user = PlatformUser.objects.create_user(
+            email="btype@example.com", password="secret", full_name="Owner"
+        )
+        self.shop = Shop.objects.create(
+            name="Type Shop",
+            slug="type-shop",
+            settings_json={"business_type": "retail", "plan_tier": "starter"},
+        )
+        ShopMembership.objects.create(
+            user=self.user,
+            shop=self.shop,
+            role=ShopMembership.Role.OWNER,
+            status=ShopMembership.Status.ACTIVE,
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.url = f"/api/v1/shops/{self.shop.id}/settings/"
+
+    # --- reading ----------------------------------------------------------
+
+    def test_reads_the_type_and_its_resolved_flags(self):
+        body = self.client.get(self.url).json()
+        self.assertEqual(body["business_type"], "retail")
+        # Resolved from the type, not read from an empty override map.
+        self.assertIs(body["features"]["product_variants"], True)
+        self.assertIs(body["features"]["weight_selling"], False)
+
+    def test_only_shop_editable_flags_are_exposed(self):
+        body = self.client.get(self.url).json()
+        self.assertNotIn("advanced_ops", body["features"])
+        self.assertNotIn("expenses", body["features"])
+
+    # --- changing the type ------------------------------------------------
+
+    def test_changing_the_type_moves_the_flags_with_it(self):
+        response = self.client.patch(
+            self.url, {"business_type": "grocery"}, format="json"
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        body = response.json()
+        self.assertEqual(body["business_type"], "grocery")
+        self.assertIs(body["features"]["weight_selling"], True)
+        self.assertIs(body["features"]["product_variants"], False)
+
+    def test_an_unknown_type_is_rejected_not_silently_reset(self):
+        response = self.client.patch(
+            self.url, {"business_type": "cafe"}, format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("business_type", response.json())
+        self.shop.refresh_from_db()
+        self.assertEqual(self.shop.settings_json["business_type"], "retail")
+
+    def test_deferred_types_are_still_accepted(self):
+        """Pharmacy and restaurant are deferred from signup, not invalid. A
+        shop already carrying one must not be unable to save its settings."""
+        for deferred in ("pharmacy", "restaurant"):
+            response = self.client.patch(
+                self.url, {"business_type": deferred}, format="json"
+            )
+            self.assertEqual(response.status_code, 200, deferred)
+
+    # --- changing the flags -----------------------------------------------
+
+    def test_a_flag_can_be_turned_on_against_the_type_default(self):
+        response = self.client.patch(
+            self.url, {"features": {"weight_selling": True}}, format="json"
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertIs(response.json()["features"]["weight_selling"], True)
+
+    def test_a_flag_can_be_turned_off_against_the_type_default(self):
+        response = self.client.patch(
+            self.url, {"features": {"product_variants": False}}, format="json"
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertIs(response.json()["features"]["product_variants"], False)
+
+    def test_an_override_survives_a_later_change_of_type(self):
+        """The regression that would make the toggle feel broken: switch a flag
+        off, correct the business type, and find the flag back on."""
+        self.client.patch(
+            self.url, {"features": {"weight_selling": False}}, format="json"
+        )
+        response = self.client.patch(
+            self.url, {"business_type": "grocery"}, format="json"
+        )
+        self.assertIs(response.json()["features"]["weight_selling"], False)
+
+    # --- the free upgrade -------------------------------------------------
+
+    def test_a_plan_feature_cannot_be_granted_through_settings(self):
+        """The attack this endpoint exists to refuse: a starter shop toggling
+        itself into paid features."""
+        response = self.client.patch(
+            self.url, {"features": {"advanced_ops": True}}, format="json"
+        )
+        self.assertEqual(response.status_code, 400, response.content)
+        self.shop.refresh_from_db()
+        self.assertIs(self.shop.enabled_features["advanced_ops"], False)
+
+    def test_a_plan_feature_smuggled_beside_a_valid_one_takes_both_down(self):
+        response = self.client.patch(
+            self.url,
+            {"features": {"weight_selling": True, "expenses": True}},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400, response.content)
+        self.shop.refresh_from_db()
+        self.assertIs(self.shop.enabled_features["expenses"], False)
+        # The valid half must not have been applied either — a partially
+        # accepted write is harder to reason about than a rejected one.
+        self.assertIs(self.shop.enabled_features["weight_selling"], False)
+
+    def test_a_string_false_is_rejected_rather_than_coerced(self):
+        """'false' is truthy in Python, so coercing would switch the feature ON
+        while the shopkeeper watched themselves turn it off."""
+        response = self.client.patch(
+            self.url, {"features": {"product_variants": "false"}}, format="json"
+        )
+        self.assertEqual(response.status_code, 400, response.content)
+
+    def test_a_non_object_features_payload_is_rejected(self):
+        response = self.client.patch(
+            self.url, {"features": ["weight_selling"]}, format="json"
+        )
+        self.assertEqual(response.status_code, 400, response.content)
+
+    # --- who may do it ----------------------------------------------------
+
+    def test_a_cashier_cannot_change_the_shop_type(self):
+        cashier = PlatformUser.objects.create_user(
+            email="cashier@example.com", password="secret", full_name="Cashier"
+        )
+        ShopMembership.objects.create(
+            user=cashier,
+            shop=self.shop,
+            role=ShopMembership.Role.STAFF,
+            status=ShopMembership.Status.ACTIVE,
+        )
+        client = APIClient()
+        client.force_authenticate(user=cashier)
+        response = client.patch(
+            self.url, {"business_type": "grocery"}, format="json"
+        )
+        self.assertEqual(response.status_code, 403)

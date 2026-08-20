@@ -11,9 +11,17 @@ import {
   Save,
 } from "lucide-react";
 
+import {
+  BUSINESS_TYPE_OPTIONS,
+  FEATURE_TOGGLES,
+  businessTypeLabel,
+  isOfferedBusinessType,
+} from "@/lib/business-types";
+
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
+
 
 
 
@@ -35,6 +43,11 @@ export function StoreSettings({
   const [currency, setCurrency] = useState("INR");
   // Printed on the khata reminder as a one-tap pay link.
   const [upiVpa, setUpiVpa] = useState("");
+
+  // What kind of shop this is, and the three things that answer changes.
+  // Chosen at signup in the first thirty seconds, so it has to be fixable here.
+  const [businessType, setBusinessType] = useState("retail");
+  const [features, setFeatures] = useState<Record<string, boolean>>({});
 
   // Tax State
   const [gstin, setGstin] = useState("");
@@ -68,6 +81,10 @@ export function StoreSettings({
       setGstin(data.gstin ?? "");
       setInvoicePrefix(data.invoice_prefix ?? "");
       setFooterNotes(data.footer ?? "");
+      setBusinessType(data.business_type ?? "retail");
+      // Resolved server-side from type + plan + any override, so the switches
+      // show what is actually true rather than what has been explicitly set.
+      setFeatures(data.features ?? {});
     } catch (err) {
       setError(errorMessage(err, "Something went wrong loading settings."));
     } finally {
@@ -99,6 +116,8 @@ export function StoreSettings({
           gstin,
           invoice_prefix: invoicePrefix,
           footer: footerNotes,
+          business_type: businessType,
+          features,
         }),
       });
       if (!res.ok) {
@@ -255,6 +274,76 @@ export function StoreSettings({
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none focus:border-[var(--primary)]"
                 />
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-[var(--border-soft)]">
+              <h3 className="text-sm font-bold text-text-primary mb-1">
+                What kind of shop is this?
+              </h3>
+              <p className="text-xs text-[var(--text-tertiary)] mb-4">
+                This sets the three switches below. Change either — the switches
+                are yours to keep once you touch them.
+              </p>
+
+              <div className="max-w-xs">
+                <label
+                  htmlFor="business-type"
+                  className="block text-xs font-semibold text-[var(--text-secondary)] mb-1"
+                >
+                  Business type
+                </label>
+                <select
+                  id="business-type"
+                  value={businessType}
+                  onChange={(e) => setBusinessType(e.target.value)}
+                  className="w-full px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none focus:border-[var(--primary)]"
+                >
+                  {BUSINESS_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                  {/* A shop already set to a type we no longer offer keeps it.
+                      Without this the select would fall back to the first
+                      option and silently rewrite their type on the next save. */}
+                  {!isOfferedBusinessType(businessType) && (
+                    <option value={businessType}>
+                      {businessTypeLabel(businessType)}
+                    </option>
+                  )}
+                </select>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {FEATURE_TOGGLES.map((toggle) => (
+                  <label
+                    key={toggle.key}
+                    htmlFor={`feature-${toggle.key}`}
+                    className="flex items-start gap-3 cursor-pointer"
+                  >
+                    <input
+                      id={`feature-${toggle.key}`}
+                      type="checkbox"
+                      checked={features[toggle.key] ?? false}
+                      onChange={(e) =>
+                        setFeatures((current) => ({
+                          ...current,
+                          [toggle.key]: e.target.checked,
+                        }))
+                      }
+                      className="mt-0.5 w-4 h-4 rounded text-[var(--primary)] focus:ring-0 bg-bg-soft border-[var(--border-soft)]"
+                    />
+                    <span>
+                      <span className="block text-xs text-text-primary font-medium">
+                        {toggle.label}
+                      </span>
+                      <span className="block text-[11px] text-[var(--text-tertiary)]">
+                        {toggle.hint}
+                      </span>
+                    </span>
+                  </label>
+                ))}
               </div>
             </div>
 

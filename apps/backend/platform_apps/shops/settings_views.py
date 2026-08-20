@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 
+from django.core.exceptions import ImproperlyConfigured
 from rest_framework import exceptions, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,6 +17,7 @@ from rest_framework.views import APIView
 from platform_apps.audit.services import create_workspace_audit_event
 from platform_apps.shops.models import ShopMembership
 from platform_apps.shops.permissions import get_membership_or_403
+from platform_apps.shops.plans import BUSINESS_TYPES, PLAN_FEATURE_KEYS
 
 # 15 chars: 2 state digits, 10-char PAN, entity digit, 'Z', checksum.
 GSTIN_PATTERN = re.compile(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$")
@@ -45,12 +47,45 @@ COLUMN_FIELDS = (
 )
 
 
+#: The only feature flags a shopkeeper may set on themselves.
+#:
+#: Deliberately the business-type flags and nothing else. These describe how a
+#: shop sells — by weight, in variants, always with a GSTIN — so the owner is
+#: the right person to decide them. The plan's flags are decided by what has
+#: been paid for, and letting this endpoint write those would hand every
+#: workspace a free upgrade through a settings toggle. The guard is not the
+#: tuple itself but the assertion below it, because a tuple is easy to extend
+#: by accident and the mistake would be invisible until an audit.
+FEATURE_TOGGLE_FIELDS = (
+    "weight_selling",
+    "product_variants",
+    "gstin_on_every_bill",
+)
+
+_overlap = set(FEATURE_TOGGLE_FIELDS) & PLAN_FEATURE_KEYS
+if _overlap:
+    raise ImproperlyConfigured(
+        f"Plan-gated features exposed as shop-editable toggles: {sorted(_overlap)}. "
+        "That is a free upgrade for every workspace — remove them from "
+        "FEATURE_TOGGLE_FIELDS."
+    )
+
+
 def serialise(shop) -> dict:
     blob = shop.settings_json or {}
     payload = {field: getattr(shop, field, "") or "" for field in COLUMN_FIELDS}
     payload.update({field: str(blob.get(field, "") or "") for field in BLOB_FIELDS})
     payload["id"] = str(shop.id)
     payload["slug"] = shop.slug
+    payload["business_type"] = shop.business_type
+    # Resolved, not raw. The stored override map is usually empty — the answer
+    # comes from the shop's type and plan — so echoing the raw map back would
+    # show a shopkeeper every switch in the off position while the feature was
+    # in fact on.
+    features = shop.enabled_features
+    payload["features"] = {
+        field: bool(features.get(field, False)) for field in FEATURE_TOGGLE_FIELDS
+    }
     return payload
 
 
@@ -98,6 +133,40 @@ class ShopSettingsView(APIView):
                 # counter, which is worse than having no link at all.
                 errors["upi_vpa"] = "That is not a valid UPI ID (e.g. name@bank)."
 
+        business_type = data.get("business_type")
+        if business_type is not None:
+            candidate = str(business_type).strip().lower()
+            if candidate not in BUSINESS_TYPES:
+                # Deliberately an error rather than the silent coercion to
+                # "other" that signup performs. Signup coerces because a
+                # half-typed value must not block a shop being created at all;
+                # here the value came from a dropdown the shopkeeper was just
+                # looking at, so an unknown one is a bug, and quietly resetting
+                # their shop's type would hide it.
+                errors["business_type"] = (
+                    f"'{business_type}' is not a business type we recognise."
+                )
+
+        features = data.get("features")
+        if features is not None:
+            if not isinstance(features, dict):
+                errors["features"] = "Expected an object of feature name to true/false."
+            else:
+                for key, value in features.items():
+                    if key not in FEATURE_TOGGLE_FIELDS:
+                        # Names the offending key. A shopkeeper will never see
+                        # this; whoever is probing the endpoint for a free
+                        # upgrade should get a flat no rather than a silent
+                        # ignore that leaves them guessing it worked.
+                        errors[f"features.{key}"] = (
+                            "That feature cannot be changed from shop settings."
+                        )
+                    elif not isinstance(value, bool):
+                        # A JSON string "false" is truthy in Python, so coercing
+                        # would switch a feature ON when the caller asked for it
+                        # to be off.
+                        errors[f"features.{key}"] = "Expected true or false."
+
         if errors:
             raise exceptions.ValidationError(errors)
 
@@ -119,6 +188,31 @@ class ShopSettingsView(APIView):
                 if blob.get(field) != value:
                     blob[field] = value
                     blob_changed = True
+
+        if business_type is not None:
+            candidate = str(business_type).strip().lower()
+            if blob.get("business_type") != candidate:
+                blob["business_type"] = candidate
+                blob_changed = True
+
+        if isinstance(features, dict):
+            overrides = blob.get("enabled_features")
+            overrides = dict(overrides) if isinstance(overrides, dict) else {}
+            features_changed = False
+            for field in FEATURE_TOGGLE_FIELDS:
+                if field not in features:
+                    continue
+                # Written even when it equals today's resolved answer. The
+                # stored value is an override, and its whole job is to keep
+                # meaning what the shopkeeper said after the layer underneath
+                # changes — a grocer who switches weight_selling off must stay
+                # off if they later correct their business type.
+                if overrides.get(field) is not features[field]:
+                    overrides[field] = features[field]
+                    features_changed = True
+            if features_changed:
+                blob["enabled_features"] = overrides
+                blob_changed = True
 
         if blob_changed:
             shop.settings_json = blob
