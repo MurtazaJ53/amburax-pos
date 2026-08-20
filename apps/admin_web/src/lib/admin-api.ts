@@ -102,6 +102,14 @@ export class ApiError extends Error {
 const API_BASE_URL =
   process.env.BUSINESS_HUB_API_BASE_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:8000/api/v1";
 
+/** Whether to send the X-Dev-* impersonation headers. Opt-in, never inferred.
+ *
+ *  Deliberately its own variable rather than a NODE_ENV check: a production
+ *  build run locally is still local, and a dev build could be deployed. The
+ *  question "may this request impersonate a user" deserves an explicit answer
+ *  from whoever configured the environment, not a guess from the bundler. */
+const ALLOW_DEV_HEADERS = process.env.BUSINESS_HUB_ALLOW_DEV_HEADERS === "1";
+
 async function buildHeaders(): Promise<Headers> {
   const headers = new Headers({
     Accept: "application/json",
@@ -113,31 +121,52 @@ async function buildHeaders(): Promise<Headers> {
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
     }
-    const userEmail = cookieStore.get("bh_user_email")?.value;
-    if (userEmail) {
-      headers.set("X-Dev-User-Email", userEmail);
-    }
-    const userRole = cookieStore.get("bh_user_role")?.value;
-    if (userRole === "platform_admin") {
-      headers.set("X-Dev-Platform-Admin", "true");
+    // X-Dev-* headers are an impersonation channel: DevHeaderAuthentication on
+    // the backend will mint and sign in ANY user named by them, as a platform
+    // admin if X-Dev-Platform-Admin says so.
+    //
+    // They used to be sent on every production request, sourced from
+    // bh_user_role — a cookie that is deliberately NOT httpOnly, so the browser
+    // can read it, and therefore so can anyone who opens devtools and edits it.
+    // Django ignored them because DEBUG is False in production, which made this
+    // safe by exactly one setting. The day DEBUG is turned on to investigate
+    // something, any visitor could hand themselves platform admin by editing
+    // one cookie, and a brand-new admin account would be created on the spot.
+    //
+    // Now they require an explicit opt-in that no production environment sets,
+    // so a DEBUG mistake alone is no longer enough.
+    if (ALLOW_DEV_HEADERS) {
+      const userEmail = cookieStore.get("bh_user_email")?.value;
+      if (userEmail) {
+        headers.set("X-Dev-User-Email", userEmail);
+      }
+      const userRole = cookieStore.get("bh_user_role")?.value;
+      if (userRole === "platform_admin") {
+        headers.set("X-Dev-Platform-Admin", "true");
+      }
     }
   } catch {
     // In environments where cookies() is outside request context
   }
 
-  const devEmail = process.env.BUSINESS_HUB_DEV_USER_EMAIL?.trim();
-  if (devEmail && !headers.has("X-Dev-User-Email")) {
-    headers.set("X-Dev-User-Email", devEmail);
-  }
+  // Same gate as the cookie path above. These three were the older mechanism
+  // and were NOT behind any check at all, so leaving them open would have made
+  // the fix above cosmetic.
+  if (ALLOW_DEV_HEADERS) {
+    const devEmail = process.env.BUSINESS_HUB_DEV_USER_EMAIL?.trim();
+    if (devEmail && !headers.has("X-Dev-User-Email")) {
+      headers.set("X-Dev-User-Email", devEmail);
+    }
 
-  const devName = process.env.BUSINESS_HUB_DEV_USER_NAME?.trim();
-  if (devName) {
-    headers.set("X-Dev-User-Name", devName);
-  }
+    const devName = process.env.BUSINESS_HUB_DEV_USER_NAME?.trim();
+    if (devName) {
+      headers.set("X-Dev-User-Name", devName);
+    }
 
-  const devPlatformAdmin = process.env.BUSINESS_HUB_DEV_PLATFORM_ADMIN?.trim();
-  if (devPlatformAdmin && !headers.has("X-Dev-Platform-Admin")) {
-    headers.set("X-Dev-Platform-Admin", devPlatformAdmin);
+    const devPlatformAdmin = process.env.BUSINESS_HUB_DEV_PLATFORM_ADMIN?.trim();
+    if (devPlatformAdmin && !headers.has("X-Dev-Platform-Admin")) {
+      headers.set("X-Dev-Platform-Admin", devPlatformAdmin);
+    }
   }
 
   return headers;

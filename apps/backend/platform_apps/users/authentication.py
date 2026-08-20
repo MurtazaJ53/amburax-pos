@@ -198,8 +198,23 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
 
 
 class DevHeaderAuthentication(authentication.BaseAuthentication):
+    """Sign in as anyone, from an HTTP header. Local development only.
+
+    This is an impersonation backdoor by design: it will create and sign in any
+    user the header names, as a platform admin if X-Dev-Platform-Admin says so.
+    That is fine on a laptop and catastrophic anywhere else.
+
+    It used to be gated on DEBUG alone, which meant one settings mistake stood
+    between production and instant admin-for-anyone — and the website was
+    sending those headers on every request, sourced from a cookie the browser
+    can edit. Two independent switches now have to be wrong at once, and the
+    second is never set in any deployed environment.
+    """
+
     def authenticate(self, request):
         if not settings.DEBUG:
+            return None
+        if not getattr(settings, "ALLOW_DEV_HEADER_AUTH", False):
             return None
 
         email = request.headers.get("X-Dev-User-Email")

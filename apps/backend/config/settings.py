@@ -105,6 +105,16 @@ CRYPTOGRAPHY_KEY = os.getenv("CRYPTOGRAPHY_KEY") or None
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1", "testserver"])
 CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_ALL_ORIGINS = False
+# Second switch on DevHeaderAuthentication, which signs in whoever an HTTP
+# header names — as a platform admin on request. DEBUG alone used to be the
+# only thing standing between that and production. Never set this in any
+# deployed environment.
+ALLOW_DEV_HEADER_AUTH = os.getenv("ALLOW_DEV_HEADER_AUTH", "").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 BUSINESS_HUB_WEBAUTHN_RP_ID = os.getenv("BUSINESS_HUB_WEBAUTHN_RP_ID", "").strip()
 BUSINESS_HUB_WEBAUTHN_RP_NAME = os.getenv(

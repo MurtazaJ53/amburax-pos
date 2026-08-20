@@ -149,6 +149,24 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Daily, at 02:10 local. This is the ONLY thing that moves a lapsed
+# subscription to past_due/expired and mirrors the tier back onto the shop —
+# every feature gate reads Shop.settings_json["plan_tier"], and nothing else
+# writes it on a schedule. Without this line a shop whose trial ended months
+# ago keeps full Pro access forever, silently, and the product is free.
+#
+# It was documented as "run daily (cron / Celery beat)" and was in neither:
+# no crontab entry, no beat_schedule, and the deployed compose runs no beat
+# process at all (USE_INMEMORY_CHANNELS=1). So it had never once run.
+EXPIRY_CRON_LINE="10 2 * * * cd $PROJECT_DIR && docker compose -f $COMPOSE_FILE --env-file $ENV_FILE exec -T api python manage.py expire_subscriptions >> /var/log/bhub-billing.log 2>&1"
+if crontab -l 2>/dev/null | grep -qF "expire_subscriptions"; then
+  echo "    Subscription expiry already scheduled."
+else
+  (crontab -l 2>/dev/null || true; echo "$EXPIRY_CRON_LINE") | crontab -
+  echo "    Daily subscription expiry installed."
+fi
+
+# ---------------------------------------------------------------------------
 say "6/6  Issuing certificates"
 # ---------------------------------------------------------------------------
 if ! command -v certbot >/dev/null; then
