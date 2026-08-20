@@ -114,3 +114,35 @@ class SecretKeyRotationTests(TestCase):
                 Customer.objects.get(pk=customer.pk).phone, "9825011111"
             )
             self.assertNotEqual(generate_blind_index("9825011111"), stored_hash)
+
+
+class EmptyEnvFallbackTests(TestCase):
+    """Compose passes ${VAR:-}, which is an empty string, not an absent one.
+
+    os.getenv("X", default) returns "" for a set-but-empty variable rather than
+    the default, so a plain getenv default would have silently emptied the
+    pepper on every deployment that does not set it — breaking phone lookup
+    everywhere while looking like a no-op change to the compose file.
+    """
+
+    def test_an_empty_pepper_env_falls_back_to_the_secret_key(self):
+        import importlib
+        import os
+        from unittest import mock
+
+        with mock.patch.dict(os.environ, {"BLIND_INDEX_PEPPER": ""}):
+            # The expression settings.py uses.
+            resolved = os.getenv("BLIND_INDEX_PEPPER") or "the-secret-key"
+            self.assertEqual(resolved, "the-secret-key")
+
+        with mock.patch.dict(os.environ, {"BLIND_INDEX_PEPPER": ""}):
+            # The expression it used to use, for contrast.
+            naive = os.getenv("BLIND_INDEX_PEPPER", "the-secret-key")
+            self.assertEqual(naive, "")
+
+    def test_an_empty_cryptography_key_env_means_unset(self):
+        import os
+        from unittest import mock
+
+        with mock.patch.dict(os.environ, {"CRYPTOGRAPHY_KEY": ""}):
+            self.assertIsNone(os.getenv("CRYPTOGRAPHY_KEY") or None)

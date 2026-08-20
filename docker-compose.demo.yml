@@ -54,6 +54,15 @@ services:
       # post from the admin site is rejected as a CSRF failure. They were
       # absent, so setting them in .env.demo silently did nothing.
       DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+      # The two keys that must NOT follow SECRET_KEY once customers exist.
+      # Unset, django_cryptography derives its encryption key from SECRET_KEY
+      # and the pepper falls back to it, which makes SECRET_KEY unrotatable:
+      # changing it turns every stored phone into undecryptable ciphertext.
+      # Pinned to the original SECRET_KEY value, they hold the derived key
+      # steady while SECRET_KEY rotates as a signing key alone.
+      # Empty default keeps existing deployments behaving exactly as before.
+      CRYPTOGRAPHY_KEY: ${CRYPTOGRAPHY_KEY:-}
+      BLIND_INDEX_PEPPER: ${BLIND_INDEX_PEPPER:-}
       DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-}
       # One container, no external broker: Celery runs eagerly, channels/cache
       # stay in-memory, so no Redis is needed for the demo.

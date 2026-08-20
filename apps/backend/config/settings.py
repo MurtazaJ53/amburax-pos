@@ -51,7 +51,11 @@ else:
 # to SECRET_KEY so it always has a strong value; set a *separate*
 # BLIND_INDEX_PEPPER in prod for key separation. NEVER change it once data
 # exists, or existing phone hashes stop matching.
-BLIND_INDEX_PEPPER = os.getenv("BLIND_INDEX_PEPPER", SECRET_KEY)
+# `or` rather than a getenv default: compose passes ${BLIND_INDEX_PEPPER:-},
+# which sets the variable to an EMPTY STRING when it is not in the env file.
+# os.getenv returns that empty string rather than the default, so the pepper
+# would silently become "" and every existing phone hash would stop matching.
+BLIND_INDEX_PEPPER = os.getenv("BLIND_INDEX_PEPPER") or SECRET_KEY
 
 # Key for the encrypted PII columns (customer phone), via django_cryptography.
 #
