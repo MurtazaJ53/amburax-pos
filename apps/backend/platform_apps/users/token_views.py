@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import jwt
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework import permissions, serializers, status
@@ -15,8 +17,41 @@ from platform_apps.users.jwt_auth import (
     token_version_matches,
 )
 
+logger = logging.getLogger(__name__)
+
+
 class LoginRateThrottle(AnonRateThrottle):
+    """Rate-limit sign-in, but never let the limiter take sign-in down.
+
+    DRF throttles count attempts in the Django cache, which in production is
+    Redis. When Redis was unreachable this raised, and the exception surfaced
+    as a 500 on /session/token/ — nobody could sign in at all, because the
+    thing protecting the door had become the thing blocking it. Measured, not
+    theorised: that is exactly what happened on 20 Aug 2026.
+
+    So it fails OPEN. A cache outage means attempts stop being counted, which
+    briefly removes brute-force protection; the alternative is a total sign-in
+    outage for every shop. For a POS, a shopkeeper locked out of their own till
+    is the worse failure, and an unavailable cache is a condition the operator
+    can see and fix, whereas a locked-out shop just stops trading.
+
+    The failure is logged at ERROR so it cannot pass silently — degrading
+    quietly is how a temporary outage becomes a permanent hole.
+    """
+
     rate = '5/min'
+
+    def allow_request(self, request, view):
+        try:
+            return super().allow_request(request, view)
+        except Exception:
+            logger.error(
+                "Login throttle cache unavailable — allowing the request and "
+                "counting nothing. Brute-force protection is OFF until the "
+                "cache is reachable.",
+                exc_info=True,
+            )
+            return True
 
 User = get_user_model()
 
