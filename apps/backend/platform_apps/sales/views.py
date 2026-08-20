@@ -847,6 +847,10 @@ class GSTFilingPackView(ShopScopedMixin, APIView):
         return out.getvalue()
 
 
+#: Same cap as the inventory importer, for the same reason.
+MAX_IMPORT_ERRORS_REPORTED = 20
+
+
 class SaleHistoryBulkImportView(ShopScopedMixin, APIView):
     """Bulk-import flat historical sales (past bills from another POS) as
     records: no line items, no stock/ledger effects. Idempotent by client id so
@@ -871,22 +875,43 @@ class SaleHistoryBulkImportView(ShopScopedMixin, APIView):
         valid_modes = set(Sale.PaymentMode.values)
         created = 0
         skipped = 0
+        # Row-level reasons, not just a count. "340 skipped" tells a shopkeeper
+        # nothing they can act on; they cannot find which 340 in a spreadsheet,
+        # so the usual outcome is abandoning the import — and the app — during
+        # the first hour. Mirrors the inventory importer, which already does
+        # this.
+        errors: list[dict] = []
+
+        def reject(index: int, reason: str) -> None:
+            nonlocal skipped
+            skipped += 1
+            # Capped so a wholly malformed sheet cannot return megabytes. The
+            # true count travels separately as skipped, because "showing 20 of
+            # 340" is actionable and "20 errors" when there were 340 is a lie.
+            if len(errors) < MAX_IMPORT_ERRORS_REPORTED:
+                # +1 because a shopkeeper counts spreadsheet rows from one.
+                errors.append({"row": index + 1, "reason": reason})
+
         with transaction.atomic():
-            for raw in rows:
+            for index, raw in enumerate(rows):
                 try:
                     total = Decimal(str(raw.get("total") or "0"))
                     discount = Decimal(str(raw.get("discount") or "0"))
                 except Exception:
-                    skipped += 1
+                    reject(index, "Total or discount is not a number.")
                     continue
                 if total <= 0:
-                    skipped += 1
+                    reject(index, "Total must be greater than zero.")
                     continue
                 client_id = str(raw.get("id") or "").strip()
                 if client_id and Sale.objects.filter(
                     shop=membership.shop, source_id=client_id
                 ).exists():
-                    skipped += 1
+                    # Not an error the shopkeeper needs to fix — re-importing
+                    # the same file is the normal way to resume a part-finished
+                    # import — but it must still be explained, or the counts
+                    # look wrong.
+                    reject(index, f"Already imported (id {client_id}).")
                     continue
                 pay = str(raw.get("payment_mode") or "CASH").upper()
                 if pay not in valid_modes:
@@ -923,7 +948,13 @@ class SaleHistoryBulkImportView(ShopScopedMixin, APIView):
         if created:
             refresh_projection_after_write(membership.shop, context="a bulk import")
         return Response(
-            {"created": created, "skipped": skipped}, status=status.HTTP_201_CREATED
+            {
+                "created": created,
+                "skipped": skipped,
+                "errors": errors,
+                "error_count": skipped,
+            },
+            status=status.HTTP_201_CREATED,
         )
 
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -34,7 +34,8 @@ import {
 } from "lucide-react";
 
 import { formatRole } from "@/lib/formatters";
-import { formatPlanTier } from "@/lib/plans";
+import { hasShopFeature, formatPlanTier } from "@/lib/plans";
+import type { ShopFeatureKey } from "@/lib/plans";
 import type { SessionPayload, ShopMembership } from "@/lib/types";
 import { TrialBanner } from "@/components/trial-banner";
 import { ThemeSwitcher } from "@/components/theme-switcher";
@@ -119,25 +120,63 @@ export function AdminShell({
     { key: "pos", label: t("navPos"), href: "/pos", icon: ShoppingCart, highlight: true },
   ];
 
-  const adminNav = [
+  // Split, and feature-gated. This list was 17 items long and shown in full to
+  // every shop regardless of plan — including Stock transfers for a
+  // single-branch kirana and Purchase orders for a shop with no suppliers.
+  // A single-branch grocer needs about six of these; the rest are real
+  // features that are simply not part of their day, and a wall of them makes
+  // the product feel like it was built for somebody else.
+  //
+  // `feature` names a flag the SERVER already resolves. Showing a link the
+  // backend then 403s is worse than hiding it: the shopkeeper clicks, gets an
+  // error, and learns the app is unreliable rather than that the feature costs
+  // money.
+  const everydayNav = [
     { key: "day-book", label: "Day book (Roj Mel)", href: "/day-book", icon: BookOpen },
     { key: "insights", label: "Business pulse", href: "/insights", icon: TrendingUp },
-    { key: "settings", label: t("settingsBusiness"), href: "/settings", icon: Settings },
+    { key: "expenses", label: t("settingsExpenses"), href: "/expenses", icon: TrendingDown, feature: "expenses" as const },
+    { key: "attendance", label: t("settingsAttendance"), href: "/attendance", icon: Clock, feature: "attendance" as const },
     { key: "team", label: t("settingsStaff"), href: "/team", icon: Users },
-    { key: "attendance", label: t("settingsAttendance"), href: "/attendance", icon: Clock },
-    { key: "expenses", label: t("settingsExpenses"), href: "/expenses", icon: TrendingDown },
-    { key: "suppliers", label: t("settingsPurchases"), href: "/suppliers", icon: Truck },
-    { key: "purchase-orders", label: "Purchase orders", href: "/purchase-orders", icon: ClipboardList },
-    { key: "price-history", label: "Supplier prices", href: "/price-history", icon: LineChart },
+    { key: "settings", label: t("settingsBusiness"), href: "/settings", icon: Settings },
+  ];
+
+  // Real work, just not daily. Collapsed rather than removed — a wholesaler
+  // lives in Purchase orders, and hiding it outright would break their day.
+  const occasionalNav = [
     { key: "stocktake", label: "Stocktake", href: "/stocktake", icon: ClipboardCheck },
-    { key: "transfers", label: "Stock transfers", href: "/transfers", icon: ArrowLeftRight },
+    { key: "suppliers", label: t("settingsPurchases"), href: "/suppliers", icon: Truck, feature: "supplier_directory" as const },
+    { key: "purchase-orders", label: "Purchase orders", href: "/purchase-orders", icon: ClipboardList, feature: "purchase_workflow" as const },
+    { key: "price-history", label: "Supplier prices", href: "/price-history", icon: LineChart, feature: "supplier_directory" as const },
+    { key: "transfers", label: "Stock transfers", href: "/transfers", icon: ArrowLeftRight, feature: "multi_branch" as const },
     { key: "labels", label: "Barcode labels", href: "/labels", icon: Tags },
     { key: "import", label: t("settingsImport"), href: "/import", icon: Upload },
     { key: "data-health", label: t("healthTitle"), href: "/data-health", icon: Stethoscope },
     { key: "tally", label: "Accountant export", href: "/tally", icon: FileSpreadsheet },
+  ];
+
+  // Account-level, always reachable. Billing especially: burying the thing a
+  // shopkeeper uses to pay you was how a trial could lapse unnoticed.
+  const accountNav = [
     { key: "billing", label: t("settingsPlanBilling"), href: "/billing", icon: CreditCard },
     { key: "security", label: t("settingsSecurity"), href: "/security", icon: ShieldCheck },
   ];
+
+  const allowed = <T extends { feature?: ShopFeatureKey }>(items: T[]) =>
+    items.filter((item) => !item.feature || hasShopFeature(activeShop, item.feature));
+
+  const adminNav = [...allowed(everydayNav), ...accountNav];
+  const moreNav = allowed(occasionalNav);
+
+  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => {
+    // Opened if the shopkeeper left it open, or if they are standing on a page
+    // inside it — a collapsed section that hides the current page makes the
+    // nav look broken.
+    const remembered = window.localStorage.getItem("bh_nav_more_open") === "true";
+    const onAMorePage = moreNav.some((item) => item.key === activeRoute);
+    setMoreOpen(remembered || onAMorePage);
+    // moreNav is rebuilt each render; activeRoute is the value that matters.
+  }, [activeRoute]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const advancedNav = [
     ...(isPlatformAdmin
@@ -295,6 +334,47 @@ export function AdminShell({
               );
             })}
           </div>
+
+          {/* Everything else, folded away by default. Not removed: a
+              wholesaler lives in Purchase orders. Auto-opens when the current
+              page is inside it, so a bookmarked link never lands somewhere the
+              nav claims does not exist. */}
+          {moreNav.length > 0 && (
+            <div className="bg-surface border border-border-soft rounded-[24px] p-3.5 shadow-sm space-y-1 transition-colors duration-200">
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !moreOpen;
+                  setMoreOpen(next);
+                  window.localStorage.setItem("bh_nav_more_open", String(next));
+                }}
+                aria-expanded={moreOpen}
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-text-tertiary hover:text-text-secondary"
+              >
+                <span>More tools</span>
+                <span aria-hidden>{moreOpen ? "−" : "+"}</span>
+              </button>
+              {moreOpen &&
+                moreNav.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeRoute === item.key;
+                  return (
+                    <Link
+                      key={item.key}
+                      href={item.href}
+                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                        isActive
+                          ? "bg-[var(--primary)] text-white shadow-[0_4px_12px_rgba(14,165,233,0.3)]"
+                          : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+            </div>
+          )}
 
           {/* Advanced Panel (Pulse, devices, operations) */}
           {advancedNav.length > 0 && (

@@ -180,6 +180,21 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Hourly. Catches what degrades while the box is still up: a database that
+# stopped answering, backups that silently stopped running, a disk filling
+# toward the write-stop, billing drifting out of step. It CANNOT detect the
+# droplet being down — if the box dies so does cron. For that, point an
+# external monitor (UptimeRobot's free tier is enough) at /api/v1/health/.
+# Alerts dedupe to once a day per problem, so hourly is not hourly email.
+OPS_CRON_LINE="45 * * * * cd $PROJECT_DIR && docker compose -f $COMPOSE_FILE --env-file $ENV_FILE exec -T api python manage.py send_ops_alerts >> /var/log/bhub-ops.log 2>&1"
+if crontab -l 2>/dev/null | grep -qF "send_ops_alerts"; then
+  echo "    Ops alerts already scheduled."
+else
+  (crontab -l 2>/dev/null || true; echo "$OPS_CRON_LINE") | crontab -
+  echo "    Hourly ops alerts installed."
+fi
+
+# ---------------------------------------------------------------------------
 say "6/6  Issuing certificates"
 # ---------------------------------------------------------------------------
 if ! command -v certbot >/dev/null; then

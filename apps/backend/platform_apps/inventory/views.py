@@ -23,6 +23,7 @@ from platform_apps.inventory.serializers import (
     InventorySummarySerializer,
 )
 from platform_apps.shops.models import ShopMembership
+from platform_apps.projections.services import refresh_projection_after_write
 from platform_apps.shops.permissions import (
     ROLE_ORDER,
     get_membership_or_403,
@@ -241,6 +242,10 @@ class InventoryItemBulkCreateView(ShopScopedMixin, APIView):
                 else:
                     serializer.save()
                     created += 1
+        if created or updated:
+            refresh_projection_after_write(
+                membership.shop, context="an inventory import"
+            )
         return Response(
             {
                 "created": created,
@@ -440,6 +445,11 @@ class InventoryItemAdjustmentView(ShopScopedMixin, APIView):
                 "note": payload.get("note", ""),
             },
         )
+        # Stock adjustments move low_stock_items_count, out_of_stock_items_count
+        # and projected_sell_value — three of the dashboard's headline figures.
+        # They refreshed none of them, so correcting a count in the app left the
+        # dashboard still showing the wrong one.
+        refresh_projection_after_write(membership.shop, context="a stock adjustment")
         return Response(
             {
                 "item_id": str(item.id),
