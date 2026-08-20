@@ -70,9 +70,34 @@ BLIND_INDEX_PEPPER = os.getenv("BLIND_INDEX_PEPPER") or SECRET_KEY
 # undecryptable ciphertext, which no backup recovers, because the backup holds
 # the same ciphertext.
 #
-# Setting this explicitly to the CURRENT SECRET_KEY value breaks the coupling
-# without touching a single stored row: the derived key stays identical, and
-# SECRET_KEY becomes free to rotate as a signing key alone.
+# THIS DOES NOT MAKE SECRET_KEY ROTATABLE. An earlier version of this comment
+# claimed it did — that setting this to the current SECRET_KEY value would hold
+# the derived key steady while SECRET_KEY rotated as a signing key alone. That
+# was wrong, and acting on it took production customer data offline on
+# 20 Aug 2026 (readable=0 unreadable=243, recovered by restoring the old
+# SECRET_KEY; no data was lost, the ciphertext was intact throughout).
+#
+# Why it is wrong: encrypted values are signed as well as encrypted, and the
+# two halves take their keys from different places.
+#
+#   conf.py      encryption key <- CRYPTOGRAPHY_KEY or SECRET_KEY  (pinnable)
+#   signing.py   signature key  <- settings.SECRET_KEY             (NOT pinnable)
+#
+# See django_cryptography/core/signing.py, where all three signer classes do
+# `self.key = key or settings.SECRET_KEY` and CRYPTOGRAPHY_KEY appears nowhere.
+# decrypt() calls signer.unsign() BEFORE decrypting, so a rotated SECRET_KEY
+# raises BadSignature and never reaches the ciphertext at all — which is why
+# pinning the encryption key alone changes nothing.
+#
+# So SECRET_KEY stays unrotatable while any encrypted row exists. Rotating it
+# is a DATA MIGRATION, not a config change: decrypt every encrypted column
+# under the old key, rotate, re-encrypt under the new one, with the database
+# backed up first and the whole thing rehearsed against a scratch restore
+# (scripts/go-live/restore-drill.sh) before production is touched.
+#
+# Setting this is still worth doing on a NEW deployment, before any customer
+# exists — from then on the encryption key is explicit rather than an invisible
+# side effect of SECRET_KEY.
 #
 # NEVER change this once data exists, for the same reason as the pepper.
 CRYPTOGRAPHY_KEY = os.getenv("CRYPTOGRAPHY_KEY") or None
