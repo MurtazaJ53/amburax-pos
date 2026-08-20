@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useT } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { GST_STATES, gstinStateMismatch } from "@/lib/gst-states";
 import {
   Store,
@@ -214,7 +215,15 @@ export function AuthLogin() {
   return (
     <div className="min-h-screen bg-[var(--bg-app)] flex flex-col items-center justify-center p-4 sm:p-6 select-none">
       <div className="w-full max-w-[440px] flex flex-col items-center">
-        
+
+        {/* Language first, before anything asks for a decision. This is the
+            first screen anyone meets, and someone who cannot read it cannot
+            reach the settings page where the switcher used to live. Each
+            option is written in its own script for the same reason. */}
+        <div className="w-full flex justify-end mb-3">
+          <LanguageSwitcher />
+        </div>
+
         {/* Brand Hero matching Flutter _BrandHero */}
         <div className="flex flex-col items-center text-center mb-6">
           <div className="w-20 h-20 rounded-[26px] bg-gradient-to-br from-[var(--primary-light)] to-[var(--primary-hover)] flex items-center justify-center shadow-[0_12px_28px_rgba(14,165,233,0.38)] mb-4">
@@ -322,31 +331,50 @@ export function AuthLogin() {
                 )}
               </button>
 
-              <div className="flex justify-between items-center pt-3 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setPanelMode("register")}
-                  className="font-bold text-[var(--primary)] hover:underline"
-                >
-                  {t("webCreateShop")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPanelMode("join")}
-                  className="font-bold text-[var(--primary)] hover:underline"
-                >
-                  {t("webJoinWithCode")}
-                </button>
-              </div>
-
-              <div className="pt-2 text-center">
+              {/* The other three ways in. These were 12px text links, which put
+                  the most frequent action on this screen — a cashier punching a
+                  PIN with a customer waiting — on the smallest target of all.
+                  Real buttons, 48px tall, thumb-reachable, in frequency order:
+                  staff sign in many times a day, a shop is created once ever. */}
+              <div className="pt-4 mt-1 border-t border-[var(--border-soft)] space-y-2">
                 <button
                   type="button"
                   onClick={() => setPanelMode("pin")}
-                  className="text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
+                  className="w-full min-h-[48px] flex items-center gap-3 px-4 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] hover:border-[var(--primary)] hover:bg-[var(--surface)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] transition-colors text-left"
                 >
-                  {t("webStaffPinLogin")}
+                  <KeyRound className="w-4 h-4 shrink-0 text-[var(--primary)]" />
+                  <span className="min-w-0">
+                    <span className="block text-xs font-extrabold text-[var(--text-primary)]">
+                      {t("webStaffPinLogin")}
+                    </span>
+                    <span className="block text-[11px] font-semibold text-[var(--text-secondary)]">
+                      Counter staff — sign in with a PIN
+                    </span>
+                  </span>
                 </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPanelMode("register")}
+                    className="min-h-[48px] flex items-center justify-center gap-2 px-3 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] hover:border-[var(--primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] transition-colors"
+                  >
+                    <Store className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
+                    <span className="text-xs font-extrabold text-[var(--text-primary)]">
+                      {t("webCreateShop")}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPanelMode("join")}
+                    className="min-h-[48px] flex items-center justify-center gap-2 px-3 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] hover:border-[var(--primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] transition-colors"
+                  >
+                    <User className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
+                    <span className="text-xs font-extrabold text-[var(--text-primary)]">
+                      {t("webJoinWithCode")}
+                    </span>
+                  </button>
+                </div>
               </div>
             </form>
           )}
