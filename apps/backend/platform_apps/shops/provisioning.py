@@ -26,6 +26,13 @@ DEFAULT_FEATURES: dict[str, bool] = {
     "advanced_ops": True,
 }
 
+# Pharmacy and restaurant stay VALID — any shop already carrying one keeps it,
+# and dropping them here would silently rewrite those rows to "other". They are
+# removed from the signup dropdowns instead, because the app does not yet do
+# what choosing them implies: batch and expiry tracking for a pharmacy (a
+# licensing matter, not a convenience), and tables/orders for a restaurant.
+# Both are planned; offering them before they exist misleads at the first
+# screen a shopkeeper ever sees.
 VALID_BUSINESS_TYPES = {
     "retail",
     "wholesale",

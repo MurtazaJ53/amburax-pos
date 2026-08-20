@@ -388,10 +388,10 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                         value: 'wholesale', child: Text('Wholesale')),
                     DropdownMenuItem(
                         value: 'grocery', child: Text('Grocery')),
-                    DropdownMenuItem(
-                        value: 'pharmacy', child: Text('Pharmacy')),
-                    DropdownMenuItem(
-                        value: 'restaurant', child: Text('Restaurant')),
+                    // Pharmacy and Restaurant are deliberately absent until the
+                    // app does what picking them implies — batch and expiry for
+                    // a pharmacy, tables and orders for a restaurant. Both are
+                    // planned. The website's list must match this one.
                     DropdownMenuItem(
                         value: 'service', child: Text('Service')),
                     DropdownMenuItem(value: 'other', child: Text('Other')),

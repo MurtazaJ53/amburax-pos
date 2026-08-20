@@ -439,8 +439,11 @@ export function AuthLogin() {
                   <option value="retail">Retail</option>
                   <option value="wholesale">Wholesale</option>
                   <option value="grocery">Grocery</option>
-                  <option value="pharmacy">Pharmacy</option>
-                  <option value="restaurant">Restaurant</option>
+                  {/* Pharmacy and Restaurant are deliberately absent until the
+                      app does what picking them implies — batch and expiry for
+                      a pharmacy, tables and orders for a restaurant. Both are
+                      planned. Offering a choice the product cannot honour
+                      misleads on the first screen anyone meets. */}
                   <option value="service">Service</option>
                   <option value="other">Other</option>
                 </select>
