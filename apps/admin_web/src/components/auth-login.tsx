@@ -4,8 +4,8 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useT } from "@/lib/i18n";
+import { GST_STATES, gstinStateMismatch } from "@/lib/gst-states";
 import {
-
   Store,
   Mail,
   Lock,
@@ -428,14 +428,22 @@ export function AuthLogin() {
                   <option value="other">Other</option>
                 </select>
 
-                <input
-                  type="text"
-                  maxLength={2}
+                {/* A named list, not a two-digit box. This code decides
+                    CGST+SGST versus IGST on every bill, and nobody knows their
+                    state code by heart — the old field invited a state name or
+                    a missing leading zero, and rejected neither. */}
+                <select
                   value={regStateCode}
                   onChange={(e) => setRegStateCode(e.target.value)}
-                  placeholder="State Code"
-                  className="w-full px-3.5 py-3 bg-[var(--bg-base)] border border-[var(--border-soft)] focus:border-[var(--primary)] focus:bg-[var(--surface)] rounded-2xl text-xs font-semibold text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none text-center"
-                />
+                  className="w-full px-3.5 py-3 bg-[var(--bg-base)] border border-[var(--border-soft)] focus:border-[var(--primary)] focus:bg-[var(--surface)] rounded-2xl text-xs font-semibold text-[var(--text-primary)] outline-none"
+                >
+                  <option value="">State (for GST)</option>
+                  {GST_STATES.map((s) => (
+                    <option key={s.code} value={s.code}>
+                      {s.name} ({s.code})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -446,6 +454,15 @@ export function AuthLogin() {
                   placeholder="GSTIN (optional)"
                   className="w-full px-3.5 py-3 bg-[var(--bg-base)] border border-[var(--border-soft)] focus:border-[var(--primary)] focus:bg-[var(--surface)] rounded-2xl text-xs font-semibold text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none uppercase"
                 />
+                {/* A GSTIN carries its own state in its first two digits. When
+                    it disagrees with the chosen state one of them is a typo,
+                    and only the shopkeeper knows which — so say so rather than
+                    silently trusting either. */}
+                {gstinStateMismatch(regStateCode, regGstin) && (
+                  <p className="mt-1.5 text-[11px] font-semibold text-[var(--warning-strong)]">
+                    {gstinStateMismatch(regStateCode, regGstin)}
+                  </p>
+                )}
               </div>
 
               <button

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/runtime/mobile_runtime_config.dart';
+import '../../../core/region/gst_states.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../pos/presentation/pos_scanner_sheet.dart';
@@ -30,7 +31,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
   final _regEmailController = TextEditingController();
   final _regPasswordController = TextEditingController();
   final _regMobileController = TextEditingController();
-  final _regStateController = TextEditingController();
+  String _regStateCode = '';
   final _regGstinController = TextEditingController();
   String _regBusinessType = 'retail';
   // Join an existing shop with an invite code.
@@ -70,7 +71,6 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
     _regEmailController.dispose();
     _regPasswordController.dispose();
     _regMobileController.dispose();
-    _regStateController.dispose();
     _regGstinController.dispose();
     _joinCodeController.dispose();
     _joinNameController.dispose();
@@ -163,7 +163,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
               businessName: _regBusinessController.text,
               mobile: _regMobileController.text,
               businessType: _regBusinessType,
-              stateCode: _regStateController.text,
+              stateCode: _regStateCode,
               gstin: _regGstinController.text,
             );
     if (!mounted) return;
@@ -401,14 +401,26 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                 ),
               ),
               const SizedBox(width: 12),
-              SizedBox(
-                width: 96,
-                child: TextField(
-                  controller: _regStateController,
-                  maxLength: 2,
-                  keyboardType: TextInputType.number,
-                  decoration: _fieldDecoration('State')
-                      .copyWith(counterText: ''),
+              // A named list, not a two-digit box. This code decides
+              // CGST+SGST versus IGST on every bill, and nobody knows their
+              // state code by heart — the old field invited a state name or a
+              // missing leading zero, and rejected neither.
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: _regStateCode.isEmpty ? null : _regStateCode,
+                  isExpanded: true,
+                  decoration: _fieldDecoration('State (for GST)'),
+                  items: <DropdownMenuItem<String>>[
+                    for (final s in kGstStates)
+                      DropdownMenuItem<String>(
+                        value: s.code,
+                        child: Text(
+                          '${s.name} (${s.code})',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: (v) => setState(() => _regStateCode = v ?? ''),
                 ),
               ),
             ],
