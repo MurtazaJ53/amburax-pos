@@ -18,14 +18,45 @@ set -euo pipefail
 
 PROJECT_DIR="${PROJECT_DIR:-/opt/bhub}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.demo.yml}"
-ENV_FILE="${ENV_FILE:-.env.demo}"
-COMPOSE=(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
+
+# The env file's name was taken from the docs and turned out not to match the
+# droplet, which stopped the deploy with a message blaming the directory the
+# operator was already standing in. Find it instead of assuming, and if it
+# cannot be found, say what IS there.
+ENV_FILE="${ENV_FILE:-}"
 
 say()  { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 die()  { printf '\033[31mSTOP: %s\033[0m\n' "$1" >&2; exit 1; }
 
 cd "$PROJECT_DIR" || die "$PROJECT_DIR not found."
-[[ -f "$ENV_FILE" ]] || die "$ENV_FILE missing — are you in the right directory?"
+
+if [[ -z "$ENV_FILE" ]]; then
+  for candidate in .env.demo .env .env.production .env.prod; do
+    if [[ -f "$candidate" ]]; then ENV_FILE="$candidate"; break; fi
+  done
+fi
+if [[ -z "$ENV_FILE" || ! -f "$ENV_FILE" ]]; then
+  printf '[31mSTOP: no environment file found in %s[0m
+' "$PWD" >&2
+  echo "Looked for: .env.demo .env .env.production .env.prod" >&2
+  echo "What is actually here:" >&2
+  ls -a | grep -iE '^\.?env' | sed 's/^/  /' >&2 || echo "  (nothing matching env)" >&2
+  echo "Re-run naming it explicitly, e.g.:" >&2
+  echo "  ENV_FILE=.env.whatever bash scripts/go-live/deploy.sh" >&2
+  exit 1
+fi
+echo "    using env file: $ENV_FILE"
+
+# Likewise the compose file, so a differently-named deployment is not a dead end.
+if [[ ! -f "$COMPOSE_FILE" ]]; then
+  for candidate in docker-compose.demo.yml docker-compose.yml docker-compose.prod.yml compose.yml; do
+    if [[ -f "$candidate" ]]; then COMPOSE_FILE="$candidate"; break; fi
+  done
+fi
+[[ -f "$COMPOSE_FILE" ]] || die "No compose file found in $PWD. Set COMPOSE_FILE=..."
+echo "    using compose file: $COMPOSE_FILE"
+
+COMPOSE=(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 
 say "1/5  Where this pulls from"
 git remote -v | head -2
