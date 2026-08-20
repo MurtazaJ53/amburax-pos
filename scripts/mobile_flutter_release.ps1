@@ -317,12 +317,24 @@ function Get-SigningReadiness {
       $verificationStatus = 'keytool_missing'
       $verificationDetails = 'keytool is not available, so keystore verification was skipped.'
     } else {
+      # keytool writes progress to stderr even on success. Under PowerShell
+      # 5.1, `2>&1` on a native command wraps each stderr line in an
+      # ErrorRecord, and with $ErrorActionPreference='Stop' at the top of this
+      # script that becomes terminating — so a perfectly good keystore aborted
+      # the release before Flutter was ever invoked. Suspending the preference
+      # for the duration of the two native calls keeps the output capture while
+      # letting the exit code decide, which is what the checks below actually
+      # read.
+      $previousEap = $ErrorActionPreference
+      $ErrorActionPreference = 'Continue'
       $storeCheckOutput = & $keytoolExecutable -list -keystore $storeFilePath -storepass $storePassword.Value 2>&1
       if ($LASTEXITCODE -ne 0) {
+        $ErrorActionPreference = $previousEap
         $verificationStatus = 'store_password_invalid'
         $verificationDetails = ($storeCheckOutput | Out-String).Trim()
       } else {
         $aliasCheckOutput = & $keytoolExecutable -list -keystore $storeFilePath -storepass $storePassword.Value -alias $keyAlias.Value 2>&1
+        $ErrorActionPreference = $previousEap
         if ($LASTEXITCODE -ne 0) {
           $verificationStatus = 'alias_missing'
           $verificationDetails = ($aliasCheckOutput | Out-String).Trim()
