@@ -41,16 +41,25 @@ export const FEATURE_TOGGLES = [
     hint: "Weigh loose items at the counter and price them per kilo.",
   },
   {
-    key: "product_variants",
-    label: "One product, many sizes or colours",
-    hint: "Keep a shirt as a single item with its own count for each size.",
-  },
-  {
     key: "gstin_on_every_bill",
     label: "Ask for the buyer's GSTIN on every bill",
     hint: "For selling to other businesses, who need it to claim input credit.",
   },
 ] as const;
+
+/** Flags the server will accept but that we deliberately do NOT show.
+ *
+ *  A toggle that changes nothing is worse than a missing feature: the
+ *  shopkeeper turns it on, watches for a difference, finds none, and stops
+ *  trusting the rest of the settings screen.
+ *
+ *  `product_variants` is here because InventoryItem has a `size` field and
+ *  nothing else — no colour, no parent SKU, no variant grouping. Real variants
+ *  mean a schema change, inventory UI, a POS picker and import mapping; that is
+ *  weeks, not a checkbox. The key stays valid server-side so no stored data is
+ *  rewritten, and it returns to FEATURE_TOGGLES the day it does something.
+ */
+export const HIDDEN_FEATURE_TOGGLES = ["product_variants"] as const;
 
 /** A label for a stored type, including the ones no longer offered. */
 export function businessTypeLabel(value: string): string {

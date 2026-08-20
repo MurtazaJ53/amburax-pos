@@ -1,5 +1,6 @@
 from rest_framework.test import APITestCase, APIClient
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from django.urls import reverse
 from platform_apps.shops.models import Shop, ShopMembership, ShopPlanRequest
 from platform_apps.platform_admin.models import PlatformAuditEvent
@@ -15,6 +16,14 @@ class PlatformAdminTests(APITestCase):
             password="testpass",
             is_platform_admin=True
         )
+        # The destructive platform endpoints now require MFA to have been
+        # completed recently, enforced in Django rather than only in the
+        # website's page guards. A fixture without it exercises the refusal
+        # path, not the feature.
+        self.admin_user.mfa_totp_secret = "JBSWY3DPEHPK3PXP"
+        self.admin_user.mfa_totp_enabled_at = timezone.now()
+        self.admin_user.mfa_totp_last_verified_at = timezone.now()
+        self.admin_user.save()
         
         self.normal_user = User.objects.create_user(
             email="user@example.com",

@@ -9,7 +9,10 @@ from datetime import timedelta
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
 
-from platform_apps.common.permissions import IsPlatformAdminUser
+from platform_apps.common.permissions import (
+    IsPlatformAdminUser,
+    IsVerifiedPlatformAdmin,
+)
 from platform_apps.shops.models import Shop, ShopPlanRequest
 from platform_apps.platform_admin.models import PlatformAuditEvent
 from platform_apps.platform_admin.serializers import (
@@ -102,7 +105,9 @@ class PlatformShopDetailView(generics.RetrieveAPIView):
         return Response(serializer.data)
 
 class PlatformShopSuspendView(APIView):
-    permission_classes = [IsPlatformAdminUser]
+    # Destructive: suspending a shop stops it trading. Needs MFA actually
+    # completed recently, not merely an account that has it switched on.
+    permission_classes = [IsVerifiedPlatformAdmin]
 
     def post(self, request, shop_id):
         shop = _get_shop_or_404(shop_id)
@@ -126,7 +131,9 @@ class PlatformShopSuspendView(APIView):
         return Response(shop_serializer.data)
 
 class PlatformShopActivateView(APIView):
-    permission_classes = [IsPlatformAdminUser]
+    # Destructive: suspending a shop stops it trading. Needs MFA actually
+    # completed recently, not merely an account that has it switched on.
+    permission_classes = [IsVerifiedPlatformAdmin]
 
     def post(self, request, shop_id):
         shop = _get_shop_or_404(shop_id)
@@ -150,7 +157,9 @@ class PlatformShopActivateView(APIView):
         return Response(shop_serializer.data)
 
 class PlatformShopApproveView(APIView):
-    permission_classes = [IsPlatformAdminUser]
+    # Destructive: suspending a shop stops it trading. Needs MFA actually
+    # completed recently, not merely an account that has it switched on.
+    permission_classes = [IsVerifiedPlatformAdmin]
 
     def post(self, request, shop_id):
         shop = _get_shop_or_404(shop_id)
@@ -175,7 +184,9 @@ class PlatformShopApproveView(APIView):
         return Response(shop_serializer.data)
 
 class PlatformShopPlanView(APIView):
-    permission_classes = [IsPlatformAdminUser]
+    # Destructive: suspending a shop stops it trading. Needs MFA actually
+    # completed recently, not merely an account that has it switched on.
+    permission_classes = [IsVerifiedPlatformAdmin]
 
     def post(self, request, shop_id):
         shop = _get_shop_or_404(shop_id)

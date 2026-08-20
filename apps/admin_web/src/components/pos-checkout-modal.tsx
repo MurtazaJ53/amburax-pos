@@ -14,6 +14,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import type { SplitPaymentTender, Customer } from "@/lib/types";
 import { useT } from "@/lib/i18n";
+import { isValidGstin } from "@/lib/gst-states";
 
 type PosCheckoutModalProps = {
   isOpen: boolean;
@@ -22,7 +23,15 @@ type PosCheckoutModalProps = {
   selectedCustomer: Customer | null;
   shopUpiVpa?: string;
   shopName?: string;
-  onCompleteSale: (payments: SplitPaymentTender, changeDue: number) => void;
+  /** Whether this shop bills other businesses and needs the buyer's GSTIN on
+   *  every invoice. Driven by the gstin_on_every_bill flag, which wholesale
+   *  turns on by default. */
+  requireBuyerGstin?: boolean;
+  onCompleteSale: (
+    payments: SplitPaymentTender,
+    changeDue: number,
+    buyerGstin?: string,
+  ) => void;
 };
 
 export function PosCheckoutModal({
@@ -32,6 +41,7 @@ export function PosCheckoutModal({
   selectedCustomer,
   shopUpiVpa = "merchant@upi",
   shopName = "Business Hub Store",
+  requireBuyerGstin = false,
   onCompleteSale,
 }: PosCheckoutModalProps) {
   const t = useT();
@@ -44,6 +54,13 @@ export function PosCheckoutModal({
   const [khataAmount, setKhataAmount] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"cash" | "card" | "upi" | "khata">("cash");
   const [copiedUpi, setCopiedUpi] = useState(false);
+  const [buyerGstin, setBuyerGstin] = useState("");
+
+  // Only blocks the sale when the shop asked for it. A retail counter must
+  // never be stopped by a field its customers do not have.
+  const gstinTouched = buyerGstin.trim().length > 0;
+  const gstinLooksWrong = gstinTouched && !isValidGstin(buyerGstin);
+  const gstinBlocksSale = requireBuyerGstin && !isValidGstin(buyerGstin);
 
   useEffect(() => {
     if (isOpen) {
@@ -116,6 +133,7 @@ export function PosCheckoutModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid) return;
+    if (gstinBlocksSale) return;
 
     onCompleteSale(
       {
@@ -126,7 +144,8 @@ export function PosCheckoutModal({
         card_ref: cardRef.trim() || undefined,
         upi_ref: upiRef.trim() || undefined,
       },
-      changeDue
+      changeDue,
+      buyerGstin.trim().toUpperCase() || undefined
     );
   };
 
@@ -417,6 +436,44 @@ export function PosCheckoutModal({
         </form>
 
         {/* Actions Footer */}
+        {requireBuyerGstin && (
+          <div className="px-5 pt-4 border-t border-[var(--bg-soft)]">
+            <label
+              htmlFor="buyer-gstin"
+              className="block text-[11px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] mb-1.5"
+            >
+              Buyer&apos;s GSTIN
+            </label>
+            <input
+              id="buyer-gstin"
+              type="text"
+              value={buyerGstin}
+              maxLength={15}
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(e) => setBuyerGstin(e.target.value.toUpperCase())}
+              placeholder="27AABCU9603R1ZM"
+              aria-invalid={gstinLooksWrong}
+              aria-describedby="buyer-gstin-help"
+              className={`w-full px-3.5 py-3 bg-[var(--surface)] border rounded-2xl text-xs font-bold tracking-wide text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none transition-colors ${
+                gstinLooksWrong
+                  ? "border-[var(--error-strong)]"
+                  : "border-[var(--border-soft)] focus:border-[var(--primary)]"
+              }`}
+            />
+            <p
+              id="buyer-gstin-help"
+              className={`mt-1.5 text-[11px] font-semibold ${
+                gstinLooksWrong ? "text-[var(--error-strong)]" : "text-[var(--text-tertiary)]"
+              }`}
+            >
+              {gstinLooksWrong
+                ? "That is not a valid 15-character GSTIN."
+                : "Your buyer needs this on the invoice to claim input credit."}
+            </p>
+          </div>
+        )}
+
         <div className="p-5 border-t border-[var(--bg-soft)] bg-[var(--bg-base)] flex items-center justify-between gap-3">
           <button
             type="button"
@@ -428,7 +485,7 @@ export function PosCheckoutModal({
 
           <button
             type="button"
-            disabled={!isValid}
+            disabled={!isValid || gstinBlocksSale}
             onClick={handleSubmit}
             className="flex-1 flex items-center justify-center gap-2 py-3 px-5 bg-gradient-to-r from-[var(--primary-light)] to-[var(--primary-hover)] hover:from-[var(--primary)] hover:to-[var(--primary-dark)] disabled:opacity-40 text-white rounded-2xl font-extrabold text-xs shadow-[0_8px_20px_rgba(14,165,233,0.35)] transition-all cursor-pointer"
           >

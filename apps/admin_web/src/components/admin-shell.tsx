@@ -36,6 +36,7 @@ import {
 import { formatRole } from "@/lib/formatters";
 import { formatPlanTier } from "@/lib/plans";
 import type { SessionPayload, ShopMembership } from "@/lib/types";
+import { TrialBanner } from "@/components/trial-banner";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useT } from "@/lib/i18n";
@@ -149,6 +150,10 @@ export function AdminShell({
 
   return (
     <div className="min-h-screen bg-bg-app text-text-primary flex flex-col transition-colors duration-200">
+      {/* Above the header on purpose: this is the one message that has to
+          reach a shopkeeper who never opens the billing page. */}
+      <TrialBanner />
+
       {/* Top Bar matching APK Header */}
       <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-md border-b border-border-soft px-4 lg:px-8 py-3 transition-colors duration-200">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4">

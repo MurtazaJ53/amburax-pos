@@ -167,6 +167,19 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Hourly, same slot as the stock alerts. Until this existed nothing told a
+# shopkeeper their trial was ending: days_remaining lived only inside the
+# billing page, the 16th of 17 sidebar items. The command dedupes per
+# milestone, so running it hourly does not mean hourly email.
+REMINDER_CRON_LINE="30 * * * * cd $PROJECT_DIR && docker compose -f $COMPOSE_FILE --env-file $ENV_FILE exec -T api python manage.py send_billing_reminders >> /var/log/bhub-billing.log 2>&1"
+if crontab -l 2>/dev/null | grep -qF "send_billing_reminders"; then
+  echo "    Billing reminders already scheduled."
+else
+  (crontab -l 2>/dev/null || true; echo "$REMINDER_CRON_LINE") | crontab -
+  echo "    Hourly billing reminders installed."
+fi
+
+# ---------------------------------------------------------------------------
 say "6/6  Issuing certificates"
 # ---------------------------------------------------------------------------
 if ! command -v certbot >/dev/null; then

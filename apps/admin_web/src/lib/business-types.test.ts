@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   BUSINESS_TYPE_OPTIONS,
   FEATURE_TOGGLES,
+  HIDDEN_FEATURE_TOGGLES,
   businessTypeLabel,
   isOfferedBusinessType,
 } from "./business-types";
@@ -82,12 +83,32 @@ describe("business type options", () => {
 });
 
 describe("feature toggles", () => {
-  it("matches exactly what the settings endpoint will write", () => {
+  it("only shows switches the settings endpoint will actually write", () => {
     const editable = pythonTuple(readBackend("settings_views.py"), "FEATURE_TOGGLE_FIELDS");
-    const shown = FEATURE_TOGGLES.map((toggle) => toggle.key);
-    // Exact, both ways: an extra key here is a switch that 400s when saved, and
-    // a missing one is a feature the shopkeeper cannot reach at all.
-    expect([...shown].sort()).toEqual([...editable].sort());
+    for (const key of FEATURE_TOGGLES.map((t) => t.key)) {
+      // A shown switch the server rejects is a 400 the shopkeeper cannot act on.
+      expect(editable).toContain(key);
+    }
+  });
+
+  it("accounts for every editable flag as either shown or deliberately hidden", () => {
+    const editable = pythonTuple(readBackend("settings_views.py"), "FEATURE_TOGGLE_FIELDS");
+    const accounted = [
+      ...FEATURE_TOGGLES.map((t) => t.key),
+      ...HIDDEN_FEATURE_TOGGLES,
+    ];
+    for (const key of editable) {
+      // Not an exact match, because hiding a half-built toggle is legitimate —
+      // but it has to be a decision someone wrote down, not a key that fell out
+      // of the UI unnoticed.
+      expect(accounted).toContain(key);
+    }
+  });
+
+  it("does not both show and hide the same flag", () => {
+    for (const hidden of HIDDEN_FEATURE_TOGGLES) {
+      expect(FEATURE_TOGGLES.map((t) => t.key)).not.toContain(hidden);
+    }
   });
 
   it("never offers a plan-gated feature as a shop setting", () => {

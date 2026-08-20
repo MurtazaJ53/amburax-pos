@@ -98,6 +98,10 @@ export function PosTerminal({
   // whole product for a kirana: without it the quantity is integer-only, so
   // 1.25 kg of dal simply cannot be rung up.
   const [weightSelling, setWeightSelling] = useState(false);
+  // Wholesale sells B2B, where the buyer needs a GSTIN on the invoice to claim
+  // input credit. Retail mostly sells to people who have none, so this is off
+  // unless the shop asked for it.
+  const [requireBuyerGstin, setRequireBuyerGstin] = useState(false);
   // Stops a second submit while the first is in flight. There was no guard at
   // all, and the only disabled= on the pay button was "is the cart empty" — so
   // an impatient second press on a slow connection rang the bill twice.
@@ -118,7 +122,9 @@ export function PosTerminal({
         const res = await fetch("/api/settings");
         if (!res.ok) return;
         const data = await res.json();
-        if (!cancelled) setWeightSelling(data?.features?.weight_selling === true);
+        if (cancelled) return;
+        setWeightSelling(data?.features?.weight_selling === true);
+        setRequireBuyerGstin(data?.features?.gstin_on_every_bill === true);
       } catch {
         // Left off on a failure, deliberately. The till must open whatever the
         // settings endpoint is doing, and an integer quantity is the behaviour
@@ -358,7 +364,11 @@ export function PosTerminal({
     return Math.round(raw * 100) / 100;
   }, [cartSubtotal, cartDiscounts, cartTaxBreakdown]);
 
-  const handleCompleteSale = async (payments: SplitPaymentTender, changeDue: number) => {
+  const handleCompleteSale = async (
+    payments: SplitPaymentTender,
+    changeDue: number,
+    buyerGstin?: string,
+  ) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     if (!commandIdRef.current) {
@@ -394,6 +404,10 @@ export function PosTerminal({
           unit_price: item.unit_price.toFixed(2),
         })),
         payments: backendPayments,
+        // Omitted rather than sent empty when the shop does not collect it —
+        // the column is nullable and a blank string is not the same as "this
+        // buyer has no GSTIN".
+        ...(buyerGstin ? { buyer_gstin: buyerGstin } : {}),
         // Makes this bill identifiable across retries. The server keeps a
         // receipt per (shop, command_id) and returns the original sale rather
         // than creating a second one.
@@ -840,6 +854,7 @@ Press Pay again to retry — ` +
         totalAmount={grandTotal}
         selectedCustomer={selectedCustomer}
         shopName={shopName}
+        requireBuyerGstin={requireBuyerGstin}
         onCompleteSale={handleCompleteSale}
       />
 

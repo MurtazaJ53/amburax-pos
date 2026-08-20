@@ -78,3 +78,17 @@ export function gstinStateMismatch(
     ? `This GSTIN starts ${fromGstin}, which is ${named.name}.`
     : `This GSTIN starts ${fromGstin}, which is not a state code.`;
 }
+
+/** The 15-character GSTIN shape: 2 state digits, 10-char PAN, entity digit,
+ *  'Z', checksum.
+ *
+ *  Kept identical to GSTIN_PATTERN in shops/settings_views.py. Validating in
+ *  the browser is a courtesy — the server rejects a bad one regardless — but a
+ *  cashier who only finds out after pressing Pay has already made the customer
+ *  wait, and on a B2B bill the GSTIN is the reason the customer came here.
+ */
+export const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
+
+export function isValidGstin(value: string): boolean {
+  return GSTIN_PATTERN.test(value.trim().toUpperCase());
+}
