@@ -53,6 +53,26 @@ else:
 # exists, or existing phone hashes stop matching.
 BLIND_INDEX_PEPPER = os.getenv("BLIND_INDEX_PEPPER", SECRET_KEY)
 
+# Key for the encrypted PII columns (customer phone), via django_cryptography.
+#
+# That library derives its encryption key from SECRET_KEY whenever this is
+# unset — see django_cryptography/conf.py, `configured_data['KEY'] or
+# settings.SECRET_KEY`. Which means SECRET_KEY silently does three jobs at
+# once: signing JWTs, ENCRYPTING customer phones, and (through the fallback
+# above) making them searchable.
+#
+# That coupling makes SECRET_KEY unrotatable once any customer exists. Rotating
+# it does not merely break search — it makes every stored phone number
+# undecryptable ciphertext, which no backup recovers, because the backup holds
+# the same ciphertext.
+#
+# Setting this explicitly to the CURRENT SECRET_KEY value breaks the coupling
+# without touching a single stored row: the derived key stays identical, and
+# SECRET_KEY becomes free to rotate as a signing key alone.
+#
+# NEVER change this once data exists, for the same reason as the pepper.
+CRYPTOGRAPHY_KEY = os.getenv("CRYPTOGRAPHY_KEY") or None
+
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1", "testserver"])
 CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_ALL_ORIGINS = False
