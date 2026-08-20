@@ -40,9 +40,27 @@ trap 'fail "backup aborted on line $LINENO"' ERR
 cd "$PROJECT_DIR" || fail "project dir $PROJECT_DIR not found"
 
 # Credentials live in the compose env file; never hardcode them here.
+#
+# Read, NOT sourced. `source` executes the file as shell, so any value holding
+# a shell metacharacter breaks the whole script — and one does: RESEND_FROM is
+# `Business Hub <noreply@amburax.com>`, whose unquoted `<` is a redirect. That
+# took the backup job down with "syntax error near unexpected token" while
+# Docker Compose, which parses the file rather than executing it, read it
+# perfectly. A backup script must not be hostage to an unrelated variable.
+#
+# Only the two values actually needed are read, so nothing else in the file can
+# ever break this again.
+env_value() {
+  local key="$1"
+  [[ -n "$ENV_FILE" && -f "$ENV_FILE" ]] || return 0
+  # Last occurrence wins, matching how compose resolves duplicates. Surrounding
+  # quotes are stripped; the value itself is never evaluated.
+  sed -n "s/^${key}=//p" "$ENV_FILE" | tail -n 1 | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/"
+}
+
 if [[ -n "$ENV_FILE" && -f "$ENV_FILE" ]]; then
-  # shellcheck disable=SC1090
-  set -a; source "$ENV_FILE"; set +a
+  POSTGRES_USER="$(env_value POSTGRES_USER)"
+  POSTGRES_DB="$(env_value POSTGRES_DB)"
 else
   log "WARNING: no env file found in $PROJECT_DIR (.env / .env.demo);"
   log "         falling back to default database name and user."

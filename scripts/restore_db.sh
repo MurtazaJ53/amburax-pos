@@ -39,9 +39,20 @@ DUMP="${1:-}"
 [[ -f "$DUMP" ]] || fail "no such file: $DUMP"
 
 cd "$PROJECT_DIR" || fail "project dir $PROJECT_DIR not found"
+# Read, NOT sourced — see the same note in backup_db.sh. `source` executes the
+# env file as shell, and RESEND_FROM contains an unquoted `<` that bash reads
+# as a redirect. That broke the backup script outright. It mattered more here:
+# this is the script you reach for during an incident, and discovering it will
+# not start is the worst possible moment to find out.
+env_value() {
+  local key="$1"
+  [[ -n "$ENV_FILE" && -f "$ENV_FILE" ]] || return 0
+  sed -n "s/^${key}=//p" "$ENV_FILE" | tail -n 1 | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/"
+}
+
 if [[ -n "$ENV_FILE" && -f "$ENV_FILE" ]]; then
-  # shellcheck disable=SC1090
-  set -a; source "$ENV_FILE"; set +a
+  POSTGRES_USER="$(env_value POSTGRES_USER)"
+  POSTGRES_DB="$(env_value POSTGRES_DB)"
 else
   log "WARNING: no env file found in $PROJECT_DIR (.env / .env.demo);"
   log "         falling back to default database name and user."
