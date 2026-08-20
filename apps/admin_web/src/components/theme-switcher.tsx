@@ -6,13 +6,22 @@ import { Sun, Moon, Monitor, Check } from "lucide-react";
 type Theme = "light" | "dark" | "system";
 
 export function ThemeSwitcher() {
-  const [theme, setTheme] = useState<Theme>("system");
+  const [theme, setTheme] = useState<Theme>("light");
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    // Read preference on load
-    const savedTheme = (localStorage.getItem("theme") as Theme) || "system";
-    setTheme(savedTheme);
+    // Default to light, not to the operating system.
+    //
+    // The theme should come from the use scene, not the device setting. This
+    // runs on a counter in an Indian shop: daylight through an open front,
+    // fluorescent tubes overhead, a cheap phone at low brightness. Dark UI is
+    // harder to read in that light, not easier — dark suits dim rooms and long
+    // focus sessions, and a shop counter is neither.
+    //
+    // An explicit choice still wins, including "system"; only the untouched
+    // default changed.
+    const savedTheme = localStorage.getItem("theme") as Theme | null;
+    setTheme(savedTheme ?? "light");
   }, []);
 
   const updateTheme = (newTheme: Theme) => {

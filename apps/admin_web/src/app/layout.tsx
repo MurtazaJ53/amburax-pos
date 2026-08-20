@@ -56,7 +56,13 @@ export default async function RootLayout({
             __html: `
               (function() {
                 try {
-                  var theme = localStorage.getItem('theme') || 'system';
+                  // Default light, not 'system'. The theme belongs to the
+                  // use scene rather than the device: a counter in an Indian
+                  // shop, daylight through an open front, fluorescent tubes,
+                  // a cheap phone at low brightness. Dark reads worse there.
+                  // Must stay in step with theme-switcher.tsx, or this script
+                  // and React disagree on the first paint.
+                  var theme = localStorage.getItem('theme') || 'light';
                   if (theme === 'system') {
                     var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
