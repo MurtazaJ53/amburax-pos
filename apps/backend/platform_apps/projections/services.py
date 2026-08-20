@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, time, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from django.db import models, transaction
 from django.db.models import Count, Max, Sum
@@ -17,6 +19,10 @@ from platform_apps.shops.models import Shop
 
 
 logger = logging.getLogger(__name__)
+
+#: An item at or below this count shows in the low-stock preview. Decimal so a
+#: shop selling by weight compares like with like.
+LOW_STOCK_THRESHOLD = Decimal("5")
 
 
 def refresh_projection_after_write(shop: Shop, *, context: str) -> None:
@@ -61,15 +67,21 @@ def refresh_shop_dashboard_projection(shop: Shop) -> ShopDashboardSnapshot:
     inventory_items_count = len(inventory_rows)
     active_inventory_items_count = sum(1 for item in inventory_rows if item["status"] == InventoryItem.Status.ACTIVE)
     category_count = len({(item["category"] or "").strip() for item in inventory_rows if (item["category"] or "").strip()})
+    # Decimal throughout. int() here reported a grocer's remaining 0.750 kg as
+    # 0: out of stock, absent from the preview, and worth nothing in the stock
+    # valuation. The ledger has always stored three decimal places.
+    def _stock(item) -> Decimal:
+        return Decimal(item["stock_on_hand"] or 0)
+
     low_stock_preview_rows = [
-        item for item in inventory_rows if int(item["stock_on_hand"]) > 0 and int(item["stock_on_hand"]) <= 5
+        item for item in inventory_rows if Decimal("0") < _stock(item) <= LOW_STOCK_THRESHOLD
     ]
-    low_stock_preview_rows.sort(key=lambda item: (int(item["stock_on_hand"]), item["name"].lower()))
-    out_of_stock_items_count = sum(1 for item in inventory_rows if int(item["stock_on_hand"]) <= 0)
+    low_stock_preview_rows.sort(key=lambda item: (_stock(item), item["name"].lower()))
+    out_of_stock_items_count = sum(1 for item in inventory_rows if _stock(item) <= 0)
     projected_sell_value = sum(
-        (item["sell_price"] or Decimal("0.00")) * Decimal(int(item["stock_on_hand"]))
+        (item["sell_price"] or Decimal("0.00")) * _stock(item)
         for item in inventory_rows
-        if int(item["stock_on_hand"]) > 0
+        if _stock(item) > 0
     )
 
     customer_summary = Customer.objects.filter(shop=shop, tombstone=False).aggregate(
@@ -79,11 +91,28 @@ def refresh_shop_dashboard_projection(shop: Shop) -> ShopDashboardSnapshot:
         total_lifetime_spend=Coalesce(Sum("total_spent"), Decimal("0.00")),
     )
 
-    sales_summary = Sale.objects.filter(
+    # The shop's own local day, not the server's. A Kolkata shop closing at
+    # 22:00 IST is still on the previous UTC day, so a UTC "today" would drop
+    # the evening's takings off the dashboard exactly when the owner cashes up
+    # and looks at it.
+    shop_tz = ZoneInfo(shop.timezone or "Asia/Kolkata")
+    shop_today = timezone.now().astimezone(shop_tz).date()
+    day_start = datetime.combine(shop_today, time.min, tzinfo=shop_tz)
+    day_end = day_start + timedelta(days=1)
+
+    completed_sales = Sale.objects.filter(
         shop=shop,
         tombstone=False,
         status=Sale.Status.COMPLETED,
+    )
+    today_summary = completed_sales.filter(
+        occurred_at__gte=day_start, occurred_at__lt=day_end
     ).aggregate(
+        today_sales_count=Count("id"),
+        today_gross_revenue=Coalesce(Sum("total_amount"), Decimal("0.00")),
+    )
+
+    sales_summary = completed_sales.aggregate(
         sales_count=Count("id"),
         gross_revenue=Coalesce(Sum("total_amount"), Decimal("0.00")),
         outstanding_revenue=Coalesce(Sum("amount_due"), Decimal("0.00")),
@@ -121,6 +150,9 @@ def refresh_shop_dashboard_projection(shop: Shop) -> ShopDashboardSnapshot:
                 "total_outstanding_balance": customer_summary["total_outstanding_balance"] or Decimal("0.00"),
                 "total_lifetime_spend": customer_summary["total_lifetime_spend"] or Decimal("0.00"),
                 "sales_count": sales_summary["sales_count"] or 0,
+                "today_sales_count": today_summary["today_sales_count"] or 0,
+                "today_gross_revenue": today_summary["today_gross_revenue"] or Decimal("0.00"),
+                "today_date": shop_today,
                 "gross_revenue": sales_summary["gross_revenue"] or Decimal("0.00"),
                 "outstanding_revenue": sales_summary["outstanding_revenue"] or Decimal("0.00"),
                 "payment_count": payment_summary["payment_count"] or 0,
@@ -146,7 +178,7 @@ def refresh_shop_dashboard_projection(shop: Shop) -> ShopDashboardSnapshot:
                     item_name=item["name"],
                     sku=item["sku"] or "",
                     category=item["category"] or "",
-                    stock_on_hand=int(item["stock_on_hand"]),
+                    stock_on_hand=_stock(item),
                     sell_price=item["sell_price"] or Decimal("0.00"),
                     severity_rank=index + 1,
                     refreshed_at=refreshed_at,

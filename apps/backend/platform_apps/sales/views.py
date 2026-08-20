@@ -136,6 +136,11 @@ class SaleListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
             source_surface="backend_api",
             after=snapshot_sale(sale),
         )
+        # The website's sale path refreshed nothing, so a shop selling only
+        # through the web saw a dashboard frozen at whatever the Flutter app
+        # last synced. Nothing catches up on a schedule either — the deployed
+        # compose runs no Celery beat — so the write paths are the only chance.
+        refresh_projection_after_write(membership.shop, context="a sale")
 
 
 class SaleDetailView(ShopScopedMixin, generics.RetrieveAPIView):
@@ -241,6 +246,7 @@ class SaleVoidView(ShopScopedMixin, APIView):
             source_surface="backend_api",
             after=snapshot_sale(sale),
         )
+        refresh_projection_after_write(membership.shop, context="a void")
 
         return Response(SaleSerializer(sale).data)
 
@@ -861,6 +867,8 @@ class SaleHistoryBulkImportView(ShopScopedMixin, APIView):
                 sale.receipt_number = f"H-{str(sale.id).replace('-', '')[:8].upper()}"
                 sale.save(update_fields=["receipt_number", "updated_at"])
                 created += 1
+        if created:
+            refresh_projection_after_write(membership.shop, context="a bulk import")
         return Response(
             {"created": created, "skipped": skipped}, status=status.HTTP_201_CREATED
         )

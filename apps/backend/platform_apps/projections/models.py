@@ -21,9 +21,26 @@ class ShopDashboardSnapshot(UUIDStampedModel):
     active_credit_customers_count = models.PositiveIntegerField(default=0)
     total_outstanding_balance = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     total_lifetime_spend = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    # Lifetime totals. These are what the website's hero card was showing under
+    # the label "Today's Sales" — for a shop with 19,604 sales that is an
+    # absurd number on the first screen anyone sees, including in a demo.
     sales_count = models.PositiveIntegerField(default=0)
     gross_revenue = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     outstanding_revenue = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+
+    # Today's, actually. Kept alongside the lifetime figures rather than
+    # replacing them: both are wanted, and the bug was the label, not the
+    # arithmetic.
+    today_sales_count = models.PositiveIntegerField(default=0)
+    today_gross_revenue = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0.00")
+    )
+    #: The shop-local date the two fields above were computed for. Without it a
+    #: snapshot built yesterday keeps reporting yesterday's takings as today's
+    #: — worse than the lifetime bug, because the number looks plausible. The
+    #: read path compares this against the shop's today and rebuilds if they
+    #: differ.
+    today_date = models.DateField(blank=True, null=True)
     payment_count = models.PositiveIntegerField(default=0)
     total_collected = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     credit_payment_count = models.PositiveIntegerField(default=0)
@@ -58,7 +75,14 @@ class ShopLowStockSnapshot(UUIDStampedModel):
     item_name = models.CharField(max_length=255)
     sku = models.CharField(max_length=128, blank=True)
     category = models.CharField(max_length=120, blank=True)
-    stock_on_hand = models.IntegerField(default=0)
+    # Decimal, not int. The ledger stores quantity to three places and grocery
+    # shops sell by weight, so int() turned 0.750 kg of dal into 0 — reported
+    # out of stock, dropped from the low-stock preview, and its value excluded
+    # from projected_sell_value. The dashboard lied to exactly the shops the
+    # weight-selling feature was built for.
+    stock_on_hand = models.DecimalField(
+        max_digits=12, decimal_places=3, default=Decimal("0.000")
+    )
     sell_price = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     severity_rank = models.PositiveIntegerField(default=0)
     refreshed_at = models.DateTimeField()

@@ -32,6 +32,7 @@ from platform_apps.customers.models import CustomerLedgerEntry
 from platform_apps.inventory.models import InventoryStockLedger
 from platform_apps.sales.models import Sale, SaleReturn, SaleReturnLine
 from platform_apps.shops.models import ShopMembership
+from platform_apps.projections.services import refresh_projection_after_write
 from platform_apps.shops.permissions import get_membership_or_403
 
 _ZERO = Decimal("0")
@@ -268,6 +269,9 @@ class SaleReturnCreateView(APIView):
             customer.save(update_fields=["balance", "updated_at"])
 
         sale_return.refresh_from_db()
+        # A return moves revenue, stock and possibly a customer's balance —
+        # every headline figure on the dashboard. It refreshed none of them.
+        refresh_projection_after_write(membership.shop, context="a return")
         return Response(_serialize(sale_return), status=status.HTTP_201_CREATED)
 
 

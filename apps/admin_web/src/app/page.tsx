@@ -12,7 +12,14 @@ export default async function HomePage() {
   const recentSales = activeShop ? await getSales(activeShop.shop.id) : [];
 
   const totalOutstanding = Number(dashboardSnapshot?.total_outstanding_balance ?? 0);
+  // Lifetime, used by the "TOTAL SALES" card lower down where that is what the
+  // label promises.
   const grossRevenue = Number(dashboardSnapshot?.gross_revenue ?? 0);
+  // Today's, for the hero. These used to be the same value, which meant the
+  // first number anyone saw — including in a demo — was the shop's entire
+  // trading history labelled as one day.
+  const todayRevenue = Number(dashboardSnapshot?.today_gross_revenue ?? 0);
+  const todaySalesCount = dashboardSnapshot?.today_sales_count ?? 0;
   const stockValue = Number(dashboardSnapshot?.projected_sell_value ?? 0);
 
   const currencyCode = activeShop?.shop.currency_code ?? "INR";
@@ -38,10 +45,10 @@ export default async function HomePage() {
               Today&apos;s Sales
             </span>
             <h2 className="text-3xl sm:text-4xl font-[900] tracking-tight mt-1">
-              {formatCurrency(grossRevenue, currencyCode)}
+              {formatCurrency(todayRevenue, currencyCode)}
             </h2>
             <div className="flex items-center gap-3 mt-4 text-xs font-bold text-[var(--info)]">
-              <span>{dashboardSnapshot?.sales_count ?? 0} sales today</span>
+              <span>{todaySalesCount} sales today</span>
               {totalOutstanding > 0 && (
                 <>
                   <span>•</span>

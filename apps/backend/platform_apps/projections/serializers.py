@@ -55,6 +55,9 @@ class ShopDashboardSnapshotSerializer(serializers.ModelSerializer):
             "total_lifetime_spend",
             "sales_count",
             "gross_revenue",
+            "today_sales_count",
+            "today_gross_revenue",
+            "today_date",
             "outstanding_revenue",
             "payment_count",
             "total_collected",
@@ -79,6 +82,10 @@ class ShopDashboardSnapshotSerializer(serializers.ModelSerializer):
         if not has_feature_enabled(membership, "finance_summary"):
             payload["total_outstanding_balance"] = None
             payload["gross_revenue"] = None
+            # Same gate as gross_revenue. Today's takings are no less a revenue
+            # figure than the lifetime one, and adding a field without adding it
+            # here is how a feature gate quietly springs a leak.
+            payload["today_gross_revenue"] = None
             payload["outstanding_revenue"] = None
             payload["total_collected"] = None
 

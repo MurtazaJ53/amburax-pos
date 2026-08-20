@@ -300,6 +300,15 @@ export type DashboardSnapshot = {
   total_lifetime_spend: string | null;
   sales_count: number;
   gross_revenue: string | null;
+  /** Today's takings, in the SHOP's timezone — not the server's, and not
+   *  all-time. The hero card showed gross_revenue under a "Today's Sales"
+   *  label, so a shop with 19,604 sales saw its lifetime total presented as
+   *  one day's. Null when the shop lacks finance_summary, same as
+   *  gross_revenue. */
+  today_sales_count: number;
+  today_gross_revenue: string | null;
+  /** The shop-local date the two fields above were computed for (YYYY-MM-DD). */
+  today_date: string | null;
   outstanding_revenue: string | null;
   payment_count: number;
   total_collected: string | null;

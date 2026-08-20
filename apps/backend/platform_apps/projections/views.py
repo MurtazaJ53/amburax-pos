@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from zoneinfo import ZoneInfo
+
+from django.utils import timezone
+
 from django.core.cache import cache
 from rest_framework import permissions
 from rest_framework import exceptions
@@ -21,6 +25,23 @@ from platform_apps.shops.permissions import get_membership_or_403
 
 _DASHBOARD_CACHE_TTL_SECONDS = 30
 _PULSE_CACHE_TTL_SECONDS = 30
+
+
+def _is_from_a_previous_day(snapshot, shop) -> bool:
+    """Whether this snapshot's "today" figures are for a day that has ended.
+
+    A snapshot with no today_date predates the field; treated as stale so the
+    first read after deploy rebuilds it rather than serving zeros for figures
+    the dashboard now shows prominently.
+
+    Compared in the SHOP's timezone, not the server's. A Kolkata shop cashing
+    up at 22:00 IST is still on the previous UTC day, so a UTC comparison would
+    call a current snapshot stale every evening and rebuild on every request.
+    """
+    if snapshot.today_date is None:
+        return True
+    shop_tz = ZoneInfo(getattr(shop, "timezone", None) or "Asia/Kolkata")
+    return snapshot.today_date != timezone.now().astimezone(shop_tz).date()
 
 
 def _dashboard_cache_key(shop_id: str, *, finance_summary: bool, advanced_reports: bool) -> str:
@@ -59,7 +80,12 @@ class ShopDashboardSnapshotView(APIView):
             .prefetch_related("low_stock_preview")
             .first()
         )
-        if snapshot is None:
+        if snapshot is None or _is_from_a_previous_day(snapshot, membership.shop):
+            # Rebuilt rather than served stale. Nothing refreshes projections on
+            # a schedule — the deployed compose runs no Celery beat — so without
+            # this a snapshot built yesterday would keep presenting yesterday's
+            # takings as today's. That is a worse failure than the all-time
+            # figure it replaced, because the number looks entirely plausible.
             snapshot = refresh_shop_dashboard_projection(membership.shop)
 
         serializer = ShopDashboardSnapshotSerializer(
@@ -94,7 +120,12 @@ class ShopPulseSnapshotView(APIView):
             .prefetch_related("low_stock_preview")
             .first()
         )
-        if snapshot is None:
+        if snapshot is None or _is_from_a_previous_day(snapshot, membership.shop):
+            # Rebuilt rather than served stale. Nothing refreshes projections on
+            # a schedule — the deployed compose runs no Celery beat — so without
+            # this a snapshot built yesterday would keep presenting yesterday's
+            # takings as today's. That is a worse failure than the all-time
+            # figure it replaced, because the number looks entirely plausible.
             snapshot = refresh_shop_dashboard_projection(membership.shop)
 
         full_pulse = build_shop_pulse_snapshot(
@@ -128,7 +159,12 @@ class ShopPulseSignalListView(APIView):
             .prefetch_related("low_stock_preview")
             .first()
         )
-        if snapshot is None:
+        if snapshot is None or _is_from_a_previous_day(snapshot, membership.shop):
+            # Rebuilt rather than served stale. Nothing refreshes projections on
+            # a schedule — the deployed compose runs no Celery beat — so without
+            # this a snapshot built yesterday would keep presenting yesterday's
+            # takings as today's. That is a worse failure than the all-time
+            # figure it replaced, because the number looks entirely plausible.
             snapshot = refresh_shop_dashboard_projection(membership.shop)
         full_pulse = build_shop_pulse_snapshot(
             membership.shop,
