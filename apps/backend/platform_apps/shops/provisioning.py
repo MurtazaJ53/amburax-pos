@@ -13,35 +13,29 @@ from django.utils.text import slugify
 
 from platform_apps.audit.services import create_workspace_audit_event
 from platform_apps.shops.models import Shop, ShopMembership
+from platform_apps.shops.plans import BUSINESS_TYPES
 
-# Sensible defaults for a brand-new shop; the owner can change these later.
-DEFAULT_FEATURES: dict[str, bool] = {
-    "inventory": True,
-    "pos": True,
-    "customers": True,
-    "history": True,
-    "team": True,
-    "attendance": True,
-    "expenses": True,
-    "advanced_ops": True,
-}
+# A new shop starts with NO feature overrides. It used to start with a map of
+# eight keys, which read like defaults but were not: five of them
+# (inventory/pos/customers/history/team) are not feature keys at all and nothing
+# ever read them, and the other three were wiped moments later by
+# Subscription.start_trial, which strips every plan-owned key when it sets the
+# tier. Defaults now come from the shop's plan and business type, resolved live
+# in build_enabled_features, so this map holds only what a shopkeeper has
+# actually chosen to change. The key is still written, as an empty dict, because
+# billing only rewrites the override map when it finds one.
+NO_FEATURE_OVERRIDES: dict[str, bool] = {}
 
-# Pharmacy and restaurant stay VALID — any shop already carrying one keeps it,
-# and dropping them here would silently rewrite those rows to "other". They are
-# removed from the signup dropdowns instead, because the app does not yet do
-# what choosing them implies: batch and expiry tracking for a pharmacy (a
+# The list itself now lives in plans.py, next to the flags each type turns on,
+# so a type can never be accepted here but unknown to the thing that decides
+# what it means. Pharmacy and restaurant stay VALID — any shop already carrying
+# one keeps it, and dropping them would silently rewrite those rows to "other".
+# They are removed from the signup dropdowns instead, because the app does not
+# yet do what choosing them implies: batch and expiry tracking for a pharmacy (a
 # licensing matter, not a convenience), and tables/orders for a restaurant.
 # Both are planned; offering them before they exist misleads at the first
 # screen a shopkeeper ever sees.
-VALID_BUSINESS_TYPES = {
-    "retail",
-    "wholesale",
-    "service",
-    "restaurant",
-    "pharmacy",
-    "grocery",
-    "other",
-}
+VALID_BUSINESS_TYPES = frozenset(BUSINESS_TYPES)
 
 
 def _unique_slug(base: str) -> str:
@@ -89,7 +83,7 @@ def provision_shop(
         settings_json={
             "plan_tier": plan_tier or "starter",
             "business_type": normalized_type,
-            "enabled_features": DEFAULT_FEATURES,
+            "enabled_features": dict(NO_FEATURE_OVERRIDES),
             "onboarding_completed": False,
             "business_phone": (owner_phone or "").strip(),
         },

@@ -47,6 +47,12 @@ FEATURE_LABELS = {
     "multi_branch": "Multi-branch visibility",
     "finance_summary": "Finance summary",
     "advanced_ops": "Advanced ops",
+    # Business-type flags. Present so the 403 message reads as a sentence, but
+    # nothing gates on these today — they describe how a shop sells, and a shop
+    # that cannot use them simply does not see them.
+    "weight_selling": "Selling by weight",
+    "product_variants": "Product variants",
+    "gstin_on_every_bill": "GSTIN on every bill",
 }
 
 

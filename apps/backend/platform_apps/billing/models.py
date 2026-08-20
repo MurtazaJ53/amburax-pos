@@ -15,6 +15,7 @@ from platform_apps.billing.pricing import (
     price_for,
 )
 from platform_apps.shops.models import Shop
+from platform_apps.shops.plans import PLAN_FEATURE_KEYS
 
 
 class Subscription(models.Model):
@@ -176,19 +177,13 @@ class Subscription(models.Model):
             return
         settings_json["plan_tier"] = tier
         # A stale per-tier override map would out-rank the new tier, so drop the
-        # keys the plan itself decides.
+        # keys the plan itself decides — and only those. Business-type flags
+        # such as weight_selling are deliberately absent from PLAN_FEATURE_KEYS
+        # and so survive a downgrade: a grocer who stops paying still has to be
+        # able to weigh out dal.
         overrides = settings_json.get("enabled_features")
         if isinstance(overrides, dict):
-            for key in (
-                "expenses",
-                "attendance",
-                "supplier_directory",
-                "purchase_workflow",
-                "advanced_reports",
-                "multi_branch",
-                "finance_summary",
-                "advanced_ops",
-            ):
+            for key in PLAN_FEATURE_KEYS:
                 overrides.pop(key, None)
             settings_json["enabled_features"] = overrides
         shop.settings_json = settings_json

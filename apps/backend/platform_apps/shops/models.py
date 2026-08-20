@@ -5,7 +5,11 @@ from django.core.cache import cache
 from django.db import models
 
 from platform_apps.common.models import SourceTrackedModel
-from platform_apps.shops.plans import build_enabled_features, normalize_plan_tier
+from platform_apps.shops.plans import (
+    build_enabled_features,
+    normalize_business_type,
+    normalize_plan_tier,
+)
 
 
 class Shop(SourceTrackedModel):
@@ -48,6 +52,10 @@ class Shop(SourceTrackedModel):
         return normalize_plan_tier(self.settings_json.get("plan_tier"))
 
     @property
+    def business_type(self) -> str:
+        return normalize_business_type(self.settings_json.get("business_type"))
+
+    @property
     def enabled_features(self) -> dict[str, bool]:
         cache_key = f"shop:{self.id}:enabled_features"
         cached_features = cache.get(cache_key)
@@ -56,7 +64,11 @@ class Shop(SourceTrackedModel):
 
         explicit = self.settings_json.get("enabled_features")
         overrides = explicit if isinstance(explicit, dict) else None
-        features = build_enabled_features(self.plan_tier, overrides=overrides)
+        features = build_enabled_features(
+            self.plan_tier,
+            overrides=overrides,
+            business_type=self.business_type,
+        )
 
         # Short TTL on purpose. save() clears this key, but the demo deployment
         # runs without Redis, so LocMemCache is per-process: a plan change made
