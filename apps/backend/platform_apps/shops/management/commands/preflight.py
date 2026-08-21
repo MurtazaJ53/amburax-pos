@@ -91,21 +91,89 @@ def check_debug(debug: bool) -> Check:
     return Check("DEBUG", OK, "Off.")
 
 
-def check_secret_key(secret_key: str, blind_index_pepper: str) -> Check:
-    """The pepper defaults to SECRET_KEY, which couples two very different keys.
+MIN_KEY_LENGTH = 32
 
-    SECRET_KEY can be rotated; a session logs out and life goes on. The blind
-    index pepper cannot — rotating it makes every encrypted customer phone
-    permanently unsearchable, because the stored hashes were keyed with the old
-    one. Sharing a value between them means a routine SECRET_KEY rotation
-    quietly destroys customer lookup.
+
+def check_jwt_signing_key(jwt_signing_key: str, secret_key: str) -> Check:
+    """The key that actually authenticates API requests.
+
+    Separate from SECRET_KEY on purpose. Every signed-in user holds a valid
+    HS256 token, which is a signature pair an attacker can brute-force offline
+    — no rate limit, no audit trail, nothing touching the server. So this key's
+    strength, not SECRET_KEY's, is what stands between a cashier's token and a
+    forged platform-admin one.
     """
-    if not secret_key or len(secret_key) < 32:
+    if not jwt_signing_key or jwt_signing_key == secret_key:
+        return Check(
+            "JWT_SIGNING_KEY",
+            WARN,
+            "Unset, so API tokens are signed with SECRET_KEY.",
+            "Set JWT_SIGNING_KEY to a long random value. Safe to do at any "
+            "time: it touches no stored data, and tokens signed with the old "
+            "key keep working until they expire.",
+        )
+    if len(jwt_signing_key) < MIN_KEY_LENGTH:
+        return Check(
+            "JWT_SIGNING_KEY",
+            FAIL,
+            f"Shorter than {MIN_KEY_LENGTH} characters.",
+            "Generate a longer one. This key is offline-brute-forceable from "
+            "any user's token.",
+        )
+    return Check("JWT_SIGNING_KEY", OK, "Set separately, and long enough.")
+
+
+def check_secret_key(
+    secret_key: str, blind_index_pepper: str, jwt_signing_key: str = ""
+) -> Check:
+    """SECRET_KEY's length, judged by what it is still responsible for.
+
+    THIS CHECK USED TO TELL OPERATORS TO ROTATE SECRET_KEY. Following that
+    advice on 20 Aug 2026 made every stored customer phone undecryptable on the
+    live API (readable=0 unreadable=243) until the old key was restored.
+
+    SECRET_KEY cannot be rotated once encrypted rows exist. django_cryptography
+    signs encrypted values with settings.SECRET_KEY (core/signing.py) and
+    decrypt() verifies that signature BEFORE decrypting, so a new key raises
+    BadSignature and never reaches the ciphertext. Pinning CRYPTOGRAPHY_KEY
+    does not help — it only covers the encryption half. Rotating for real is a
+    data migration: decrypt every encrypted column under the old key, rotate,
+    re-encrypt, rehearsed against a scratch restore first.
+
+    So a short SECRET_KEY on a deployment with customers is a WARN, not a FAIL.
+    A FAIL that can only be cleared by destroying data is not a safety check;
+    it is a trap, and an operator who clears it has been harmed by this file.
+
+    It stays a FAIL when JWT_SIGNING_KEY is not set, because then SECRET_KEY is
+    also signing every API token, and that IS remotely exploitable: any user's
+    token is a brute-force oracle. Setting JWT_SIGNING_KEY closes that without
+    touching a byte of stored data.
+    """
+    if not secret_key or len(secret_key) < MIN_KEY_LENGTH:
+        jwt_key_is_strong = (
+            jwt_signing_key
+            and jwt_signing_key != secret_key
+            and len(jwt_signing_key) >= MIN_KEY_LENGTH
+        )
+        if jwt_key_is_strong:
+            return Check(
+                "DJANGO_SECRET_KEY",
+                WARN,
+                f"Shorter than {MIN_KEY_LENGTH} characters, but API tokens are "
+                "signed with JWT_SIGNING_KEY, so it no longer authenticates "
+                "requests. What remains needs a database dump first.",
+                "Do NOT rotate it on a deployment with customer data — that "
+                "makes every encrypted phone undecryptable. Changing it "
+                "requires a decrypt/re-encrypt migration.",
+            )
         return Check(
             "DJANGO_SECRET_KEY",
             FAIL,
-            "Missing or shorter than 32 characters.",
-            "Generate a long random key and set DJANGO_SECRET_KEY.",
+            f"Shorter than {MIN_KEY_LENGTH} characters, and it is signing API "
+            "tokens, which makes it forgeable offline from any user's token.",
+            "Set JWT_SIGNING_KEY to a long random value. That fixes the "
+            "exploitable half WITHOUT touching stored data. Do not rotate "
+            "SECRET_KEY itself if any customer exists.",
         )
     if blind_index_pepper == secret_key:
         return Check(
@@ -190,9 +258,14 @@ def run_checks() -> list[Check]:
     return [
         check_debug(bool(settings.DEBUG)),
         check_allowed_hosts(list(settings.ALLOWED_HOSTS)),
+        check_jwt_signing_key(
+            str(getattr(settings, "JWT_SIGNING_KEY", "")),
+            str(settings.SECRET_KEY),
+        ),
         check_secret_key(
             str(settings.SECRET_KEY),
             str(getattr(settings, "BLIND_INDEX_PEPPER", "")),
+            str(getattr(settings, "JWT_SIGNING_KEY", "")),
         ),
         check_csrf_origins(
             list(getattr(settings, "CSRF_TRUSTED_ORIGINS", [])),
