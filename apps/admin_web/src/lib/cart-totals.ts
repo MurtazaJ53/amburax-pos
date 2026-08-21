@@ -26,6 +26,15 @@ export type TotalsLine = {
 export type CartTotals = {
   subtotal: number;
   discounts: number;
+  /** The value the tax is charged ON, i.e. the bill excluding GST.
+   *
+   *  Exists so the summary ADDS UP. Showing "Subtotal 150 / Tax 7.14 / Total
+   *  150" is arithmetic nonsense on screen even when the stored figures are
+   *  right, and a cashier or customer reading it concludes the till is broken.
+   *  taxableValue + totalTax === grandTotal in every case: tax-inclusive,
+   *  tax-exclusive and zero-rated. That is also the format a GST invoice is
+   *  expected to take. */
+  taxableValue: number;
   cgst: number;
   sgst: number;
   totalTax: number;
@@ -65,14 +74,19 @@ export function computeCartTotals(cart: TotalsLine[]): CartTotals {
   const roundedTax = round2(totalTax);
   const cgst = round2(roundedTax / 2);
 
+  const grandTotal = round2(subtotal - discounts + exclusiveTax);
+
   return {
     subtotal: round2(subtotal),
     discounts: round2(discounts),
+    // Derived from the total rather than accumulated separately, so the three
+    // figures can never disagree by a rounding step.
+    taxableValue: round2(grandTotal - roundedTax),
     cgst,
     // Paired so cgst + sgst is exactly totalTax, matching gst.py — otherwise a
     // half-paisa rounding gap shows on the receipt as tax that adds up wrong.
     sgst: round2(roundedTax - cgst),
     totalTax: roundedTax,
-    grandTotal: round2(subtotal - discounts + exclusiveTax),
+    grandTotal,
   };
 }

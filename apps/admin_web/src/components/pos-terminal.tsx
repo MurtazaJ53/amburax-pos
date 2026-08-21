@@ -790,6 +790,13 @@ Press Pay again to retry — ` +
         {/* Financial Summary & Checkout Button */}
         <div className="p-5 border-t border-[var(--bg-soft)] bg-[var(--bg-base)] space-y-3">
           <div className="space-y-1.5 text-xs font-semibold text-[var(--text-secondary)]">
+            {/* Reads as an addition, because it is one:
+                    taxable value + GST = grand total.
+                This showed "Subtotal 150 / Tax 7.14 / Total 150", which is
+                arithmetic nonsense on screen even though every stored figure
+                was right — the 7.14 was already inside the 150, and nothing
+                said so. A cashier reading it concludes the till is broken; a
+                customer reading it over their shoulder concludes worse. */}
             <div className="flex justify-between">
               <span>Subtotal:</span>
               <span className="text-[var(--text-primary)] font-bold">
@@ -802,12 +809,22 @@ Press Pay again to retry — ` +
                 <span className="font-bold">-{formatCurrency(cartDiscounts)}</span>
               </div>
             )}
-            <div className="flex justify-between text-[11px]">
-              <span>Tax (GST CGST+SGST):</span>
-              <span className="text-[var(--text-secondary)]">
-                {formatCurrency(cartTaxBreakdown.totalTax)}
-              </span>
-            </div>
+            {cartTaxBreakdown.totalTax > 0 && (
+              <>
+                <div className="flex justify-between text-[11px] pt-1.5 border-t border-[var(--border-soft)]">
+                  <span>Taxable value:</span>
+                  <span className="text-[var(--text-secondary)]">
+                    {formatCurrency(cartTaxBreakdown.taxableValue)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[11px]">
+                  <span>GST (CGST + SGST):</span>
+                  <span className="text-[var(--text-secondary)]">
+                    {formatCurrency(cartTaxBreakdown.totalTax)}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="pt-3 border-t border-[var(--border-soft)] flex items-baseline justify-between">

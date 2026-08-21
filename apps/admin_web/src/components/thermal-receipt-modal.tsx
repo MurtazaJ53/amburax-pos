@@ -149,8 +149,12 @@ export function ThermalReceiptModal({
 
             {/* Totals & Tax Breakup */}
             <div className="py-2 border-b border-dashed border-neutral-400 space-y-1 text-[9px]">
+              {/* Line count, not summed quantity. A grocer selling 0.75 kg
+                  would otherwise read "0.75 items", and floats made it worse. */}
               <div className="flex justify-between">
-                <span>Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items):</span>
+                <span>
+                  Subtotal ({items.length} item{items.length === 1 ? "" : "s"}):
+                </span>
                 <span>₹{subtotal.toFixed(2)}</span>
               </div>
               {discountAmount > 0 && (
@@ -159,10 +163,24 @@ export function ThermalReceiptModal({
                   <span>-₹{discountAmount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between">
-                <span>Tax (GST Breakdown):</span>
-                <span>₹{taxAmount.toFixed(2)}</span>
-              </div>
+              {/* Taxable value + GST = total, the format a GST invoice is
+                  expected to take — and, unlike what was here before, one that
+                  adds up. It printed "Subtotal 150 / Tax 7.14 / TOTAL 150",
+                  because the tax was already inside the price and the receipt
+                  never said so. This is the copy the customer keeps and the
+                  one produced in a dispute. */}
+              {taxAmount > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <span>Taxable value:</span>
+                    <span>₹{(totalAmount - taxAmount).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>GST (CGST + SGST):</span>
+                    <span>₹{taxAmount.toFixed(2)}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between font-bold text-xs pt-1 border-t border-neutral-300">
                 <span>TOTAL AMOUNT:</span>
                 <span>₹{totalAmount.toFixed(2)}</span>

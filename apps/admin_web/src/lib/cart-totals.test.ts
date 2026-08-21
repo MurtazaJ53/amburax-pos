@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { computeCartTotals } from "./cart-totals";
+import type { TotalsLine } from "./cart-totals";
 
 /** The bill from the screenshot: one ₹150 line at 5% GST.
  *
@@ -99,5 +100,55 @@ describe("mixed and awkward carts", () => {
       { quantity: 3, unit_price: 0.2, discount_amount: 0 },
     ]);
     expect(totals.grandTotal).toBe(0.9);
+  });
+});
+
+describe("the summary must add up on screen", () => {
+  /** The defect the shopkeeper spotted: the cart showed
+   *    Subtotal 150.00 / Tax 7.14 / GRAND TOTAL 150.00
+   *  Every stored figure was right, but read as arithmetic it is nonsense —
+   *  the 7.14 was already inside the 150 and nothing said so. A cashier
+   *  concludes the till is broken; a customer reading over their shoulder
+   *  concludes worse.
+   */
+  const cases: Array<[string, TotalsLine[]]> = [
+    ["tax-inclusive", [MRP_LINE]],
+    ["tax-exclusive", [{ ...MRP_LINE, price_includes_tax: false }]],
+    ["zero-rated", [{ ...MRP_LINE, tax_rate: 0 }]],
+    ["discounted", [{ ...MRP_LINE, discount_amount: 37.5 }]],
+    [
+      "mixed",
+      [MRP_LINE, { ...MRP_LINE, price_includes_tax: false }, { ...MRP_LINE, tax_rate: 0 }],
+    ],
+    ["empty", []],
+    [
+      "awkward rates",
+      [
+        { quantity: 3, unit_price: 10.01, discount_amount: 0, tax_rate: 12 },
+        { quantity: 1, unit_price: 99.99, discount_amount: 0, tax_rate: 18 },
+      ],
+    ],
+  ];
+
+  it.each(cases)("taxable value + GST equals the total (%s)", (_label, cart) => {
+    const t = computeCartTotals(cart);
+    expect(t.taxableValue + t.totalTax).toBeCloseTo(t.grandTotal, 2);
+  });
+
+  it.each(cases)("cgst + sgst equals the GST shown (%s)", (_label, cart) => {
+    const t = computeCartTotals(cart);
+    expect(t.cgst + t.sgst).toBeCloseTo(t.totalTax, 10);
+  });
+
+  it("the taxable value is below the total when tax is inside the price", () => {
+    const t = computeCartTotals([MRP_LINE]);
+    expect(t.taxableValue).toBeCloseTo(142.86, 2);
+    expect(t.grandTotal).toBe(150);
+  });
+
+  it("the taxable value equals the subtotal when tax is added on top", () => {
+    const t = computeCartTotals([{ ...MRP_LINE, price_includes_tax: false }]);
+    expect(t.taxableValue).toBeCloseTo(150, 2);
+    expect(t.grandTotal).toBe(157.5);
   });
 });
