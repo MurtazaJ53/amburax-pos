@@ -21,6 +21,41 @@ BUSINESS_TYPES = (
 )
 
 
+#: How the shop is registered under GST. Decides whether it may charge tax at
+#: all — not a preference, a statutory fact.
+#:
+#: composition (s.10 CGST Act, goods turnover under 1.5cr — much of this
+#: product's market) CANNOT collect GST, issues a "Bill of Supply" rather than
+#: a "Tax Invoice", must carry the declaration "Composition taxable person, not
+#: eligible to collect tax on supplies", and files CMP-08 quarterly and GSTR-4
+#: annually instead of GSTR-1 and GSTR-3B.
+#:
+#: unregistered shops charge no GST either; they differ from composition only
+#: in the wording on the bill.
+DEFAULT_GST_REGISTRATION_TYPE = "regular"
+GST_REGISTRATION_TYPES = ("regular", "composition", "unregistered")
+
+
+def normalize_gst_registration_type(value: Any) -> str:
+    """Coerce to a known registration type, defaulting to regular.
+
+    Falls back to "regular" rather than to a catch-all, unlike
+    normalize_business_type: there is no neutral member here, and regular is
+    the status every existing shop already implicitly has. Deriving the default
+    rather than storing it is what makes this back-compatible with no
+    migration and nothing to backfill.
+    """
+    candidate = str(value or "").strip().lower()
+    if candidate in GST_REGISTRATION_TYPES:
+        return candidate
+    return DEFAULT_GST_REGISTRATION_TYPE
+
+
+def collects_gst(registration_type: Any) -> bool:
+    """Whether this shop may charge GST to a customer at all."""
+    return normalize_gst_registration_type(registration_type) == "regular"
+
+
 def normalize_plan_tier(value: Any) -> str:
     candidate = str(value or "").strip().lower()
     if candidate in PLAN_TIERS:

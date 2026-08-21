@@ -28,6 +28,13 @@ type ThermalReceiptModalProps = {
   intraState?: boolean;
   /** The buyer's GSTIN, required on the invoice for a B2B supply. */
   buyerGstin?: string;
+  /** regular | composition | unregistered.
+   *
+   *  Decides what this document IS. A composition dealer must issue a Bill of
+   *  Supply, never a Tax Invoice, and must carry the declaration required by
+   *  Rule 5(1)(f). Printing a Tax Invoice with GST on it is not a cosmetic
+   *  error for them — collecting tax is something s.10 forbids. */
+  gstRegistrationType?: string;
   discountAmount: number;
   totalAmount: number;
   payments: SplitPaymentTender;
@@ -51,6 +58,7 @@ export function ThermalReceiptModal({
   taxAmount,
   intraState = true,
   buyerGstin,
+  gstRegistrationType = "regular",
   discountAmount,
   totalAmount,
   payments,
@@ -110,7 +118,22 @@ export function ThermalReceiptModal({
               <div className="font-bold text-xs tracking-wide">{shopName.toUpperCase()}</div>
               <div className="text-[10px] text-neutral-600 mt-0.5">{shopAddress}</div>
               <div className="text-[10px] text-neutral-600">Phone: {shopPhone}</div>
-              <div className="text-[10px] font-semibold mt-1">GSTIN: {shopGstin}</div>
+              {/* An unregistered shop has no GSTIN to print, and printing an
+                  empty one looks like a fault. */}
+              {gstRegistrationType !== "unregistered" && shopGstin && (
+                <div className="text-[10px] font-semibold mt-1">GSTIN: {shopGstin}</div>
+              )}
+              {/* What this document is, stated. Rule 46 wants a Tax Invoice
+                  titled as one; a composition dealer must issue a Bill of
+                  Supply instead, and there was no title on this receipt at
+                  all. */}
+              <div className="text-[10px] font-bold mt-1 tracking-wider">
+                {gstRegistrationType === "composition"
+                  ? "BILL OF SUPPLY"
+                  : gstRegistrationType === "unregistered"
+                    ? "CASH MEMO"
+                    : "TAX INVOICE"}
+              </div>
             </div>
 
             {/* Receipt Metadata */}
@@ -189,7 +212,7 @@ export function ThermalReceiptModal({
                   because the tax was already inside the price and the receipt
                   never said so. This is the copy the customer keeps and the
                   one produced in a dispute. */}
-              {taxAmount > 0 && (
+              {taxAmount > 0 && gstRegistrationType === "regular" && (
                 <>
                   <div className="flex justify-between">
                     <span>Taxable value:</span>
@@ -257,6 +280,15 @@ export function ThermalReceiptModal({
 
             {/* Footer */}
             <div className="pt-3 text-center text-[9px] space-y-1">
+              {/* Rule 5(1)(f) requires this wording on every Bill of Supply a
+                  composition dealer issues. Not advisory — its absence is a
+                  defect in the document. */}
+              {gstRegistrationType === "composition" && (
+                <div className="font-bold text-[8px] uppercase border border-neutral-400 rounded px-1 py-1 mb-1">
+                  Composition taxable person, not eligible to collect tax on
+                  supplies
+                </div>
+              )}
               <div className="font-semibold">*** THANK YOU FOR YOUR VISIT! ***</div>
               <div className="text-[8px] text-neutral-500">
                 Items once sold can be exchanged within 7 days with original invoice.

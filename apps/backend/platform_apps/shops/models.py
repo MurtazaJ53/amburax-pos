@@ -7,7 +7,9 @@ from django.db import models
 from platform_apps.common.models import SourceTrackedModel
 from platform_apps.shops.plans import (
     build_enabled_features,
+    collects_gst,
     normalize_business_type,
+    normalize_gst_registration_type,
     normalize_plan_tier,
 )
 
@@ -54,6 +56,19 @@ class Shop(SourceTrackedModel):
     @property
     def business_type(self) -> str:
         return normalize_business_type(self.settings_json.get("business_type"))
+
+    @property
+    def gst_registration_type(self) -> str:
+        return normalize_gst_registration_type(
+            self.settings_json.get("gst_registration_type")
+        )
+
+    @property
+    def collects_gst(self) -> bool:
+        """Whether this shop may charge GST. False for composition dealers and
+        unregistered shops, for whom charging it is not a setting but an
+        offence."""
+        return collects_gst(self.settings_json.get("gst_registration_type"))
 
     @property
     def enabled_features(self) -> dict[str, bool]:

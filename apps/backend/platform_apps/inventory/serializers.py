@@ -10,6 +10,29 @@ from platform_apps.inventory.models import InventoryItem, InventoryItemPrivate, 
 
 
 class InventoryItemSerializer(serializers.ModelSerializer):
+    """An inventory item as every client sees it.
+
+    NOTE ON gst_rate — this is deliberate action-at-a-distance, and it is worth
+    explaining because a reader will otherwise assume a bug.
+
+    A composition dealer or unregistered shop may not charge GST (s.10 CGST
+    Act). Forcing the rate to zero when the SALE is recorded is not sufficient:
+    the receipt is what carries the legal exposure, and every client recomputes
+    tax locally from its own copy of the catalogue —
+    admin_web/src/lib/cart-totals.ts, mobile_flutter/lib/core/receipt/
+    receipt_pdf.dart and receipt_printer.dart all do. So the server would store
+    zero while the customer was handed paper showing CGST+SGST, which is worse
+    than today: the books and the bill would disagree.
+
+    Serving 0.00 from the catalogue API instead reaches every client through
+    the data they already sync, including Flutter builds already installed on
+    shop phones, with no release. The stored column keeps its real value, so
+    nothing is lost when a shop returns to regular registration.
+
+    Reversible in one line once every client understands
+    gst_registration_type directly.
+    """
+
     stock_on_hand = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     cost_price = serializers.SerializerMethodField()
     supplier_id = serializers.SerializerMethodField()
@@ -101,6 +124,20 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+    def to_representation(self, instance):
+        """Mask the GST rate for a shop that may not charge it.
+
+        Done here rather than as a SerializerMethodField so the field stays
+        WRITABLE — a method field is read-only, which would have quietly broken
+        product creation and editing for every shop. See the class docstring
+        for why the read has to be masked at all.
+        """
+        data = super().to_representation(instance)
+        shop = self.context.get("shop")
+        if shop is not None and not shop.collects_gst:
+            data["gst_rate"] = "0.00"
+        return data
 
     def get_cost_price(self, obj):
         if not self._can_view_costs():

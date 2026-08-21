@@ -11,6 +11,8 @@ import {
   User,
   X,
   CreditCard,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { PosCheckoutModal } from "@/components/pos-checkout-modal";
@@ -23,6 +25,7 @@ import type {
 } from "@/lib/types";
 import type { ProductItem } from "@/components/inventory-manager";
 import { useT } from "@/lib/i18n";
+import { mapInventoryRow } from "@/lib/inventory-rows";
 import { computeCartTotals } from "@/lib/cart-totals";
 import { stateCodeFromGstin } from "@/lib/gst-states";
 
@@ -73,22 +76,7 @@ export function PosTerminal({
 }: PosTerminalProps) {
   const t = useT();
   const mappedInitialProducts = React.useMemo(() => {
-    return (initialInventory ?? []).map((item: ApiInventoryRow) => ({
-      id: item.id,
-      name: item.name,
-      sku: item.sku ?? "",
-      barcode: item.barcode ?? "",
-      category: item.category || "General",
-      cost_price: parseFloat(item.cost_price || "0"),
-      selling_price: parseFloat(item.sell_price || "0"),
-      current_stock: item.stock_on_hand || 0,
-      reorder_level: 0,
-      tax_rate: parseFloat(item.gst_rate || "0"),
-      is_low_stock: false,
-      status: item.status ?? "active",
-      unit: item.unit ?? "",
-      price_includes_tax: item.price_includes_tax ?? true,
-    }));
+    return (initialInventory ?? []).map(mapInventoryRow);
   }, [initialInventory]);
 
   const [products, setProducts] = useState<ProductItem[]>(mappedInitialProducts);
@@ -97,6 +85,24 @@ export function PosTerminal({
   const [_error, setError] = useState<string | null>(null);
   
   const [searchQuery, setSearchQuery] = useState("");
+  /** Photo tiles or a compact list. A shop with four hundred items scrolls a
+   *  picture grid for a long time, so the till remembers which it prefers. */
+  const [compactView, setCompactView] = useState(false);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem("bh_pos_compact");
+    if (stored === "true") {
+      setCompactView(true);
+    }
+  }, []);
+
+  const toggleCompact = () => {
+    setCompactView((previous) => {
+      const next = !previous;
+      window.localStorage.setItem("bh_pos_compact", String(next));
+      return next;
+    });
+  };
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [cart, setCart] = useState<CartItem[]>([]);
   // Whether this shop sells loose goods by weight. Off for most shops, and the
@@ -107,6 +113,10 @@ export function PosTerminal({
   // input credit. Retail mostly sells to people who have none, so this is off
   // unless the shop asked for it.
   const [requireBuyerGstin, setRequireBuyerGstin] = useState(false);
+  // regular | composition | unregistered. Decides whether the receipt is a Tax
+  // Invoice, a Bill of Supply or a cash memo — and whether it may show tax at
+  // all.
+  const [gstRegistrationType, setGstRegistrationType] = useState("regular");
   // Stops a second submit while the first is in flight. There was no guard at
   // all, and the only disabled= on the pay button was "is the cart empty" — so
   // an impatient second press on a slow connection rang the bill twice.
@@ -130,6 +140,7 @@ export function PosTerminal({
         if (cancelled) return;
         setWeightSelling(data?.features?.weight_selling === true);
         setRequireBuyerGstin(data?.features?.gstin_on_every_bill === true);
+        setGstRegistrationType(String(data?.gst_registration_type ?? "regular"));
       } catch {
         // Left off on a failure, deliberately. The till must open whatever the
         // settings endpoint is doing, and an integer quantity is the behaviour
@@ -150,22 +161,7 @@ export function PosTerminal({
         const invData = await invRes.json();
         
         // Map backend InventoryItem to ProductItem
-        const mappedProducts: ProductItem[] = invData.map((item: ApiInventoryRow) => ({
-          id: item.id,
-          name: item.name,
-          sku: item.sku ?? "",
-          barcode: item.barcode ?? "",
-          category: item.category || "General",
-          cost_price: parseFloat(item.cost_price || "0"),
-          selling_price: parseFloat(item.sell_price || "0"),
-          current_stock: item.stock_on_hand || 0,
-          reorder_level: 0,
-          tax_rate: parseFloat(item.gst_rate || "0"),
-          is_low_stock: false,
-          status: item.status ?? "active",
-          unit: item.unit ?? "",
-          price_includes_tax: item.price_includes_tax ?? true,
-        }));
+        const mappedProducts: ProductItem[] = invData.map(mapInventoryRow);
         setProducts(mappedProducts);
 
         // Load customers
@@ -291,7 +287,7 @@ export function PosTerminal({
         sku: product.sku,
         barcode: product.barcode || "",
         unit_price: product.selling_price,
-        cost_price: product.cost_price,
+        cost_price: product.cost_price ?? 0,
         tax_rate: product.tax_rate ?? 0,
         quantity: 1,
         discount_amount: 0,
@@ -463,22 +459,7 @@ Press Pay again to retry — ` +
       const invRes = await fetch("/api/inventory");
       if (invRes.ok) {
         const invData = await invRes.json();
-        const mappedProducts: ProductItem[] = invData.map((item: ApiInventoryRow) => ({
-          id: item.id,
-          name: item.name,
-          sku: item.sku ?? "",
-          barcode: item.barcode ?? "",
-          category: item.category || "General",
-          cost_price: parseFloat(item.cost_price || "0"),
-          selling_price: parseFloat(item.sell_price || "0"),
-          current_stock: item.stock_on_hand || 0,
-          reorder_level: 0,
-          tax_rate: parseFloat(item.gst_rate || "0"),
-          is_low_stock: false,
-          status: item.status ?? "active",
-          unit: item.unit ?? "",
-          price_includes_tax: item.price_includes_tax ?? true,
-        }));
+        const mappedProducts: ProductItem[] = invData.map(mapInventoryRow);
         setProducts(mappedProducts);
       }
     } catch (err) {
@@ -526,6 +507,23 @@ Press Pay again to retry — ` +
             <Barcode className="w-4 h-4" />
             <span>Scanner Ready</span>
           </div>
+
+          {/* Photo tiles read faster; a compact list fits far more on screen.
+              Which one suits depends on how big the catalogue is. */}
+          <button
+            type="button"
+            onClick={toggleCompact}
+            aria-pressed={compactView}
+            title={compactView ? "Show photo tiles" : "Show a compact list"}
+            className="focus-ring hidden shrink-0 cursor-pointer items-center gap-1.5 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] px-3.5 py-3 text-xs font-bold text-[var(--text-secondary)] shadow-sm transition-colors hover:text-[var(--text-primary)] sm:flex"
+          >
+            {compactView ? (
+              <LayoutGrid className="h-4 w-4" />
+            ) : (
+              <List className="h-4 w-4" />
+            )}
+            <span>{compactView ? "Tiles" : "List"}</span>
+          </button>
         </div>
 
         {/* Category Pills Bar */}
@@ -545,57 +543,126 @@ Press Pay again to retry — ` +
           ))}
         </div>
 
-        {/* Product Grid */}
-        <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3.5">
-          {filteredProducts.length === 0 ? (
-            <div className="col-span-full py-16 text-center text-[var(--text-tertiary)] text-xs font-bold">
-              No products found matching &quot;{searchQuery}&quot;.
-            </div>
-          ) : (
-            filteredProducts.map((prod) => (
-              <button
-                key={prod.id}
-                onClick={() => addToCart(prod)}
-                className="group relative flex flex-col justify-between p-4 rounded-2xl bg-[var(--bg-base)] hover:bg-[var(--surface)] border border-[var(--border-soft)] hover:border-[var(--primary)] hover:shadow-md text-left transition-all active:scale-98"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-1 mb-1.5">
-                    <span className="text-[10px] font-bold text-[var(--text-tertiary)] truncate">
-                      {prod.sku}
-                    </span>
-                    {(prod.tax_rate ?? 0) > 0 ? (
-                      <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-[var(--primary)]/10 text-[var(--primary-hover)]">
-                        GST {prod.tax_rate ?? 0}%
-                      </span>
+        {/* Product grid. A photo is read faster than a name at counter
+            distance, so the tile leads with the picture and the text below
+            only confirms it. Items with no photo fall back to their initial
+            rather than a broken image or an empty grey box. */}
+        {compactView ? (
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-1.5">
+            {filteredProducts.length === 0 ? (
+              <p className="py-16 text-center text-xs font-bold text-[var(--text-tertiary)]">
+                {searchQuery
+                  ? `Nothing matches "${searchQuery}".`
+                  : "No products yet. Add them in Stock."}
+              </p>
+            ) : (
+              filteredProducts.map((prod) => (
+                <button
+                  key={prod.id}
+                  onClick={() => addToCart(prod)}
+                  disabled={prod.is_out_of_stock}
+                  className="focus-ring flex items-center gap-2.5 rounded-[11px] border border-[var(--border-soft)] bg-[var(--surface)] p-2 text-left transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-50"
+                >
+                  <span className="grid h-9 w-9 flex-none place-items-center overflow-hidden rounded-[9px] bg-[var(--bg-soft)]">
+                    {prod.image_data ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={prod.image_data} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-[var(--success)]/10 text-[var(--success-strong)]">
-                        0% Tax
+                      <span className="text-[15px] font-extrabold text-[var(--primary-hover)] opacity-60">
+                        {prod.name.trim().charAt(0).toUpperCase()}
                       </span>
                     )}
-                  </div>
-                  <h4 className="text-xs font-extrabold text-[var(--text-primary)] line-clamp-2 leading-snug group-hover:text-[var(--primary-hover)]">
-                    {prod.name}
-                  </h4>
-                </div>
-
-                <div className="mt-4 pt-2.5 border-t border-[var(--border-soft)] flex items-center justify-between">
-                  <span className="text-sm font-[900] text-[var(--text-primary)]">
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[12.5px] font-extrabold text-[var(--text-primary)]">
+                      {prod.name}
+                    </span>
+                    <span className="mt-0.5 block truncate font-mono text-[10px] font-semibold text-[var(--text-tertiary)]">
+                      {prod.sku}
+                      {prod.is_out_of_stock
+                        ? " · out of stock"
+                        : prod.is_low_stock
+                          ? ` · ${prod.current_stock} left`
+                          : ` · ${prod.current_stock} in stock`}
+                    </span>
+                  </span>
+                  <span className="tnum flex-none font-mono text-[13.5px] font-bold text-[var(--text-primary)]">
                     {formatCurrency(prod.selling_price)}
                   </span>
-                  <span
-                    className={`text-[10px] font-bold ${
-                      prod.is_low_stock
-                        ? "text-[var(--error-strong)] font-extrabold"
-                        : "text-[var(--text-secondary)]"
-                    }`}
-                  >
-                    Qty: {prod.current_stock}
+                </button>
+              ))
+            )}
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-3.5 grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))] content-start">
+            {filteredProducts.length === 0 ? (
+              <p className="col-span-full py-16 text-center text-xs font-bold text-[var(--text-tertiary)]">
+                {searchQuery
+                  ? `Nothing matches "${searchQuery}".`
+                  : "No products yet. Add them in Stock."}
+              </p>
+            ) : (
+              filteredProducts.map((prod) => (
+                <button
+                  key={prod.id}
+                  onClick={() => addToCart(prod)}
+                  disabled={prod.is_out_of_stock}
+                  className={`focus-ring group flex flex-col overflow-hidden rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface)] text-left transition-all hover:-translate-y-[3px] hover:border-[var(--primary)] hover:shadow-md active:translate-y-0 ${
+                    prod.is_out_of_stock ? "opacity-60" : ""
+                  }`}
+                >
+                  <span className="relative block aspect-[4/3] w-full overflow-hidden border-b border-[var(--border-soft)] bg-[var(--bg-soft)]">
+                    {prod.image_data ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={prod.image_data}
+                        alt=""
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="grid h-full w-full place-items-center bg-gradient-to-br from-[var(--primary)]/12 to-[var(--bg-soft)] text-[30px] font-extrabold text-[var(--primary-hover)] opacity-55">
+                        {prod.name.trim().charAt(0).toUpperCase()}
+                      </span>
+                    )}
+
+                    {/* State on the picture, with words as well as colour. */}
+                    {prod.is_out_of_stock ? (
+                      <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--error)] px-2 py-0.5 text-[10px] font-extrabold text-white">
+                        Out
+                      </span>
+                    ) : prod.is_low_stock ? (
+                      <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--warning)] px-2 py-0.5 text-[10px] font-extrabold text-white">
+                        {prod.current_stock} left
+                      </span>
+                    ) : null}
                   </span>
-                </div>
-              </button>
-            ))
-          )}
-        </div>
+
+                  <span className="flex flex-1 flex-col gap-0.5 px-2.5 pb-2.5 pt-2">
+                    <span className="line-clamp-2 text-[12.5px] font-extrabold leading-snug text-[var(--text-primary)] group-hover:text-[var(--primary-hover)]">
+                      {prod.name}
+                    </span>
+                    <span className="font-mono text-[10px] font-semibold text-[var(--text-tertiary)]">
+                      {prod.is_out_of_stock
+                        ? "Nothing on the shelf"
+                        : `${prod.current_stock}${prod.unit ? ` ${prod.unit}` : " in stock"}`}
+                    </span>
+                    <span className="mt-auto flex items-baseline gap-1.5 pt-1.5">
+                      <b className="tnum font-mono text-[15px] font-bold tracking-tight text-[var(--text-primary)]">
+                        {formatCurrency(prod.selling_price)}
+                      </b>
+                      {prod.unit && (
+                        <span className="text-[10.5px] font-semibold text-[var(--text-tertiary)]">
+                          / {prod.unit}
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* ========================================================= */}
@@ -893,6 +960,7 @@ Press Pay again to retry — ` +
           taxAmount={lastSaleReceipt.taxAmount}
           intraState={lastSaleReceipt.intraState}
           buyerGstin={lastSaleReceipt.buyerGstin}
+          gstRegistrationType={gstRegistrationType}
           discountAmount={lastSaleReceipt.discountAmount}
           totalAmount={lastSaleReceipt.totalAmount}
           payments={lastSaleReceipt.payments}

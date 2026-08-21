@@ -479,6 +479,19 @@ class SaleSerializer(serializers.ModelSerializer):
                 hsn_snapshot = ""
                 price_includes_tax = True
 
+            # A composition dealer or an unregistered shop may not charge GST
+            # at all — s.10 CGST Act. This is the single choke-point where a
+            # line's rate is decided, and all three clients funnel through it
+            # (SaleCommandIngestionView re-runs this same serializer for the
+            # offline Flutter path), so forcing it here covers every surface.
+            #
+            # The item's stored rate is deliberately left alone rather than
+            # zeroed in the catalogue: composition status is annual and
+            # reversible, and a shop crossing the threshold back to regular
+            # must not have to retype every rate. Stored, but inert.
+            if not shop.collects_gst:
+                gst_rate = Decimal("0.00")
+
             # Compute GST on the post-discount line value.
             gst = compute_line_gst(
                 line_total - item_discount,

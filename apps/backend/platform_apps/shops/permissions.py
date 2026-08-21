@@ -194,6 +194,35 @@ def has_feature_enabled(membership: ShopMembership, feature_key: str) -> bool:
     return membership.shop.enabled_features.get(feature_key) is True
 
 
+def ensure_gst_returns_allowed_or_403(membership: ShopMembership) -> None:
+    """Refuse GSTR-1 / GSTR-3B to a shop that must not file them.
+
+    A composition dealer files CMP-08 quarterly and GSTR-4 annually; filing
+    GSTR-1 would be wrong, and handing their accountant a GSTR-1 export
+    invites exactly that. An unregistered shop files nothing at all.
+
+    Deliberately NOT a feature flag in plans.py. Everything in that map is
+    overridable from Settings by design, and billing strips keys from it on a
+    tier change — a statutory restriction that a checkbox or a downgrade can
+    clear is a bug waiting to happen. This is not a default; it is a fact about
+    the shop.
+
+    The message names the right form, because the person who hits this is
+    usually the shopkeeper's accountant looking for something to file.
+    """
+    registration = membership.shop.gst_registration_type
+    if registration == "composition":
+        raise exceptions.PermissionDenied(
+            "A composition dealer files CMP-08 quarterly and GSTR-4 annually, "
+            "not GSTR-1 or GSTR-3B. Use the quarterly turnover figures instead."
+        )
+    if registration == "unregistered":
+        raise exceptions.PermissionDenied(
+            "This shop is not registered for GST, so there are no GST returns "
+            "to file."
+        )
+
+
 def ensure_feature_enabled_or_403(membership: ShopMembership, feature_key: str) -> None:
     if has_feature_enabled(membership, feature_key):
         return

@@ -37,7 +37,11 @@ from platform_apps.sales.serializers import (
     SaleGstSummarySerializer,
 )
 from platform_apps.shops.models import ShopMembership
-from platform_apps.shops.permissions import get_membership_or_403, has_feature_enabled
+from platform_apps.shops.permissions import (
+    ensure_gst_returns_allowed_or_403,
+    get_membership_or_403,
+    has_feature_enabled,
+)
 
 
 class ShopScopedMixin:
@@ -391,6 +395,7 @@ class SaleGstSummaryView(ShopScopedMixin, APIView):
 
     def get(self, request, shop_id):
         membership = self.get_membership()
+        ensure_gst_returns_allowed_or_403(membership)
         queryset = Sale.objects.filter(shop=membership.shop, tombstone=False).exclude(
             status=Sale.Status.VOID
         )
@@ -592,6 +597,7 @@ class GSTR1ExportView(ShopScopedMixin, APIView):
 
     def get(self, request, shop_id):
         membership = self.get_membership()
+        ensure_gst_returns_allowed_or_403(membership)
         shop = membership.shop
         
         month = request.query_params.get('month')
@@ -680,6 +686,7 @@ class GSTR3BExportView(ShopScopedMixin, APIView):
 
     def get(self, request, shop_id):
         membership = self.get_membership()
+        ensure_gst_returns_allowed_or_403(membership)
         shop = membership.shop
 
         month = request.query_params.get("month")
@@ -760,6 +767,7 @@ class GSTFilingPackView(ShopScopedMixin, APIView):
 
     def get(self, request, shop_id):
         membership = self.get_membership()
+        ensure_gst_returns_allowed_or_403(membership)
         shop = membership.shop
         month = request.query_params.get("month")
         year = request.query_params.get("year")

@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 
 from django.core.exceptions import ImproperlyConfigured
+from django.utils import timezone
 from rest_framework import exceptions, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,7 +18,11 @@ from rest_framework.views import APIView
 from platform_apps.audit.services import create_workspace_audit_event
 from platform_apps.shops.models import ShopMembership
 from platform_apps.shops.permissions import get_membership_or_403
-from platform_apps.shops.plans import BUSINESS_TYPES, PLAN_FEATURE_KEYS
+from platform_apps.shops.plans import (
+    BUSINESS_TYPES,
+    GST_REGISTRATION_TYPES,
+    PLAN_FEATURE_KEYS,
+)
 
 # 15 chars: 2 state digits, 10-char PAN, entity digit, 'Z', checksum.
 GSTIN_PATTERN = re.compile(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$")
@@ -78,6 +83,11 @@ def serialise(shop) -> dict:
     payload["id"] = str(shop.id)
     payload["slug"] = shop.slug
     payload["business_type"] = shop.business_type
+    # Top-level, deliberately NOT inside payload["features"]: that map is the
+    # override-able one, and whether a shop may charge GST is a statutory fact,
+    # not a preference. Clients read this to hide the GST return buttons rather
+    # than discovering the restriction from a 403.
+    payload["gst_registration_type"] = shop.gst_registration_type
     # Resolved, not raw. The stored override map is usually empty — the answer
     # comes from the shop's type and plan — so echoing the raw map back would
     # show a shopkeeper every switch in the off position while the feature was
@@ -147,6 +157,15 @@ class ShopSettingsView(APIView):
                     f"'{business_type}' is not a business type we recognise."
                 )
 
+        gst_registration_type = data.get("gst_registration_type")
+        if gst_registration_type is not None:
+            candidate = str(gst_registration_type).strip().lower()
+            if candidate not in GST_REGISTRATION_TYPES:
+                errors["gst_registration_type"] = (
+                    f"'{gst_registration_type}' is not a GST registration type "
+                    "we recognise."
+                )
+
         features = data.get("features")
         if features is not None:
             if not isinstance(features, dict):
@@ -193,6 +212,16 @@ class ShopSettingsView(APIView):
             candidate = str(business_type).strip().lower()
             if blob.get("business_type") != candidate:
                 blob["business_type"] = candidate
+                blob_changed = True
+
+        if gst_registration_type is not None:
+            candidate = str(gst_registration_type).strip().lower()
+            if blob.get("gst_registration_type") != candidate:
+                blob["gst_registration_type"] = candidate
+                # When this changed matters: bills before it are Tax Invoices
+                # and bills after are Bills of Supply, and an accountant
+                # reconciling a year will need the boundary.
+                blob["gst_registration_changed_at"] = timezone.now().isoformat()
                 blob_changed = True
 
         if isinstance(features, dict):
