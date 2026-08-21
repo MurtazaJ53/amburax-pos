@@ -159,6 +159,13 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
     const total = parseFloat(poTotalAmount) || 0;
     const paid = parseFloat(poPaidAmount) || 0;
 
+    // The label says "Supplier *", and it meant nothing: supplier_id fell
+    // through as null and the purchase was filed against no vendor at all.
+    if (!sup) {
+      setSaveError("Choose the supplier this invoice came from.");
+      return;
+    }
+
     setIsSaving(true);
     setSaveError(null);
     try {
@@ -167,8 +174,8 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          supplier_id: poSupplierId || null,
-          supplier_name: sup?.name ?? "",
+          supplier_id: sup.id,
+          supplier_name: sup.name,
           invoice_number: invoice,
           amount_paid: paid.toFixed(2),
           payment_mode: "CASH",
@@ -435,6 +442,13 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
                   onChange={(e) => setPoSupplierId(e.target.value)}
                   className="w-full px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none"
                 >
+                  {/* Without this the browser renders the FIRST supplier as
+                      selected while React's value is still "", because the
+                      state was initialised before suppliers finished loading.
+                      The shopkeeper saw a vendor highlighted, saved, and the
+                      purchase was recorded against nobody — quietly wrong in
+                      the payables ledger. */}
+                  <option value="">Choose a supplier…</option>
                   {suppliers.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}

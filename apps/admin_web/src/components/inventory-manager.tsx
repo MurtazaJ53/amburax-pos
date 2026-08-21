@@ -197,8 +197,17 @@ export function InventoryManager({ initialInventory }: InventoryManagerProps) {
     setIsProductModalOpen(true);
   };
 
+  // Guards both modals against a second click landing before the first request
+  // returns. Neither had one, so a double-tap — easy on a slow connection or a
+  // POS touchscreen — created a duplicate product, or applied a +10 stock
+  // adjustment twice as +20. Every other manager in this codebase already had
+  // this; inventory was the gap.
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     const cost = parseFloat(formCostPrice) || 0;
     const selling = parseFloat(formSellingPrice) || 0;
     const stock = parseInt(formStock) || 0;
@@ -252,12 +261,17 @@ export function InventoryManager({ initialInventory }: InventoryManagerProps) {
       await fetchItems();
     } catch (err) {
       alert(errorMessage(err, "An error occurred while saving the product"));
+    } finally {
+      // In a finally, not after the happy path: several branches above return
+      // early, and a stuck flag would leave the form permanently dead.
+      setIsSubmitting(false);
     }
   };
 
   const handleApplyStockAdjustment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adjustItem) return;
+    if (!adjustItem || isSubmitting) return;
+    setIsSubmitting(true);
     const delta = parseInt(adjustQty) || 0;
     const factor = adjustType === "inward" ? 1 : -1;
     const quantityDelta = delta * factor;
@@ -281,6 +295,8 @@ export function InventoryManager({ initialInventory }: InventoryManagerProps) {
       await fetchItems();
     } catch (err) {
       alert(errorMessage(err, "An error occurred while adjusting the stock level."));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -638,9 +654,10 @@ export function InventoryManager({ initialInventory }: InventoryManagerProps) {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-xl shadow-md shadow-blue-500/20"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 text-xs font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 rounded-xl shadow-md shadow-blue-500/20"
                 >
-                  Save Product
+                  {isSubmitting ? "Saving…" : "Save Product"}
                 </button>
               </div>
             </form>
@@ -736,9 +753,10 @@ export function InventoryManager({ initialInventory }: InventoryManagerProps) {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-xl shadow-md"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 text-xs font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 rounded-xl shadow-md"
                 >
-                  {t("webConfirmAdjustment")}
+                  {isSubmitting ? "Saving…" : t("webConfirmAdjustment")}
                 </button>
               </div>
             </form>

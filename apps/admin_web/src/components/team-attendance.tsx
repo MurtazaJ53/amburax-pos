@@ -50,10 +50,20 @@ export function TeamAttendance({ initialTeam, initialSessions, initialSummary }:
   const [attendanceStatus, setAttendanceStatus] = useState<"present" | "half_day" | "leave" | "absent">("present");
   const [attendanceNote, setAttendanceNote] = useState("");
 
-  // Determine current cashier's member profile and active session
+  // Whoever is actually signed in — not whoever happens to be first in the
+  // roster.
+  //
+  // This was `staff[0]`, so every clock-in and clock-out on this screen was
+  // recorded against the first member the API returned, regardless of who
+  // pressed the button. For a shop with more than one person that silently
+  // corrupts attendance, and therefore payroll, for everybody except that one
+  // member — and it looks correct on screen the whole time.
+  //
+  // The backend has always said which membership is the caller's:
+  // is_current_user, set in shops/serializers.py by comparing the actor's
+  // user_id. It was simply never read.
   const myMember = useMemo(() => {
-    // Default to first member or active owner
-    return staff[0] || null;
+    return staff.find((member) => member.is_current_user) ?? null;
   }, [staff]);
 
   const myActiveSession = useMemo(() => {
@@ -200,7 +210,17 @@ export function TeamAttendance({ initialTeam, initialSessions, initialSummary }:
         <div className="flex items-center gap-3">
           <button
             onClick={handleToggleClock}
-            disabled={isSubmitting}
+            // Disabled rather than silently doing nothing when the signed-in
+            // user has no membership on this shop (a platform admin looking at
+            // someone else's shop, for instance). The handler already returned
+            // early in that case, which made the button look live and do
+            // nothing at all.
+            disabled={isSubmitting || !myMember}
+            title={
+              myMember
+                ? undefined
+                : "You are viewing this shop without a staff membership, so there is no shift to clock."
+            }
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
               myActiveSession
                 ? "bg-[var(--warning)]/10 border-[var(--warning)]/30 text-[var(--warning)] hover:bg-[var(--warning)]/20"
