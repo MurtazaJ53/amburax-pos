@@ -37,6 +37,8 @@ export interface ProductItem {
   /** How the shop counts this item — "kg", "litre", "piece". Blank for most.
    *  Only meaningful to a shop with weight selling turned on. */
   unit?: string;
+  /** Whether selling_price already contains GST. Defaults to true. */
+  price_includes_tax?: boolean;
   created_at?: string;
   updated_at?: string;
 }

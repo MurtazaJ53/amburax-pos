@@ -1559,6 +1559,10 @@ export type CartItem = {
    *  "1.25", which on a weighed line is the difference between a price a
    *  customer can check and a number they cannot. */
   unit?: string;
+  /** Whether unit_price already contains GST. Defaults to true — the Indian
+   *  MRP convention, and InventoryItem.price_includes_tax's default. Getting
+   *  this wrong overcharges the customer by the tax rate. */
+  price_includes_tax?: boolean;
 };
 
 export type SplitPaymentTender = {

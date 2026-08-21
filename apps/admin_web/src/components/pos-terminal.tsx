@@ -23,6 +23,7 @@ import type {
 } from "@/lib/types";
 import type { ProductItem } from "@/components/inventory-manager";
 import { useT } from "@/lib/i18n";
+import { computeCartTotals } from "@/lib/cart-totals";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -46,6 +47,7 @@ type ApiInventoryRow = {
   size?: string;
   description?: string;
   unit?: string;
+  price_includes_tax?: boolean;
 };
 
 type PosTerminalProps = {
@@ -83,6 +85,8 @@ export function PosTerminal({
       tax_rate: parseFloat(item.gst_rate || "0"),
       is_low_stock: false,
       status: item.status ?? "active",
+      unit: item.unit ?? "",
+      price_includes_tax: item.price_includes_tax ?? true,
     }));
   }, [initialInventory]);
 
@@ -159,6 +163,7 @@ export function PosTerminal({
           is_low_stock: false,
           status: item.status ?? "active",
           unit: item.unit ?? "",
+          price_includes_tax: item.price_includes_tax ?? true,
         }));
         setProducts(mappedProducts);
 
@@ -290,6 +295,7 @@ export function PosTerminal({
         total_price: product.selling_price,
         available_stock: product.current_stock,
         unit: product.unit || "",
+        price_includes_tax: product.price_includes_tax ?? true,
       };
       return [...prev, newItem];
     });
@@ -335,34 +341,14 @@ export function PosTerminal({
   };
 
   // Financial Calculations
-  const cartSubtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
-  }, [cart]);
-
-  const cartDiscounts = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.discount_amount, 0);
-  }, [cart]);
-
-  const cartTaxBreakdown = useMemo(() => {
-    let cgst = 0;
-    let sgst = 0;
-    let totalTax = 0;
-
-    cart.forEach((item) => {
-      const taxable = item.quantity * item.unit_price - item.discount_amount;
-      const tax = (taxable * item.tax_rate) / 100;
-      totalTax += tax;
-      cgst += tax / 2;
-      sgst += tax / 2;
-    });
-
-    return { cgst, sgst, totalTax };
-  }, [cart]);
-
-  const grandTotal = useMemo(() => {
-    const raw = cartSubtotal - cartDiscounts + cartTaxBreakdown.totalTax;
-    return Math.round(raw * 100) / 100;
-  }, [cartSubtotal, cartDiscounts, cartTaxBreakdown]);
+  // One source of arithmetic, shared with the tests that pin it to the
+  // server's. Inline in this component it could not be tested, and it was
+  // wrong: it added GST on top of an MRP that already contained it.
+  const totals = useMemo(() => computeCartTotals(cart), [cart]);
+  const cartSubtotal = totals.subtotal;
+  const cartDiscounts = totals.discounts;
+  const cartTaxBreakdown = totals;
+  const grandTotal = totals.grandTotal;
 
   const handleCompleteSale = async (
     payments: SplitPaymentTender,
@@ -477,6 +463,7 @@ Press Pay again to retry — ` +
           is_low_stock: false,
           status: item.status ?? "active",
           unit: item.unit ?? "",
+          price_includes_tax: item.price_includes_tax ?? true,
         }));
         setProducts(mappedProducts);
       }
