@@ -63,6 +63,21 @@ services:
       # steady while SECRET_KEY rotates as a signing key alone.
       # Empty default keeps existing deployments behaving exactly as before.
       CRYPTOGRAPHY_KEY: ${CRYPTOGRAPHY_KEY:-}
+      # Signs API tokens, separately from SECRET_KEY.
+      #
+      # This block lists variables EXPLICITLY — putting a value in .env does
+      # nothing unless it also appears here. JWT_SIGNING_KEY was added to
+      # settings.py and not to this file, so preflight kept reporting it unset
+      # no matter what the operator wrote in .env, and the advice preflight
+      # gave could not be followed. Any new setting needs both.
+      #
+      # Empty default so an existing deployment keeps falling back to
+      # SECRET_KEY rather than failing to start.
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:-}
+      # Where operational alerts go. Same rule as above.
+      OPS_ALERT_EMAIL: ${OPS_ALERT_EMAIL:-}
+      # Read by send_ops_alerts to find the newest backup and judge its age.
+      BACKUP_DIR: ${BACKUP_DIR:-/var/backups/bhub}
       BLIND_INDEX_PEPPER: ${BLIND_INDEX_PEPPER:-}
       DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-}
       # One container, no external broker: Celery runs eagerly, channels/cache
@@ -83,6 +98,17 @@ services:
       # Local-only by default; front it with Nginx + SSL. For a quick public
       # IP:port demo, change to "0.0.0.0:8001:8000" and open the firewall.
       - "127.0.0.1:8001:8000"
+    volumes:
+      # Read-only, so send_ops_alerts can see the host's backups and judge
+      # their age. Without it the check runs inside a container that cannot see
+      # /var/backups/bhub at all, and would report "no backup found" forever —
+      # an alert that cries wolf every day is worse than no alert, because the
+      # operator learns to ignore the sender.
+      #
+      # :ro matters. Nothing in the API should ever be able to write to or
+      # delete a backup, and an application container is exactly where a
+      # compromise would start.
+      - ${BACKUP_DIR:-/var/backups/bhub}:/var/backups/bhub:ro
     depends_on:
       db:
         condition: service_healthy
