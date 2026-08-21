@@ -56,8 +56,20 @@ def _check_database() -> str | None:
 
 def _check_backups() -> str | None:
     backup_dir = Path(os.getenv("BACKUP_DIR", "/var/backups/bhub"))
-    candidates = list(backup_dir.glob("*.sql")) + list(backup_dir.glob("*.dump"))
-    candidates += list(Path("/root").glob("bhub-db-*.sql"))
+    # Recursive. backup_db.sh writes into daily/ and weekly/ subdirectories,
+    # and the first version of this globbed the top level only — so it reported
+    # "no backup found" while backups were running perfectly, which is worse
+    # than no alerting: a daily false alarm teaches the operator to filter the
+    # sender, and the real one then goes unread too.
+    candidates = [
+        path
+        for pattern in ("**/*.sql", "**/*.dump", "**/*.sql.gz")
+        for path in backup_dir.glob(pattern)
+        if path.is_file()
+    ]
+    # Manual dumps land here; the restore drill reads them too.
+    candidates += [p for p in Path("/root").glob("bhub-*.sql") if p.is_file()]
+    candidates += [p for p in Path("/root").glob("bhub-*.dump") if p.is_file()]
     if not candidates:
         return f"No database backup found in {backup_dir} or /root."
 

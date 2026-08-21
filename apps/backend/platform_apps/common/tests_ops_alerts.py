@@ -123,3 +123,70 @@ class OpsAlertTests(TestCase):
             with self.assertRaises(SystemExit):
                 call_command("send_ops_alerts", stdout=out, stderr=err)
         self.assertIn("nobody to alert", err.getvalue())
+
+
+class BackupCheckLayoutTests(TestCase):
+    """Against the directory layout backup_db.sh actually produces.
+
+    The first version globbed the top level of BACKUP_DIR only. backup_db.sh
+    writes into daily/ and weekly/, so it reported "No database backup found"
+    while backups were running perfectly — and it emailed that every day. A
+    daily false alarm is worse than no alerting: the operator filters the
+    sender, and the real alert goes unread too.
+    """
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+
+        self.root = Path(tempfile.mkdtemp())
+        (self.root / "daily").mkdir()
+        (self.root / "weekly").mkdir()
+
+    def _check(self):
+        from platform_apps.common.management.commands import send_ops_alerts
+
+        with patch.dict("os.environ", {"BACKUP_DIR": str(self.root)}):
+            return send_ops_alerts._check_backups()
+
+    def _write(self, relative: str, size: int = 2_000_000, age_hours: float = 1):
+        import os as _os
+
+        path = self.root / relative
+        path.write_bytes(b"x" * size)
+        when = time.time() - age_hours * 3600
+        _os.utime(path, (when, when))
+        return path
+
+    def test_a_fresh_dump_in_the_daily_subdirectory_is_found(self):
+        """The exact layout on the droplet:
+        /var/backups/bhub/daily/bhub-20260821-044141.dump"""
+        self._write("daily/bhub-20260821-044141.dump")
+
+        self.assertIsNone(self._check())
+
+    def test_a_weekly_dump_counts_too(self):
+        self._write("weekly/bhub-20260821-044141.dump")
+
+        self.assertIsNone(self._check())
+
+    def test_a_genuinely_empty_backup_dir_still_reports(self):
+        """The fix must not make the check unable to fail."""
+        self.assertIn("No database backup", self._check() or "")
+
+    def test_a_stale_backup_is_still_reported(self):
+        self._write("daily/old.dump", age_hours=100)
+
+        self.assertIn("hours old", self._check() or "")
+
+    def test_a_truncated_backup_is_still_reported(self):
+        """A 200-byte dump is a failed dump wearing the right filename."""
+        self._write("daily/tiny.dump", size=200)
+
+        self.assertIn("truncated", self._check() or "")
+
+    def test_the_newest_wins_across_subdirectories(self):
+        self._write("weekly/old.dump", age_hours=200)
+        self._write("daily/new.dump", age_hours=1)
+
+        self.assertIsNone(self._check())
