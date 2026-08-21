@@ -152,3 +152,43 @@ describe("the summary must add up on screen", () => {
     expect(t.grandTotal).toBe(157.5);
   });
 });
+
+describe("inter-state supply uses IGST, not CGST+SGST", () => {
+  /** Every client hardcoded intra-state, so an inter-state sale printed
+   *  CGST+SGST on an invoice that legally requires IGST — while the backend
+   *  stored the right thing. The customer's copy disagreed with the shop's
+   *  return, and inter-state is routine for wholesalers. */
+  it("splits into cgst and sgst within the same state", () => {
+    const t = computeCartTotals([MRP_LINE], { intraState: true });
+    expect(t.igst).toBe(0);
+    expect(t.cgst + t.sgst).toBeCloseTo(t.totalTax, 10);
+  });
+
+  it("charges igst alone across states", () => {
+    const t = computeCartTotals([MRP_LINE], { intraState: false });
+    expect(t.cgst).toBe(0);
+    expect(t.sgst).toBe(0);
+    expect(t.igst).toBeCloseTo(t.totalTax, 10);
+  });
+
+  it("never charges both — that would double the tax on the invoice", () => {
+    for (const intraState of [true, false]) {
+      const t = computeCartTotals([MRP_LINE], { intraState });
+      expect(t.cgst + t.sgst + t.igst).toBeCloseTo(t.totalTax, 10);
+    }
+  });
+
+  it("the total the customer pays is identical either way", () => {
+    // Only the split changes; the money does not.
+    const intra = computeCartTotals([MRP_LINE], { intraState: true });
+    const inter = computeCartTotals([MRP_LINE], { intraState: false });
+    expect(intra.grandTotal).toBe(inter.grandTotal);
+    expect(intra.totalTax).toBe(inter.totalTax);
+  });
+
+  it("defaults to intra-state, because a walk-in sale is", () => {
+    const t = computeCartTotals([MRP_LINE]);
+    expect(t.igst).toBe(0);
+    expect(t.cgst).toBeGreaterThan(0);
+  });
+});

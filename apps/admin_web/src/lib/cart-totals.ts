@@ -23,6 +23,20 @@ export type TotalsLine = {
   price_includes_tax?: boolean;
 };
 
+export type TotalsOptions = {
+  /** CGST+SGST when the buyer is in the shop's own state, IGST when not.
+   *
+   *  Every client hardcoded this to true, so an inter-state sale printed
+   *  CGST+SGST on an invoice that legally requires IGST — while the backend,
+   *  which derives it properly from place of supply (sales/gst.py
+   *  is_intra_state), stored the right thing. The document the customer takes
+   *  away disagreed with the return the shop files, and inter-state is routine
+   *  for the wholesalers this matters most to.
+   *
+   *  Defaults true: a walk-in retail sale is intra-state. */
+  intraState?: boolean;
+};
+
 export type CartTotals = {
   subtotal: number;
   discounts: number;
@@ -37,6 +51,8 @@ export type CartTotals = {
   taxableValue: number;
   cgst: number;
   sgst: number;
+  /** Non-zero only on an inter-state supply, where it replaces cgst+sgst. */
+  igst: number;
   totalTax: number;
   grandTotal: number;
 };
@@ -45,7 +61,11 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-export function computeCartTotals(cart: TotalsLine[]): CartTotals {
+export function computeCartTotals(
+  cart: TotalsLine[],
+  options: TotalsOptions = {},
+): CartTotals {
+  const intraState = options.intraState ?? true;
   let subtotal = 0;
   let discounts = 0;
   let totalTax = 0;
@@ -72,7 +92,8 @@ export function computeCartTotals(cart: TotalsLine[]): CartTotals {
   }
 
   const roundedTax = round2(totalTax);
-  const cgst = round2(roundedTax / 2);
+  // Intra-state splits into CGST+SGST; inter-state is IGST alone. Never both.
+  const cgst = intraState ? round2(roundedTax / 2) : 0;
 
   const grandTotal = round2(subtotal - discounts + exclusiveTax);
 
@@ -85,7 +106,8 @@ export function computeCartTotals(cart: TotalsLine[]): CartTotals {
     cgst,
     // Paired so cgst + sgst is exactly totalTax, matching gst.py — otherwise a
     // half-paisa rounding gap shows on the receipt as tax that adds up wrong.
-    sgst: round2(roundedTax - cgst),
+    sgst: intraState ? round2(roundedTax - cgst) : 0,
+    igst: intraState ? 0 : roundedTax,
     totalTax: roundedTax,
     grandTotal,
   };

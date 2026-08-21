@@ -24,6 +24,7 @@ import type {
 import type { ProductItem } from "@/components/inventory-manager";
 import { useT } from "@/lib/i18n";
 import { computeCartTotals } from "@/lib/cart-totals";
+import { stateCodeFromGstin } from "@/lib/gst-states";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -184,6 +185,8 @@ export function PosTerminal({
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [lastSaleReceipt, setLastSaleReceipt] = useState<{
     receiptNumber: string;
+    intraState?: boolean;
+    buyerGstin?: string;
     items: CartItem[];
     subtotal: number;
     taxAmount: number;
@@ -423,8 +426,19 @@ Press Pay again to retry — ` +
       const savedSale = await res.json();
       const receiptNum = savedSale.receipt_number || `INV-${Date.now().toString().slice(-6)}`;
 
+      // Intra- or inter-state, decided the way the backend decides it: the
+      // buyer's GSTIN carries their state in its first two digits, and the
+      // shop's carries its own. Only knowable at checkout, which is why the
+      // cart summary above stays on the intra-state default.
+      const shopState = stateCodeFromGstin(shopGstin || "");
+      const buyerState = stateCodeFromGstin(buyerGstin || "");
+      const intraState =
+        !shopState || !buyerState || shopState === buyerState;
+
       setLastSaleReceipt({
         receiptNumber: receiptNum,
+        intraState,
+        buyerGstin,
         items: [...cart],
         subtotal: cartSubtotal,
         taxAmount: cartTaxBreakdown.totalTax,
@@ -877,6 +891,8 @@ Press Pay again to retry — ` +
           items={lastSaleReceipt.items}
           subtotal={lastSaleReceipt.subtotal}
           taxAmount={lastSaleReceipt.taxAmount}
+          intraState={lastSaleReceipt.intraState}
+          buyerGstin={lastSaleReceipt.buyerGstin}
           discountAmount={lastSaleReceipt.discountAmount}
           totalAmount={lastSaleReceipt.totalAmount}
           payments={lastSaleReceipt.payments}

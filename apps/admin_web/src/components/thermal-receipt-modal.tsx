@@ -19,6 +19,15 @@ type ThermalReceiptModalProps = {
   items: CartItem[];
   subtotal: number;
   taxAmount: number;
+  /** Whether this supply is within the shop's own state.
+   *
+   *  Decides CGST+SGST versus IGST on the printed invoice. This was hardcoded
+   *  to the intra-state wording, so an inter-state sale printed a legally
+   *  wrong tax breakdown while the backend stored the right one. Defaults true
+   *  because a walk-in sale is intra-state. */
+  intraState?: boolean;
+  /** The buyer's GSTIN, required on the invoice for a B2B supply. */
+  buyerGstin?: string;
   discountAmount: number;
   totalAmount: number;
   payments: SplitPaymentTender;
@@ -40,6 +49,8 @@ export function ThermalReceiptModal({
   items,
   subtotal,
   taxAmount,
+  intraState = true,
+  buyerGstin,
   discountAmount,
   totalAmount,
   payments,
@@ -118,6 +129,15 @@ export function ThermalReceiptModal({
                   {customerPhone && <span>{customerPhone}</span>}
                 </div>
               )}
+              {/* Mandatory on a B2B invoice — it is the whole reason the buyer
+                  wants the bill, since without it they cannot claim the input
+                  credit. It was collected at checkout and never printed. */}
+              {buyerGstin && (
+                <div className="flex justify-between">
+                  <span>Buyer GSTIN:</span>
+                  <span>{buyerGstin}</span>
+                </div>
+              )}
             </div>
 
             {/* Items Table */}
@@ -176,9 +196,20 @@ export function ThermalReceiptModal({
                     <span>₹{(totalAmount - taxAmount).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>GST (CGST + SGST):</span>
+                    <span>{intraState ? "GST (CGST + SGST):" : "IGST:"}</span>
                     <span>₹{taxAmount.toFixed(2)}</span>
                   </div>
+                  {/* Shown split, because Rule 46 wants the tax stated by
+                      component and by rate, not as one lump. */}
+                  {intraState ? (
+                    <div className="flex justify-between text-neutral-600">
+                      <span className="pl-2">CGST / SGST:</span>
+                      <span>
+                        ₹{(taxAmount / 2).toFixed(2)} / ₹
+                        {(taxAmount - taxAmount / 2).toFixed(2)}
+                      </span>
+                    </div>
+                  ) : null}
                 </>
               )}
               <div className="flex justify-between font-bold text-xs pt-1 border-t border-neutral-300">
