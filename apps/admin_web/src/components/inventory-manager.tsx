@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Package,
   Search,
@@ -19,6 +19,18 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 
+
+/** Business types whose prices are quoted BEFORE tax.
+ *
+ *  Wholesale and service sell B2B, where the buyer reclaims the GST as input
+ *  credit and therefore negotiates on the pre-tax rate. Retail, grocery and
+ *  the rest price at MRP, which is inclusive of all taxes by law — selling
+ *  above it is an offence quite apart from GST.
+ *
+ *  A DEFAULT only. It seeds the control for a new product and never overrides
+ *  what a shopkeeper chose, and never touches an existing item.
+ */
+const TAX_EXCLUSIVE_BUSINESS_TYPES = ["wholesale", "service"];
 
 export interface ProductItem {
   id: string;
@@ -39,6 +51,8 @@ export interface ProductItem {
   unit?: string;
   /** Whether selling_price already contains GST. Defaults to true. */
   price_includes_tax?: boolean;
+  /** HSN (goods) or SAC (services) code. Mandatory on a GST invoice. */
+  hsn_code?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -111,6 +125,40 @@ export function InventoryManager({ initialInventory }: InventoryManagerProps) {
   const [formTaxRate, setFormTaxRate] = useState("5");
   const [formStock, setFormStock] = useState("");
   const [formReorderLevel, setFormReorderLevel] = useState("10");
+  //: HSN/SAC. Mandatory on a GST invoice, and the web form had no input for it
+  //: at all — the Flutter app has had one all along, so the same catalogue had
+  //: HSN codes or not depending on which device typed the product in.
+  const [formHsnCode, setFormHsnCode] = useState("");
+  //: Whether the selling price already contains the GST.
+  //:
+  //: The form set a GST slab and never asked this, so every web-created
+  //: product silently took the model default (true). The Flutter app HAS the
+  //: switch, which is worse than uniformly missing: two items on the same
+  //: shelf could mean different things depending on where they were entered.
+  const [formPriceIncludesTax, setFormPriceIncludesTax] = useState(true);
+  //: The shop default, from its business type. Wholesale and service quote
+  //: pre-tax because the buyer reclaims the GST as input credit; retail prices
+  //: are MRP, which is inclusive by law.
+  const [defaultIncludesTax, setDefaultIncludesTax] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/settings");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const businessType = String(data?.business_type ?? "retail");
+        setDefaultIncludesTax(!TAX_EXCLUSIVE_BUSINESS_TYPES.includes(businessType));
+      } catch {
+        // Falls back to inclusive, which is right for the retail majority.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Stock Adjust Modal state
   const [adjustItem, setAdjustItem] = useState<ProductItem | null>(null);
@@ -180,6 +228,8 @@ export function InventoryManager({ initialInventory }: InventoryManagerProps) {
     setFormTaxRate("5");
     setFormStock("50");
     setFormReorderLevel("10");
+    setFormHsnCode("");
+    setFormPriceIncludesTax(defaultIncludesTax);
     setIsProductModalOpen(true);
   };
 
@@ -194,6 +244,10 @@ export function InventoryManager({ initialInventory }: InventoryManagerProps) {
     setFormTaxRate((item.tax_rate ?? 5).toString());
     setFormStock(item.current_stock.toString());
     setFormReorderLevel(item.reorder_level.toString());
+    setFormHsnCode(item.hsn_code || "");
+    // The item's own answer, never the shop default — editing a product must
+    // not silently re-base its price.
+    setFormPriceIncludesTax(item.price_includes_tax ?? true);
     setIsProductModalOpen(true);
   };
 
@@ -223,6 +277,8 @@ export function InventoryManager({ initialInventory }: InventoryManagerProps) {
       opening_stock: stock,
       cost_price: cost.toFixed(2),
       gst_rate: tax.toFixed(2),
+      hsn_code: formHsnCode.trim(),
+      price_includes_tax: formPriceIncludesTax,
     };
 
     try {
@@ -239,6 +295,8 @@ export function InventoryManager({ initialInventory }: InventoryManagerProps) {
             sell_price: selling.toFixed(2),
             cost_price: cost.toFixed(2),
             gst_rate: tax.toFixed(2),
+            hsn_code: formHsnCode.trim(),
+            price_includes_tax: formPriceIncludesTax,
           }),
         });
         if (!res.ok) {
@@ -586,6 +644,24 @@ export function InventoryManager({ initialInventory }: InventoryManagerProps) {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                  HSN / SAC Code
+                </label>
+                <input
+                  type="text"
+                  value={formHsnCode}
+                  onChange={(e) => setFormHsnCode(e.target.value)}
+                  placeholder="e.g. 1512"
+                  maxLength={16}
+                  className="w-full px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none"
+                />
+                <p className="mt-1 text-[11px] font-semibold text-[var(--text-tertiary)]">
+                  Required on a GST invoice. Four digits is enough below ₹5
+                  crore turnover.
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
@@ -614,6 +690,51 @@ export function InventoryManager({ initialInventory }: InventoryManagerProps) {
                     placeholder="150.00"
                     className="w-full px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none"
                   />
+
+                  {/* Immediately under the price, because the person typing the
+                      price is the person who has to answer this, at that
+                      moment. A distant setting in another screen would not get
+                      used. */}
+                  {parseFloat(formTaxRate) > 0 && (
+                    <div className="mt-2">
+                      <div className="flex gap-1 p-0.5 bg-bg-soft border border-[var(--border-soft)] rounded-xl">
+                        {[
+                          { value: true, label: "Includes GST" },
+                          { value: false, label: "GST extra" },
+                        ].map((option) => (
+                          <button
+                            key={String(option.value)}
+                            type="button"
+                            onClick={() => setFormPriceIncludesTax(option.value)}
+                            className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
+                              formPriceIncludesTax === option.value
+                                ? "bg-[var(--primary)] text-white"
+                                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                      {/* The whole feature, really. A shopkeeper who has never
+                          met the phrase "inclusive of tax" can still see which
+                          answer matches the number they meant. */}
+                      <p className="mt-1.5 text-[11px] font-semibold text-[var(--text-tertiary)]">
+                        {(() => {
+                          const price = parseFloat(formSellingPrice) || 0;
+                          const rate = (parseFloat(formTaxRate) || 0) / 100;
+                          if (price <= 0) return "Customer pays the price above.";
+                          const taxable = formPriceIncludesTax
+                            ? price / (1 + rate)
+                            : price;
+                          const tax = formPriceIncludesTax
+                            ? price - taxable
+                            : price * rate;
+                          return `Customer pays ₹${(taxable + tax).toFixed(2)} = ₹${taxable.toFixed(2)} + ₹${tax.toFixed(2)} GST`;
+                        })()}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
