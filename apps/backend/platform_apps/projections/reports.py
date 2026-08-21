@@ -54,9 +54,34 @@ class ProfitAndLossView(APIView):
         sales_agg = completed_sales.aggregate(
             revenue=Coalesce(Sum("total_amount"), Decimal("0.00"), output_field=_MONEY),
             tax_collected=Coalesce(Sum("tax_amount"), Decimal("0.00"), output_field=_MONEY),
+            # taxable_amount where it was recorded, else derived.
+            #
+            # Not a plain Sum("taxable_amount"): the bulk historical-sale
+            # importer creates Sale rows without GST columns at all, and older
+            # rows predate them. Those would sum to zero and report a large
+            # negative profit — worse than the overstatement being fixed. For
+            # such rows tax_amount is zero too, so total - tax is simply the
+            # total, which is the right answer for untaxed history.
+            net_revenue=Coalesce(
+                Sum(
+                    Case(
+                        When(taxable_amount__gt=0, then=F("taxable_amount")),
+                        default=F("total_amount") - F("tax_amount"),
+                        output_field=_MONEY,
+                    )
+                ),
+                Decimal("0.00"),
+                output_field=_MONEY,
+            ),
         )
+        # What the customer handed over, tax included. This is what a shopkeeper
+        # means by "sales", so it stays the headline figure.
         revenue = sales_agg["revenue"]
         tax_collected = sales_agg["tax_collected"]
+        # What the shop actually keeps: revenue minus the GST it is merely
+        # collecting on the government's behalf. THIS is what profit is measured
+        # against.
+        net_revenue = sales_agg["net_revenue"]
 
         # Cost of goods sold: quantity x unit_cost per line, returns subtract.
         cogs = SaleItem.objects.filter(
@@ -95,11 +120,24 @@ class ProfitAndLossView(APIView):
             value=Coalesce(Sum("total_amount"), Decimal("0.00"), output_field=_MONEY)
         )["value"]
 
-        gross_profit = revenue - cogs
+        # Net revenue against net cost.
+        #
+        # This was `revenue - cogs`, which subtracted a cost EXCLUDING GST from
+        # a revenue INCLUDING it, so gross profit was overstated by the whole
+        # tax collected — 5% of turnover on kirana goods, 18% on many others.
+        # unit_cost comes from the purchase invoice's pre-tax rate
+        # (purchases/serializers.py), so the two sides were never comparable.
+        #
+        # The GST is not the shop's money. For a registered dealer it is
+        # collected and remitted, and the tax paid on the purchase is input
+        # credit rather than cost. Net-vs-net is the only comparison that means
+        # anything, and a shopkeeper setting prices off the old number was
+        # being told a margin that did not exist.
+        gross_profit = net_revenue - cogs
         net_profit = gross_profit - total_expenses
         margin_pct = (
-            (net_profit / revenue * Decimal("100")).quantize(Decimal("0.01"))
-            if revenue > 0
+            (net_profit / net_revenue * Decimal("100")).quantize(Decimal("0.01"))
+            if net_revenue > 0
             else Decimal("0.00")
         )
 
@@ -109,6 +147,10 @@ class ProfitAndLossView(APIView):
                 "end": end.isoformat(),
                 "revenue": revenue,
                 "tax_collected": tax_collected,
+                # Exposed so the arithmetic on screen can be followed:
+                # net_revenue = revenue - tax_collected, and profit is measured
+                # from net_revenue, not from revenue.
+                "net_revenue": net_revenue,
                 "cost_of_goods_sold": cogs,
                 "gross_profit": gross_profit,
                 "total_expenses": total_expenses,
