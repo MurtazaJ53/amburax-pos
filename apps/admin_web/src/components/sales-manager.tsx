@@ -36,6 +36,10 @@ export interface SaleOrder {
   payment_breakdown: SplitPaymentTender;
   status: string;
   items_count: number;
+  /** The actual lines that were sold. Reprinted receipts used to show a
+   *  hardcoded mock item, so every duplicate bill handed to a customer named a
+   *  product they had not bought. */
+  items: CartItem[];
   created_at: string;
 }
 
@@ -63,6 +67,25 @@ type ApiSale = {
   item_count?: number;
   occurred_at?: string;
   payments?: ApiSalePayment[];
+  items?: ApiSaleLine[];
+};
+
+/** One line of a sale, as DRF returns it.
+ *
+ *  Deliberately loose: DRF serialises DecimalField as a string, but the
+ *  server-rendered page passes the already-typed SaleItem where quantity is a
+ *  number. Accepting both keeps one mapping function for both entry points
+ *  rather than two that can drift. */
+type ApiSaleLine = {
+  id: string;
+  inventory_item_id?: string | null;
+  name?: string;
+  sku?: string;
+  quantity?: number | string;
+  unit_price?: string;
+  line_total?: string;
+  line_discount?: string;
+  gst_rate?: string;
 };
 
 /** Total the tenders of one method. Amounts arrive as strings from DRF. */
@@ -73,6 +96,28 @@ function tenderTotal(payments: ApiSalePayment[], method: string): number {
 }
 
 /** Map one API sale onto the shape this screen renders. */
+/** DRF sale line -> the cart shape the receipt component renders. */
+function toReceiptLine(line: ApiSaleLine): CartItem {
+  const quantity = Number(line.quantity ?? 0) || 0;
+  const unitPrice = parseFloat(line.unit_price || "0") || 0;
+  const discount = parseFloat(line.line_discount || "0") || 0;
+  return {
+    id: line.id,
+    product_id: line.inventory_item_id || "",
+    name: line.name || "Item",
+    sku: line.sku || "",
+    barcode: "",
+    unit_price: unitPrice,
+    cost_price: 0,
+    quantity,
+    tax_rate: parseFloat(line.gst_rate || "0") || 0,
+    discount_amount: discount,
+    total_price:
+      parseFloat(line.line_total || "0") || quantity * unitPrice - discount,
+    available_stock: 0,
+  };
+}
+
 function toSaleOrder(item: ApiSale): SaleOrder {
   const payments = item.payments ?? [];
   return {
@@ -96,6 +141,7 @@ function toSaleOrder(item: ApiSale): SaleOrder {
       khata_due: tenderTotal(payments, "CREDIT"),
     },
     status: item.status || "completed",
+    items: (item.items ?? []).map(toReceiptLine),
     items_count: item.item_count || 1,
     created_at: item.occurred_at || new Date().toISOString(),
   } as SaleOrder;
@@ -192,23 +238,6 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
   const expectedCashInDrawer = openingCash + metrics.cashTotal;
   const countedNum = parseFloat(actualCountedCash) || 0;
   const cashDifference = countedNum - expectedCashInDrawer;
-
-  const mockReceiptItems: CartItem[] = [
-    {
-      id: "item-1",
-      product_id: "prod-1",
-      name: "Aashirvaad Superior MP Atta 5kg",
-      sku: "ATTA-5KG",
-      barcode: "8901234567892",
-      unit_price: 260.0,
-      cost_price: 220.0,
-      quantity: 1,
-      tax_rate: 0,
-      discount_amount: 0,
-      total_price: 260.0,
-      available_stock: 35,
-    },
-  ];
 
   return (
     <div className="space-y-6">
@@ -563,7 +592,7 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
           cashierName={viewingReceipt.cashier_name}
           customerName={viewingReceipt.customer_name}
           customerPhone={viewingReceipt.customer_phone}
-          items={mockReceiptItems}
+          items={viewingReceipt.items}
           subtotal={viewingReceipt.subtotal}
           taxAmount={viewingReceipt.tax_amount}
           discountAmount={viewingReceipt.discount_amount}

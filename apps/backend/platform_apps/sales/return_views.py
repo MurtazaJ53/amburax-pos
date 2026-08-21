@@ -171,6 +171,34 @@ class SaleReturnCreateView(APIView):
                 {"refund_mode": "This bill has no customer, so there is no khata to credit."}
             )
 
+        # Cash-type refunds are capped at what the shop actually COLLECTED on
+        # this bill.
+        #
+        # Only the reverse case was checked before — khata mode without a
+        # customer — so nothing stopped a cash refund against a bill sold
+        # entirely on credit, and CASH is the form's default. On a 2,000 credit
+        # sale where one 500 shirt comes back, the till paid out 500 it had
+        # never received AND left the customer owing the full 2,000, because a
+        # non-khata mode writes no CustomerLedgerEntry. A 500 loss, invisible
+        # until someone reconciles, if ever.
+        #
+        # EXCHANGE is exempt: it moves no money, the value carries into the
+        # replacement bill.
+        refundable = None
+        if mode not in {SaleReturn.RefundMode.KHATA, SaleReturn.RefundMode.EXCHANGE}:
+            already_refunded = (
+                SaleReturn.objects.filter(sale=sale)
+                .exclude(
+                    refund_mode__in=[
+                        SaleReturn.RefundMode.KHATA,
+                        SaleReturn.RefundMode.EXCHANGE,
+                    ]
+                )
+                .aggregate(total=Sum("refund_amount"))["total"]
+                or _ZERO
+            )
+            refundable = (sale.amount_received or _ZERO) - already_refunded
+
         now = timezone.now()
         sale_return = SaleReturn(
             shop=shop,
@@ -244,6 +272,20 @@ class SaleReturnCreateView(APIView):
                     note=f"Return {sale_return.reference} against {sale.receipt_number}",
                     occurred_at=now,
                 )
+
+        if refundable is not None and refund_total > refundable:
+            # Named precisely, because the cashier has a customer in front of
+            # them and needs to know what to do instead, not merely that they
+            # cannot proceed.
+            raise exceptions.ValidationError(
+                {
+                    "refund_mode": (
+                        f"Only {refundable} was paid on this bill, so "
+                        f"{refund_total} cannot be refunded in cash. Refund "
+                        "against khata instead, or exchange it."
+                    )
+                }
+            )
 
         # An exchange moves no money: the value is carried into the replacement
         # bill the cashier is about to ring up.

@@ -29,7 +29,7 @@ from platform_apps.sales.models import Sale, SaleItem
 from platform_apps.sales.models import SaleCommandReceipt
 from platform_apps.sales.tally import build_tally_xml
 from platform_apps.inventory.models import InventoryStockLedger
-from platform_apps.customers.models import CustomerLedgerEntry
+from platform_apps.customers.models import CustomerLedgerEntry, LoyaltyLedgerEntry
 from platform_apps.sales.serializers import (
     SaleCommandCreateSerializer,
     SaleSerializer,
@@ -285,6 +285,41 @@ class SaleVoidView(ShopScopedMixin, APIView):
                 customer.balance -= computed_due
                 customer.total_spent -= computed_total
                 customer.save(update_fields=["balance", "total_spent", "updated_at"])
+
+                # Reverse loyalty too. This void path rolled back stock and the
+                # khata balance and left points untouched, in both directions:
+                # points REDEEMED on the bill stayed spent, so a customer who
+                # paid with 100 points lost them on a sale that never happened;
+                # and points EARNED stayed earned, so ringing a sale up and
+                # voiding it minted real redeemable value out of nothing, over
+                # and over.
+                #
+                # One offsetting ADJUSTMENT rather than deleting the originals:
+                # the ledger exists so a disputed balance can be explained, and
+                # a vanished entry explains nothing.
+                loyalty_delta = (
+                    LoyaltyLedgerEntry.objects.filter(
+                        shop=membership.shop, customer=customer, sale_id=sale.id
+                    ).aggregate(total=Sum("points_delta"))["total"]
+                    or 0
+                )
+                if loyalty_delta:
+                    # Clamped at zero: a customer who has already spent points
+                    # earned on this bill must not be driven negative, and
+                    # balance_after is a PositiveIntegerField besides.
+                    new_points = max(0, (customer.loyalty_points or 0) - loyalty_delta)
+                    LoyaltyLedgerEntry.objects.create(
+                        shop=membership.shop,
+                        customer=customer,
+                        event_type=LoyaltyLedgerEntry.EventType.ADJUSTMENT,
+                        points_delta=new_points - (customer.loyalty_points or 0),
+                        balance_after=new_points,
+                        note=f"Void Sale {sale.receipt_number}",
+                        sale_id=sale.id,
+                        occurred_at=occurred_at,
+                    )
+                    customer.loyalty_points = new_points
+                    customer.save(update_fields=["loyalty_points", "updated_at"])
 
         create_workspace_audit_event(
             shop=membership.shop,
