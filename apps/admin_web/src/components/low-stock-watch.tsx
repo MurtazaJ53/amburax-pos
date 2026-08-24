@@ -8,7 +8,9 @@ import { Panel, PanelEmpty } from "@/components/ui/panel";
 import { paginate } from "@/lib/paging";
 import { formatQuantity } from "@/lib/utils";
 
-const PAGE_SIZE = 6;
+// Twelve at a time, or fewer when the shop has fewer. Six left half the panel
+// empty on a wide screen while the badge advertised dozens more.
+const PAGE_SIZE = 12;
 
 export type LowStockRow = {
   id: string;
@@ -62,12 +64,32 @@ export function LowStockWatch({ rows, totalCount, className = "" }: Props) {
       </div>
     ) : null;
 
+  // A badge reading 43 above a list of twelve is a discrepancy the reader has
+  // to resolve. Name what is reachable here, and where the rest lives.
+  const caption =
+    rows.length === 0 ? null : (
+      <p className="m-0 flex flex-wrap items-center gap-x-2 text-[11px] font-medium text-[var(--text-tertiary)]">
+        <span>
+          {totalCount > rows.length
+            ? `The ${rows.length} most urgent of ${totalCount}.`
+            : `All ${totalCount}.`}
+        </span>
+        <Link
+          href="/inventory"
+          className="focus-ring font-bold text-[var(--primary-hover)] hover:underline"
+        >
+          Open stock
+        </Link>
+      </p>
+    );
+
   return (
     <Panel
       title="Low stock watch"
       count={totalCount}
       countTone="alert"
       actionSlot={pager}
+      footer={caption}
       scrollBody
       className={className}
     >
@@ -116,23 +138,6 @@ export function LowStockWatch({ rows, totalCount, className = "" }: Props) {
               </li>
             ))}
           </ul>
-
-          {/* A badge of 135 above a list of six is a discrepancy the reader
-              has to resolve. Name what is reachable here and where the rest
-              lives. */}
-          <p className="m-0 mt-2.5 flex flex-wrap items-center gap-x-2 text-[11px] font-medium text-[var(--text-tertiary)]">
-            <span>
-              {totalCount > rows.length
-                ? `The ${rows.length} most urgent of ${totalCount}.`
-                : `All ${totalCount}.`}
-            </span>
-            <Link
-              href="/inventory"
-              className="focus-ring font-bold text-[var(--primary-hover)] hover:underline"
-            >
-              Open stock
-            </Link>
-          </p>
         </>
       )}
     </Panel>

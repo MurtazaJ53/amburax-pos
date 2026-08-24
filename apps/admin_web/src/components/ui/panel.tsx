@@ -33,6 +33,10 @@ type PanelProps = {
    *  reach the alert underneath. The header stays put and only the content
    *  below it scrolls. */
   scrollBody?: boolean;
+  /** A line pinned below the scrolling body - a caption, a count. Inside the
+   *  scroll area it gets clipped half-drawn at the fold, which reads as a
+   *  rendering fault rather than as something to scroll to. */
+  footer?: ReactNode;
   children: ReactNode;
   className?: string;
 };
@@ -44,6 +48,7 @@ export function Panel({
   action,
   actionSlot,
   scrollBody = false,
+  footer,
   children,
   className = "",
 }: PanelProps) {
@@ -82,6 +87,7 @@ export function Panel({
       ) : (
         children
       )}
+      {footer && <div className="mt-2.5 shrink-0">{footer}</div>}
     </section>
   );
 }
