@@ -220,3 +220,104 @@ class SaleTakingsTests(TestCase):
         client = APIClient()
         client.force_authenticate(user=outsider)
         self.assertIn(client.get(self.url).status_code, (403, 404))
+
+
+class TakingsMixCoversEverythingTests(SaleTakingsTests):
+    """The mix bar must account for the money in the headline figure.
+
+    Reading tenders alone reported a year of takings as the few hundred rupees
+    of sales that happened to have tender rows: a bar covering 0.25% of the
+    total, sitting directly under the total. Imported and synced history has
+    no tenders at all.
+    """
+
+    def test_a_sale_without_tenders_still_lands_in_the_mix(self):
+        # Exactly what imported history looks like: no SalePayment rows.
+        sale = self._sale("500")
+        sale.payment_mode = "CASH"
+        sale.amount_received = Decimal("500")
+        sale.save(update_fields=["payment_mode", "amount_received"])
+
+        mix = {row["key"]: Decimal(row["amount"]) for row in self._get()["mix"]}
+        self.assertEqual(mix["CASH"], Decimal("500.00"))
+
+    def test_received_is_derived_when_the_import_never_set_it(self):
+        sale = self._sale("300")
+        sale.payment_mode = "UPI"
+        sale.amount_received = Decimal("0")
+        sale.amount_due = Decimal("0")
+        sale.save(update_fields=["payment_mode", "amount_received", "amount_due"])
+
+        mix = {row["key"]: Decimal(row["amount"]) for row in self._get()["mix"]}
+        self.assertEqual(mix["UPI"], Decimal("300.00"))
+
+    def test_tenders_still_win_where_they_exist(self):
+        self._sale("100", tenders={"CASH": "15", "UPI": "85"})
+        mix = {row["key"]: Decimal(row["amount"]) for row in self._get()["mix"]}
+        self.assertEqual(mix["CASH"], Decimal("15.00"))
+        self.assertEqual(mix["UPI"], Decimal("85.00"))
+
+    def test_a_split_with_no_tenders_is_named_unknown_rather_than_called_cash(self):
+        sale = self._sale("400")
+        sale.payment_mode = "SPLIT"
+        sale.amount_received = Decimal("400")
+        sale.save(update_fields=["payment_mode", "amount_received"])
+
+        rows = {row["key"]: row for row in self._get()["mix"]}
+        self.assertIn("SPLIT", rows)
+        self.assertEqual(rows["SPLIT"]["label"], "Split (not itemised)")
+
+    def test_money_still_owed_is_named_rather_than_left_as_a_gap(self):
+        sale = self._sale("1000")
+        sale.payment_mode = "CREDIT"
+        sale.amount_received = Decimal("200")
+        sale.amount_due = Decimal("800")
+        sale.save(update_fields=["payment_mode", "amount_received", "amount_due"])
+
+        mix = {row["key"]: Decimal(row["amount"]) for row in self._get()["mix"]}
+        self.assertEqual(mix["CREDIT"], Decimal("200.00"))
+        self.assertEqual(mix["UNPAID"], Decimal("800.00"))
+
+    def test_the_mix_reconciles_to_the_headline_total(self):
+        """The property that makes the bar trustworthy at all."""
+        paid = self._sale("500")
+        paid.payment_mode = "CASH"
+        paid.amount_received = Decimal("500")
+        paid.save(update_fields=["payment_mode", "amount_received"])
+
+        credit = self._sale("1000")
+        credit.payment_mode = "CREDIT"
+        credit.amount_received = Decimal("200")
+        credit.amount_due = Decimal("800")
+        credit.save(update_fields=["payment_mode", "amount_received", "amount_due"])
+
+        self._sale("100", tenders={"CASH": "40", "CARD": "60"})
+
+        body = self._get()
+        self.assertEqual(
+            sum(Decimal(row["amount"]) for row in body["mix"]),
+            Decimal(body["total"]),
+        )
+
+    def test_a_voided_sale_contributes_nothing_by_either_route(self):
+        sale = self._sale("900", status=Sale.Status.VOID)
+        sale.payment_mode = "CASH"
+        sale.amount_received = Decimal("900")
+        sale.save(update_fields=["payment_mode", "amount_received"])
+        self.assertEqual(self._get()["mix"], [])
+
+    def test_a_mode_with_both_tendered_and_untendered_sales_keeps_both(self):
+        """The regrouping trap.
+
+        annotate(Count).filter(count=0) becomes a HAVING re-evaluated after
+        grouping by payment_mode, so CASH holding one tendered sale dropped
+        every untendered cash sale with it.
+        """
+        plain = self._sale("500")
+        plain.payment_mode = "CASH"
+        plain.amount_received = Decimal("500")
+        plain.save(update_fields=["payment_mode", "amount_received"])
+        self._sale("100", tenders={"CASH": "100"})
+
+        mix = {row["key"]: Decimal(row["amount"]) for row in self._get()["mix"]}
+        self.assertEqual(mix["CASH"], Decimal("600.00"))

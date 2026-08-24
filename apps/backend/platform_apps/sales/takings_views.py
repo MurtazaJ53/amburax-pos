@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import date as date_cls, timedelta
 from decimal import Decimal
 
-from django.db.models import Count, DecimalField, Sum, Value
+from django.db.models import DecimalField, Sum, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework import exceptions, permissions
@@ -46,6 +46,10 @@ MIX_LABELS = {
     "BANK": "Bank",
     "CREDIT": "Khata",
     "OTHER": "Other",
+    # A split bill whose tender rows were never written. The breakdown is
+    # genuinely unknown; calling it cash would be inventing it.
+    "SPLIT": "Split (not itemised)",
+    "UNPAID": "Still owed",
 }
 
 
@@ -152,8 +156,29 @@ class SaleTakingsView(APIView):
         return "month"
 
     def _mix(self, shop, date_from: date_cls, date_to: date_cls):
-        """How the money actually arrived, read from the tenders."""
-        rows = (
+        """How the money arrived, covering ALL of it.
+
+        Tender rows are the truth where they exist: a split bill is stored as
+        SPLIT, so bucketing on `payment_mode` loses the cash and the UPI inside
+        it. But only sales rung up through the POS have tenders. Imported and
+        synced history has none, and reading tenders alone silently reported a
+        year of takings as the few hundred rupees that happened to have them -
+        a mix bar covering 0.25% of the total sitting under the total.
+
+        So: tenders where present, the sale's own mode where not, and what is
+        still owed named as owed. The slices add up to the headline figure,
+        which is the only way the bar can be trusted.
+        """
+        sales = self._sales(shop, date_from, date_to)
+        totals: dict[str, Decimal] = {}
+
+        def add(key: str, amount) -> None:
+            value = _money(amount)
+            if value > _ZERO:
+                totals[key] = totals.get(key, _ZERO) + value
+
+        # 1. Real tenders. This join only reaches sales that have them.
+        for row in (
             SalePayment.objects.filter(
                 sale__shop=shop,
                 sale__tombstone=False,
@@ -167,22 +192,60 @@ class SaleTakingsView(APIView):
                     Sum("amount"),
                     Value(_ZERO),
                     output_field=DecimalField(max_digits=14, decimal_places=2),
-                ),
-                count=Count("id"),
+                )
             )
-        )
+        ):
+            add((row["payment_method"] or "OTHER").upper(), row["amount"])
+
+        # 2. Sales with no tenders: fall back to the mode on the sale itself.
+        #    `amount_received` is derived where it was never populated, which
+        #    is the case for most imported history.
+        for row in (
+            # `payments__isnull=True` and NOT annotate(Count).filter(count=0).
+            # The count filter becomes a HAVING that is re-evaluated after the
+            # regrouping by payment_mode, so a mode holding any tendered sale
+            # loses ALL its untendered ones - cash silently disappeared from
+            # the mix the moment one cash sale had tender rows.
+            sales.filter(payments__isnull=True)
+            .values("payment_mode")
+            .annotate(
+                received=Coalesce(
+                    Sum("amount_received"),
+                    Value(_ZERO),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                ),
+                gross=Coalesce(
+                    Sum("total_amount"),
+                    Value(_ZERO),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                ),
+                due=Coalesce(
+                    Sum("amount_due"),
+                    Value(_ZERO),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                ),
+            )
+        ):
+            mode = (row["payment_mode"] or "OTHER").upper()
+            received = row["received"] or _ZERO
+            if received <= _ZERO:
+                received = (row["gross"] or _ZERO) - (row["due"] or _ZERO)
+            # A SPLIT with no tender rows cannot be broken down. Claiming it
+            # as cash would be inventing the answer.
+            add("SPLIT" if mode == "SPLIT" else mode, received)
+
+        # 3. What has not been paid yet, named rather than left as a gap
+        #    between the mix and the total nobody can account for.
+        add("UNPAID", _sum(sales, "amount_due"))
+
         mix = [
             {
-                "key": (row["payment_method"] or "OTHER").upper(),
-                "label": MIX_LABELS.get(
-                    (row["payment_method"] or "OTHER").upper(),
-                    (row["payment_method"] or "OTHER").title(),
-                ),
-                "amount": _money(row["amount"]),
-                "count": row["count"],
+                "key": key,
+                "label": MIX_LABELS.get(key, key.title()),
+                "amount": amount,
+                "count": 0,
             }
-            for row in rows
-            if (row["amount"] or _ZERO) > _ZERO
+            for key, amount in totals.items()
         ]
         mix.sort(key=lambda slice_: slice_["amount"], reverse=True)
         return mix

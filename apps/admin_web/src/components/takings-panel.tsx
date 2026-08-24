@@ -30,6 +30,11 @@ const MIX_COLORS: Record<string, string> = {
   CARD: "var(--primary)",
   BANK: "var(--primary-hover)",
   CREDIT: "var(--warning)",
+  // Money still owed, and split bills whose tenders were never written. Both
+  // are real parts of the total and neither is a payment method, so they read
+  // as unresolved rather than borrowing a method's colour.
+  UNPAID: "var(--error)",
+  SPLIT: "var(--text-tertiary)",
   OTHER: "var(--text-tertiary)",
 };
 
