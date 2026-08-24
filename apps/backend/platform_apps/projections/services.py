@@ -14,6 +14,11 @@ from platform_apps.customers.models import Customer
 from platform_apps.inventory.models import InventoryItem
 from platform_apps.payments.models import SalePayment
 from platform_apps.projections.models import ShopDashboardSnapshot, ShopLowStockSnapshot
+
+#: How many low-stock rows the dashboard is given. The panel shows six and
+#: pages through the rest, so eight left the count reading 135 above a list
+#: the shopkeeper could never see past the first eight of.
+LOW_STOCK_PREVIEW_LIMIT = 24
 from platform_apps.sales.models import Sale
 from platform_apps.shops.models import Shop
 
@@ -162,7 +167,7 @@ def refresh_shop_dashboard_projection(shop: Shop) -> ShopDashboardSnapshot:
                 "last_sale_at": sales_summary["last_sale_at"],
                 "refreshed_at": refreshed_at,
                 "metadata_json": {
-                    "low_stock_preview_size": min(len(low_stock_preview_rows), 8),
+                    "low_stock_preview_size": min(len(low_stock_preview_rows), LOW_STOCK_PREVIEW_LIMIT),
                     "source": "projection_refresh",
                 },
             },
@@ -183,7 +188,7 @@ def refresh_shop_dashboard_projection(shop: Shop) -> ShopDashboardSnapshot:
                     severity_rank=index + 1,
                     refreshed_at=refreshed_at,
                 )
-                for index, item in enumerate(low_stock_preview_rows[:8])
+                for index, item in enumerate(low_stock_preview_rows[:LOW_STOCK_PREVIEW_LIMIT])
             ]
         )
 

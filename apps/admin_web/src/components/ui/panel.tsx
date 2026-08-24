@@ -23,6 +23,16 @@ type PanelProps = {
   count?: number;
   countTone?: PanelTone;
   action?: { label: string; href: string };
+  /** Anything else for the header's trailing slot - a pager, a toggle. Used
+   *  instead of `action` when the control is not a link. */
+  actionSlot?: ReactNode;
+  /** Scroll the panel's BODY instead of the page.
+   *
+   *  The dashboard holds still while its lists move: a shopkeeper looking up
+   *  one figure should not lose the takings off the top of the screen to
+   *  reach the alert underneath. The header stays put and only the content
+   *  below it scrolls. */
+  scrollBody?: boolean;
   children: ReactNode;
   className?: string;
 };
@@ -32,14 +42,18 @@ export function Panel({
   count,
   countTone = "neutral",
   action,
+  actionSlot,
+  scrollBody = false,
   children,
   className = "",
 }: PanelProps) {
   return (
     <section
-      className={`bg-[var(--surface)] border border-[var(--border-soft)] rounded-[20px] p-5 shadow-sm ${className}`}
+      className={`rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm ${
+        scrollBody ? "flex min-h-0 flex-col overflow-hidden" : ""
+      } ${className}`}
     >
-      <div className="flex items-center gap-2.5 mb-3.5">
+      <div className="mb-3.5 flex shrink-0 items-center gap-2.5">
         <h3 className="text-sm font-extrabold text-[var(--text-primary)] tracking-tight">
           {title}
         </h3>
@@ -58,8 +72,16 @@ export function Panel({
             {action.label}
           </Link>
         )}
+        {actionSlot && <div className="ml-auto shrink-0">{actionSlot}</div>}
       </div>
-      {children}
+      {/* The scroll container is a separate element from the layout one on
+          purpose: giving a single element the flex sizing AND the scrolling
+          collapses its rows to nothing. */}
+      {scrollBody ? (
+        <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto">{children}</div>
+      ) : (
+        children
+      )}
     </section>
   );
 }

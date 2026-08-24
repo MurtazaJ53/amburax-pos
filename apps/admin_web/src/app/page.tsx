@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/empty-state";
 import { AttentionList } from "@/components/ui/attention-list";
 import type { AttentionItem, AttentionSeverity } from "@/components/ui/attention-list";
 import { Panel, PanelEmpty } from "@/components/ui/panel";
+import { LowStockWatch } from "@/components/low-stock-watch";
 import { TakingsPanel } from "@/components/takings-panel";
 import { StatTile } from "@/components/ui/stat-tile";
 import {
@@ -28,7 +29,6 @@ import {
 } from "@/lib/admin-api";
 import { shopDateKey, summariseToday } from "@/lib/dashboard-metrics";
 import { formatCurrency } from "@/lib/formatters";
-import { formatQuantity } from "@/lib/utils";
 import type { WorkspacePulseSnapshot } from "@/lib/types";
 
 /** Segment colours for the payment mix, keyed by mode. */
@@ -197,8 +197,11 @@ export default async function HomePage() {
       title="Home"
       subtitle="Today's takings, key stats, recent sales, and low stock warnings."
       headerVariant="bar"
+      fitViewport
     >
-      <div className="flex flex-col gap-3.5">
+      {/* min-h-0 all the way down, or the flex children below refuse to
+          shrink and the page grows a scrollbar anyway. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3.5">
         {/* Greeting, and the actions a counter reaches for */}
         <div className="flex flex-wrap items-end gap-3 animate-fade-in-up">
           <div>
@@ -427,105 +430,24 @@ export default async function HomePage() {
           />
         </section>
 
-        {/* What to act on, and what just happened.
-            Both "act on this" panels share the left column so the tall sales
-            feed on the right has something beside it. Split across two rows,
-            a two-item attention panel left a third of the screen empty. */}
-        <section className="grid items-start gap-3.5 lg:grid-cols-[1fr_1.1fr]">
-          <div className="flex min-w-0 flex-col gap-3.5">
-          <Panel
-            title="Needs attention"
-            count={attentionItems.length}
-            countTone={criticalCount > 0 ? "alert" : "warning"}
-            className="animate-fade-in-up delay-4"
-          >
-            {attentionItems.length === 0 ? (
-              <PanelEmpty>
-                {pulse === null
-                  ? "Alerts are unavailable right now. Stock and khata figures above are still live."
-                  : "Nothing needs you right now."}
-              </PanelEmpty>
-            ) : (
-              <AttentionList items={attentionItems} />
-            )}
-          </Panel>
+        {/* What just happened on the left, what is running out on the right,
+            and what to act on underneath both.
 
-        {/* Low stock watch, kept as its own list so the items stay named */}
-        <Panel
-          title="Low stock watch"
-          count={lowStockCount}
-          countTone="alert"
-          action={{ label: "Open stock", href: "/inventory" }}
-          className="animate-fade-in-up delay-6"
-        >
-          {!dashboardSnapshot.low_stock_preview ||
-          dashboardSnapshot.low_stock_preview.length === 0 ? (
-            <PanelEmpty>No urgent low-stock items.</PanelEmpty>
-          ) : (
-            <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
-              {dashboardSnapshot.low_stock_preview.slice(0, 6).map((item, index) => (
-                <li
-                  key={item.id}
-                  className="animate-fade-in-up"
-                  style={{ animationDelay: `${280 + index * 40}ms` }}
-                >
-                  <Link
-                    href="/inventory"
-                    className="hover-nudge focus-ring flex items-center gap-3 rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-2.5"
-                  >
-                    <span
-                      className={`w-[3px] self-stretch rounded-full ${
-                        item.stock_on_hand <= 0 ? "bg-[var(--error)]" : "bg-[var(--warning)]"
-                      }`}
-                      aria-hidden="true"
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12.5px] font-extrabold text-[var(--text-primary)]">
-                        {item.item_name}
-                      </span>
-                      <span className="mt-0.5 block truncate text-[11px] font-medium text-[var(--text-tertiary)]">
-                        {item.category || "Uncategorized"}
-                        {item.sku ? ` · ${item.sku}` : ""}
-                      </span>
-                    </span>
-                    <span
-                      className={`tnum flex-none rounded-full px-2 py-1 font-mono text-[10px] font-bold ${
-                        item.stock_on_hand <= 0
-                          ? "bg-[var(--error)]/10 text-[var(--error-strong)]"
-                          : "bg-[var(--warning)]/10 text-[var(--warning-strong)]"
-                      }`}
-                    >
-                      {item.stock_on_hand <= 0
-                        ? "Out"
-                        : `${formatQuantity(item.stock_on_hand)} left`}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-          {/* A count of 25 above a list of 6 is a discrepancy the reader has
-              to resolve themselves. Name it. */}
-          {(dashboardSnapshot.low_stock_preview?.length ?? 0) > 0 &&
-            lowStockCount > Math.min(6, dashboardSnapshot.low_stock_preview?.length ?? 0) && (
-              <p className="m-0 mt-2.5 text-[11px] font-medium text-[var(--text-tertiary)]">
-                Showing the {Math.min(6, dashboardSnapshot.low_stock_preview?.length ?? 0)} most
-                urgent of {lowStockCount}.
-              </p>
-            )}
-        </Panel>
-          </div>
-
+            The page itself does not scroll: a shopkeeper checking one figure
+            should not lose the takings off the top of the screen to reach an
+            alert below it. Each list scrolls inside its own panel instead. */}
+        <section className="grid min-h-0 flex-1 gap-3.5 lg:grid-cols-[1.1fr_1fr]">
           <Panel
             title="Recent sales"
             action={recentSales.length > 0 ? { label: "View all", href: "/sales" } : undefined}
-            className="animate-fade-in-up delay-5"
+            scrollBody
+            className="min-h-0 animate-fade-in-up delay-5"
           >
             {recentSales.length === 0 ? (
               <PanelEmpty>No sales yet. Tap New sale to begin.</PanelEmpty>
             ) : (
               <ul className="m-0 flex list-none flex-col p-0">
-                {recentSales.slice(0, 5).map((sale, index) => (
+                {recentSales.map((sale, index) => (
                   <li
                     key={sale.id}
                     className="animate-fade-in-up border-b border-[var(--border-soft)] last:border-b-0"
@@ -569,6 +491,32 @@ export default async function HomePage() {
                   </li>
                 ))}
               </ul>
+            )}
+          </Panel>
+
+          <LowStockWatch
+            rows={dashboardSnapshot.low_stock_preview ?? []}
+            totalCount={lowStockCount}
+            className="min-h-0 animate-fade-in-up delay-6"
+          />
+        </section>
+
+        <section className="flex min-h-0 flex-[0.8] flex-col">
+          <Panel
+            title="Needs attention"
+            count={attentionItems.length}
+            countTone={criticalCount > 0 ? "alert" : "warning"}
+            scrollBody
+            className="min-h-0 animate-fade-in-up delay-4"
+          >
+            {attentionItems.length === 0 ? (
+              <PanelEmpty>
+                {pulse === null
+                  ? "Alerts are unavailable right now. Stock and khata figures above are still live."
+                  : "Nothing needs you right now."}
+              </PanelEmpty>
+            ) : (
+              <AttentionList items={attentionItems} />
             )}
           </Panel>
         </section>
