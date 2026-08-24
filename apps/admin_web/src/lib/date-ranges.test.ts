@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  RANGE_OPTIONS,
   daysInRange,
   granularityFor,
   isValidRange,
@@ -142,5 +143,55 @@ describe("isValidRange", () => {
     expect(isValidRange({ from: "2026-01-01" })).toBe(false);
     expect(isValidRange({ from: "01/01/2026", to: "2026-01-31" })).toBe(false);
     expect(isValidRange({})).toBe(false);
+  });
+});
+
+describe("the longer presets", () => {
+  it("counts six and twelve months inclusively", () => {
+    expect(daysInRange(resolveRange("last180", TODAY))).toBe(180);
+    expect(daysInRange(resolveRange("last365", TODAY))).toBe(365);
+  });
+
+  it("ends both windows today", () => {
+    expect(resolveRange("last180", TODAY).to).toBe(TODAY);
+    expect(resolveRange("last365", TODAY).to).toBe(TODAY);
+  });
+
+  it("buckets six months by month, not by day", () => {
+    // 180 daily bars is not a chart anyone reads.
+    expect(resolveRange("last180", TODAY).granularity).toBe("month");
+  });
+});
+
+describe("all time", () => {
+  it("has no start date", () => {
+    const range = resolveRange("all", TODAY);
+    expect(range.unbounded).toBe(true);
+    expect(range.from).toBe("");
+    expect(range.to).toBe(TODAY);
+  });
+
+  it("offers no comparison, because there is nothing before all of history", () => {
+    expect(resolveRange("all", TODAY).comparisonLabel).toBe("");
+  });
+
+  it("buckets by month", () => {
+    expect(resolveRange("all", TODAY).granularity).toBe("month");
+  });
+
+  it("is not a valid bounded range, so callers must omit `from`", () => {
+    expect(isValidRange(resolveRange("all", TODAY))).toBe(false);
+  });
+});
+
+describe("every preset is resolvable", () => {
+  it("returns a labelled range ending on or before today for each option", () => {
+    // Yesterday is the one that does NOT end today, which is the point of it.
+    for (const option of RANGE_OPTIONS) {
+      const range = resolveRange(option.key, TODAY);
+      expect(range.label).not.toBe("");
+      expect(range.to <= TODAY).toBe(true);
+      expect(range.to).not.toBe("");
+    }
   });
 });

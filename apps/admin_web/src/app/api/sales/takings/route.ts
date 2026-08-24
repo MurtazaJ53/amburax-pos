@@ -8,11 +8,11 @@ import { proxyToApi } from "@/lib/proxy";
  *  and the server clamps the span and picks the bucketing itself.
  */
 export async function GET(req: NextRequest) {
-  const from = req.nextUrl.searchParams.get("from") ?? "";
-  const to = req.nextUrl.searchParams.get("to") ?? "";
   const query = new URLSearchParams();
-  if (from) query.set("from", from);
-  if (to) query.set("to", to);
+  for (const key of ["from", "to", "all"]) {
+    const value = req.nextUrl.searchParams.get(key);
+    if (value) query.set(key, value);
+  }
   const suffix = query.toString() ? `?${query.toString()}` : "";
   return proxyToApi((shopId) => `/shops/${shopId}/sales/takings/${suffix}`);
 }

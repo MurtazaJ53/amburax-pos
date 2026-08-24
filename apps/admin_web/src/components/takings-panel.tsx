@@ -1,17 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, ChevronDown, Loader2, TrendingDown, TrendingUp } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, TrendingDown, TrendingUp } from "lucide-react";
 
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { MixBar } from "@/components/ui/mix-bar";
 import type { MixSegment } from "@/components/ui/mix-bar";
 import { Sparkline } from "@/components/ui/sparkline";
-import {
-  isValidRange,
-  RANGE_OPTIONS,
-  resolveRange,
-  shopToday,
-} from "@/lib/date-ranges";
+import { isValidRange, resolveRange, shopToday } from "@/lib/date-ranges";
 import type { DateRange, RangeKey } from "@/lib/date-ranges";
 import { formatCurrency } from "@/lib/formatters";
 import {
@@ -53,11 +49,9 @@ type Props = {
 export function TakingsPanel({ currencyCode, timeZone }: Props) {
   const [rangeKey, setRangeKey] = useState<RangeKey>("today");
   const [custom, setCustom] = useState<DateRange>({ from: "", to: "" });
-  const [menuOpen, setMenuOpen] = useState(false);
   const [takings, setTakings] = useState<Takings>(EMPTY_TAKINGS);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const menuRef = useRef<HTMLDivElement>(null);
 
   const today = useMemo(() => shopToday(timeZone), [timeZone]);
   const range = useMemo(
@@ -74,9 +68,12 @@ export function TakingsPanel({ currencyCode, timeZone }: Props) {
     setIsLoading(true);
     setError("");
     try {
-      const res = await fetch(
-        `/api/sales/takings?from=${range.from}&to=${range.to}`,
-      );
+      // All time has no start date, so it asks for itself by name rather
+      // than sending an empty `from` the server would read as today.
+      const query = range.unbounded
+        ? "all=1"
+        : `from=${range.from}&to=${range.to}`;
+      const res = await fetch(`/api/sales/takings?${query}`);
       const body = await res.json().catch(() => null);
       if (!res.ok) {
         throw new Error(
@@ -92,28 +89,12 @@ export function TakingsPanel({ currencyCode, timeZone }: Props) {
     } finally {
       setIsLoading(false);
     }
-  }, [range.from, range.to, ready]);
+  }, [range.from, range.to, range.unbounded, ready]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  // Click-away, so the menu does not sit open over the figures.
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onPointerDown = (event: MouseEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuOpen]);
 
   const change = percentChange(takings.total, takings.previousTotal);
   const peak = peakPoint(takings.series);
@@ -131,82 +112,15 @@ export function TakingsPanel({ currencyCode, timeZone }: Props) {
           Takings
         </span>
 
-        <div ref={menuRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setMenuOpen((open) => !open)}
-            aria-expanded={menuOpen}
-            aria-haspopup="menu"
-            className="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-[var(--border-soft)] bg-[var(--bg-base)] px-3 py-2 text-[11.5px] font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary-dark)]"
-          >
-            <CalendarDays className="h-3.5 w-3.5" />
-            {range.label}
-            <ChevronDown
-              className={`h-3.5 w-3.5 transition-transform duration-200 ${
-                menuOpen ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-
-          {menuOpen && (
-            <div
-              role="menu"
-              className="animate-fade-in-up absolute right-0 z-30 mt-1.5 w-[220px] rounded-[12px] border border-[var(--border-soft)] bg-[var(--surface)] p-1.5 shadow-lg"
-            >
-              {RANGE_OPTIONS.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={rangeKey === option.key}
-                  onClick={() => {
-                    setRangeKey(option.key);
-                    if (option.key !== "custom") setMenuOpen(false);
-                  }}
-                  className={`focus-ring block w-full cursor-pointer rounded-[8px] px-3 py-2 text-left text-[12px] font-bold transition-colors ${
-                    rangeKey === option.key
-                      ? "bg-[var(--primary)]/12 text-[var(--primary-dark)]"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-base)] hover:text-[var(--text-primary)]"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-
-              {rangeKey === "custom" && (
-                <div className="mt-1.5 border-t border-[var(--border-soft)] px-1.5 pt-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-wide text-[var(--text-tertiary)]">
-                    From
-                    <input
-                      type="date"
-                      value={custom.from}
-                      max={today}
-                      onChange={(e) =>
-                        setCustom((prev) => ({ ...prev, from: e.target.value }))
-                      }
-                      className="focus-ring mt-1 w-full rounded-[8px] border border-[var(--border-soft)] bg-[var(--bg-soft)] px-2 py-1.5 font-mono text-[11.5px] font-bold text-[var(--text-primary)] outline-none"
-                    />
-                  </label>
-                  <label className="mt-2 block text-[10px] font-bold uppercase tracking-wide text-[var(--text-tertiary)]">
-                    To
-                    <input
-                      type="date"
-                      value={custom.to}
-                      max={today}
-                      onChange={(e) =>
-                        setCustom((prev) => ({ ...prev, to: e.target.value }))
-                      }
-                      className="focus-ring mt-1 w-full rounded-[8px] border border-[var(--border-soft)] bg-[var(--bg-soft)] px-2 py-1.5 font-mono text-[11.5px] font-bold text-[var(--text-primary)] outline-none"
-                    />
-                  </label>
-                  <p className="m-0 mt-2 text-[10.5px] font-medium text-[var(--text-tertiary)]">
-                    {ready ? range.label : "Pick both dates to see the period."}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        <DateRangePicker
+          value={rangeKey}
+          custom={custom}
+          today={today}
+          onChange={(key, next) => {
+            setRangeKey(key);
+            setCustom(next);
+          }}
+        />
       </div>
 
       <p className="tnum mt-2 flex items-center gap-2.5 font-mono text-[38px] font-bold leading-none tracking-tighter text-[var(--text-primary)] sm:text-[42px]">

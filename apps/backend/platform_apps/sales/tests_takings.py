@@ -321,3 +321,35 @@ class TakingsMixCoversEverythingTests(SaleTakingsTests):
 
         mix = {row["key"]: Decimal(row["amount"]) for row in self._get()["mix"]}
         self.assertEqual(mix["CASH"], Decimal("600.00"))
+
+
+class TakingsAllTimeTests(SaleTakingsTests):
+    """All time has no start date, so one is found rather than guessed."""
+
+    def test_it_starts_at_the_shops_first_trading_day(self):
+        self._sale("100", days_ago=400)
+        self._sale("200")
+        body = self._get(all="1")
+        self.assertEqual(
+            body["from"], (self.today - timedelta(days=400)).isoformat()
+        )
+        self.assertEqual(body["to"], self.today.isoformat())
+        self.assertEqual(Decimal(body["total"]), Decimal("300.00"))
+
+    def test_it_is_exempt_from_the_length_guard(self):
+        """A five-year cap exists to stop an accidental unbounded scan. All
+        time is asked for on purpose."""
+        self._sale("50", days_ago=2500)
+        response = self.client.get(self.url, {"all": "1"})
+        self.assertEqual(response.status_code, 200, response.content)
+
+    def test_a_shop_with_no_sales_reports_today_rather_than_a_null_start(self):
+        body = self._get(all="1")
+        self.assertEqual(body["from"], self.today.isoformat())
+        self.assertEqual(Decimal(body["total"]), Decimal("0.00"))
+
+    def test_a_voided_first_sale_does_not_set_the_start_date(self):
+        self._sale("999", days_ago=800, status=Sale.Status.VOID)
+        self._sale("100", days_ago=10)
+        body = self._get(all="1")
+        self.assertEqual(body["from"], (self.today - timedelta(days=10)).isoformat())

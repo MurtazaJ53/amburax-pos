@@ -436,7 +436,7 @@ export default async function HomePage() {
             place and moves only its own rows, so a long alert list cannot
             push the sales feed out of shape. The PAGE still scrolls as
             normal - this bounds the section, not the screen. */}
-        <section className="grid gap-3.5 lg:h-[700px] lg:grid-cols-[1.1fr_1fr]">
+        <section className="grid gap-3.5 lg:h-[600px] lg:grid-cols-[1.1fr_1fr]">
           <Panel
             title="Recent sales"
             action={recentSales.length > 0 ? { label: "View all", href: "/sales" } : undefined}
@@ -499,7 +499,7 @@ export default async function HomePage() {
             <LowStockWatch
               rows={dashboardSnapshot.low_stock_preview ?? []}
               totalCount={lowStockCount}
-              className="min-h-0 flex-[1.4] animate-fade-in-up delay-6"
+              className="min-h-0 flex-1 animate-fade-in-up delay-6"
             />
             <Panel
               title="Needs attention"

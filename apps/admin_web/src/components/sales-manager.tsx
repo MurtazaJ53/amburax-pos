@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Receipt,
   Search,
+  X,
   RotateCcw,
   Lock,
   Undo2,
@@ -13,6 +14,9 @@ import {
 import { MixBar } from "@/components/ui/mix-bar";
 import { StatTile } from "@/components/ui/stat-tile";
 import { shopDateKey } from "@/lib/dashboard-metrics";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { isValidRange, resolveRange } from "@/lib/date-ranges";
+import type { DateRange, RangeKey } from "@/lib/date-ranges";
 import {
   closeRequestBody,
   discrepancy,
@@ -27,6 +31,16 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { SaleReturnSheet } from "@/components/sale-return-sheet";
 import { ThermalReceiptModal } from "@/components/thermal-receipt-modal";
 import type { CartItem, SplitPaymentTender } from "@/lib/types";
+
+/** The payment slices worth a single click. "All" first, then the tenders in
+ *  the order a counter sees them. */
+const PAYMENT_CHIPS = [
+  { key: "all", label: "All" },
+  { key: "cash", label: "Cash" },
+  { key: "upi", label: "UPI / QR" },
+  { key: "card", label: "Card" },
+  { key: "khata", label: "Khata" },
+] as const;
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -183,6 +197,21 @@ export function SalesManager({
   
   const [search, setSearch] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
+  // The period is asked of the SERVER. Filtering whatever page of sales the
+  // browser happened to hold meant a bill from last year was unreachable no
+  // matter what was typed.
+  const [rangeKey, setRangeKey] = useState<RangeKey>("last30");
+  const [customRange, setCustomRange] = useState<DateRange>({ from: "", to: "" });
+
+  const shopToday = useMemo(() => shopDateKey(new Date(), timeZone), [timeZone]);
+  const range = useMemo(
+    () => resolveRange(rangeKey, shopToday, customRange),
+    [rangeKey, shopToday, customRange],
+  );
+  // A custom range is only asked for once both ends are set; a half-typed
+  // date would otherwise narrow the list to nothing mid-keystroke.
+  const rangeIsBounded =
+    !range.unbounded && (rangeKey !== "custom" || isValidRange(customRange));
   const [activeView, setActiveView] = useState<"history" | "dayclose">("history");
 
   // Receipt Modal state
@@ -273,7 +302,14 @@ export function SalesManager({
   async function fetchSales() {
     try {
       setIsLoading(true);
-      const res = await fetch("/api/sales");
+      const query = new URLSearchParams();
+      // All time sends no window at all.
+      if (rangeIsBounded) {
+        query.set("date_from", range.from);
+        query.set("date_to", range.to);
+      }
+      const suffix = query.toString() ? `?${query.toString()}` : "";
+      const res = await fetch(`/api/sales${suffix}`);
       if (!res.ok) throw new Error("Failed to load sales history");
       const data = await res.json();
       
@@ -285,6 +321,14 @@ export function SalesManager({
       setIsLoading(false);
     }
   }
+
+  // Reload whenever the period changes. The server-rendered list that
+  // arrives as a prop covers no particular window, so the first run also
+  // makes the rows match the label above them.
+  useEffect(() => {
+    void fetchSales();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range.from, range.to, range.unbounded, rangeIsBounded]);
 
   const handleVoidSale = async (saleId: string) => {
     if (!confirm("Are you sure you want to void this sale? This will reverse the transaction and restock inventory.")) return;
@@ -449,30 +493,71 @@ export function SalesManager({
             </div>
           </div>
 
-          {/* Filter Bar */}
-          <div className="p-4 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl flex flex-col md:flex-row items-center gap-3">
-            <div className="relative flex-1 w-full">
-              <Search className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by invoice # or customer name..."
-                className="w-full pl-10 pr-4 py-2 bg-[var(--surface-muted)] border border-[var(--border-soft)] focus:border-[var(--primary)] rounded-xl text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none"
+          {/* Find, then narrow. The search box is sized to what it holds - a
+              receipt number or a name - rather than eating the row, which
+              left the actual filters crowded into the leftover space. */}
+          <div className="flex flex-col gap-2.5 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] p-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="relative w-full sm:w-[280px]">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Invoice # or customer"
+                  aria-label="Search sales"
+                  className="w-full rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface-muted)] py-2 pl-9 pr-8 text-[12.5px] font-medium text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-tertiary)] focus:border-[var(--primary)]"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    aria-label="Clear search"
+                    className="focus-ring absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 cursor-pointer place-items-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-base)] hover:text-[var(--text-primary)]"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <DateRangePicker
+                value={rangeKey}
+                custom={customRange}
+                today={shopToday}
+                onChange={(key, next) => {
+                  setRangeKey(key);
+                  setCustomRange(next);
+                }}
+                className="w-full sm:w-[190px]"
               />
+
+              <span className="ml-auto text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+                {isLoading
+                  ? "Loading..."
+                  : `${filteredSales.length} of ${sales.length} in ${range.label.toLowerCase()}`}
+              </span>
             </div>
 
-            <select
-              value={paymentFilter}
-              onChange={(e) => setPaymentFilter(e.target.value)}
-              className="px-3 py-2 bg-[var(--surface-muted)] border border-[var(--border-soft)] text-xs text-[var(--text-primary)] rounded-xl outline-none"
-            >
-              <option value="all">All Payment Methods</option>
-              <option value="cash">Cash Only</option>
-              <option value="upi">UPI / QR Only</option>
-              <option value="card">Card Only</option>
-              <option value="khata">Khata Credit Only</option>
-            </select>
+            <div className="no-scrollbar flex items-center gap-2 overflow-x-auto border-t border-[var(--border-soft)] pt-2.5">
+              {PAYMENT_CHIPS.map((chip) => {
+                const active = paymentFilter === chip.key;
+                return (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => setPaymentFilter(chip.key)}
+                    aria-pressed={active}
+                    className={`focus-ring shrink-0 cursor-pointer whitespace-nowrap rounded-full border px-3.5 py-2 text-[11.5px] font-bold transition-colors ${
+                      active
+                        ? "border-[var(--primary)] bg-[var(--primary)]/12 text-[var(--primary-dark)]"
+                        : "border-[var(--border-soft)] bg-[var(--surface)] text-[var(--text-secondary)] hover:border-[var(--border)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Only the rows move. The figures above and the column headings

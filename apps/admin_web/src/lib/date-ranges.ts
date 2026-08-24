@@ -15,7 +15,9 @@ export type RangeKey =
   | "last7"
   | "last30"
   | "last90"
+  | "last180"
   | "last365"
+  | "all"
   | "custom";
 
 /** How the series should be bucketed. A year of daily bars is unreadable. */
@@ -34,6 +36,9 @@ export type ResolvedRange = DateRange & {
   granularity: Granularity;
   /** How the comparison chip should read, e.g. "vs yesterday". */
   comparisonLabel: string;
+  /** True when the window has no start date - "all time". `from` is empty,
+   *  and callers must omit it rather than sending "" as a date. */
+  unbounded: boolean;
 };
 
 export const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
@@ -42,7 +47,9 @@ export const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
   { key: "last7", label: "Last 7 days" },
   { key: "last30", label: "Last 30 days" },
   { key: "last90", label: "Last 3 months" },
-  { key: "last365", label: "Last 1 year" },
+  { key: "last180", label: "Last 6 months" },
+  { key: "last365", label: "Last 12 months" },
+  { key: "all", label: "All time" },
   { key: "custom", label: "Custom dates" },
 ];
 
@@ -106,6 +113,7 @@ export function resolveRange(
     to,
     label,
     comparisonLabel,
+    unbounded: false,
     granularity: granularityFor({ from, to }),
   });
 
@@ -120,8 +128,22 @@ export function resolveRange(
       return build(shiftDate(today, -29), today, "Last 30 days", "vs the 30 days before");
     case "last90":
       return build(shiftDate(today, -89), today, "Last 3 months", "vs the 3 months before");
+    case "last180":
+      return build(shiftDate(today, -179), today, "Last 6 months", "vs the 6 months before");
     case "last365":
-      return build(shiftDate(today, -364), today, "Last 1 year", "vs the year before");
+      return build(shiftDate(today, -364), today, "Last 12 months", "vs the year before");
+    case "all":
+      // No start date. There is nothing before all of history, so no
+      // comparison is offered rather than one being invented.
+      return {
+        key,
+        from: "",
+        to: today,
+        label: "All time",
+        comparisonLabel: "",
+        unbounded: true,
+        granularity: "month" as Granularity,
+      };
     case "custom": {
       // A half-filled custom range must not silently become something else.
       // Falling back to today keeps the screen honest until both ends are set.

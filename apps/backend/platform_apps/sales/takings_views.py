@@ -91,14 +91,33 @@ class SaleTakingsView(APIView):
         shop = membership.shop
         today = timezone.localdate()
 
-        date_from = _parse(request.query_params.get("from"), "from", today)
-        date_to = _parse(request.query_params.get("to"), "to", today)
-        if date_from > date_to:
-            # Obvious what was meant; refusing it would be pedantry.
-            date_from, date_to = date_to, date_from
+        # "All time" has no start date, so one is found rather than guessed:
+        # the shop's first trading day. Without it the series would have to
+        # begin at an arbitrary date and draw empty months before the shop
+        # existed.
+        all_time = str(request.query_params.get("all") or "").lower() in {"1", "true", "yes"}
+        if all_time:
+            earliest = (
+                Sale.objects.filter(shop=shop, tombstone=False)
+                .exclude(status=Sale.Status.VOID)
+                .order_by("sale_date")
+                .values_list("sale_date", flat=True)
+                .first()
+            )
+            date_from = earliest or today
+            date_to = today
+        else:
+            date_from = _parse(request.query_params.get("from"), "from", today)
+            date_to = _parse(request.query_params.get("to"), "to", today)
+            if date_from > date_to:
+                # Obvious what was meant; refusing it would be pedantry.
+                date_from, date_to = date_to, date_from
 
         span = (date_to - date_from).days + 1
-        if span > MAX_RANGE_DAYS:
+        # The length guard exists to stop an unbounded scan being asked for by
+        # accident. All time is asked for on purpose, and its start is a real
+        # date from the shop's own history, so it is exempt.
+        if not all_time and span > MAX_RANGE_DAYS:
             raise exceptions.ValidationError(
                 {"detail": f"Range too long. Ask for {MAX_RANGE_DAYS} days or fewer."}
             )
