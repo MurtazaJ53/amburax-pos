@@ -88,6 +88,11 @@ from platform_apps.sales.return_views import (
     SaleReturnableView,
 )
 from platform_apps.sales.pulse_views import BestSellersView, CashFlowView
+from platform_apps.sales.takings_views import SaleTakingsView
+from platform_apps.sales.register_views import (
+    RegisterSessionHistoryView,
+    RegisterSessionView,
+)
 from platform_apps.sales.views import (
     SaleStaffPerformanceView,
     SaleTallyExportView,
@@ -318,6 +323,21 @@ urlpatterns = [
         "<uuid:shop_id>/reports/day-book/",
         DayBookView.as_view(),
         name="report-day-book",
+    ),
+    path(
+        "<uuid:shop_id>/sales/takings/",
+        SaleTakingsView.as_view(),
+        name="sale-takings",
+    ),
+    path(
+        "<uuid:shop_id>/sales/register/",
+        RegisterSessionView.as_view(),
+        name="register-session",
+    ),
+    path(
+        "<uuid:shop_id>/sales/register/history/",
+        RegisterSessionHistoryView.as_view(),
+        name="register-session-history",
     ),
     path("<uuid:shop_id>/sales/summary/", SaleSummaryView.as_view(), name="sale-summary"),
     path("<uuid:shop_id>/sales/summary/gst/", SaleGstSummaryView.as_view(), name="sale-gst-summary"),

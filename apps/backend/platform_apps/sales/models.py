@@ -266,3 +266,65 @@ class SaleReturnLine(SourceTrackedModel):
 
     def __str__(self) -> str:
         return f"{self.name_snapshot} x{self.quantity}"
+
+
+class RegisterSession(SourceTrackedModel):
+    """One day's cash-drawer reconciliation, kept on the server.
+
+    Until now a day close lived in the browser's localStorage, which meant the
+    figure that decides whether a cashier is short lived on one machine, could
+    be wiped by clearing site data, and could not be reviewed by the owner from
+    anywhere else. For a cash-control record that is not good enough.
+
+    `expected_cash` and `cash_sales` are stored rather than recomputed on read.
+    A close is a statement about what was true at the moment the drawer was
+    counted; a later void, return or backdated sale must not silently rewrite
+    yesterday's over/short. The live figures still drive the screen while the
+    day is open — the snapshot is taken when the day is locked.
+    """
+
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="register_sessions")
+    # Shop-local trading date, not a timestamp: a day close belongs to the
+    # business day the shopkeeper thinks in, which is not a UTC calendar day.
+    business_date = models.DateField()
+    opening_float = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    counted_cash = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    # Snapshotted at lock time; null while the day is still open.
+    cash_sales = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    expected_cash = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    # counted - expected. Positive is over, negative is short. Null until the
+    # day is locked, because a difference against an uncounted drawer is not a
+    # difference.
+    discrepancy = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    # True once the opening float has actually been typed by a person. Without
+    # it, a zero float is indistinguishable from an unanswered question, and
+    # every over/short reading built on it is fiction.
+    float_entered = models.BooleanField(default=False)
+    notes = models.TextField(blank=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="register_sessions_closed",
+        blank=True,
+        null=True,
+    )
+    closed_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["-business_date"]
+        constraints = [
+            # One close per shop per day. Without this, two cashiers hitting
+            # "lock" produce two contradictory records of the same drawer.
+            models.UniqueConstraint(
+                fields=["shop", "business_date"],
+                name="unique_register_session_per_shop_day",
+            )
+        ]
+        indexes = [models.Index(fields=["shop", "business_date"])]
+
+    def __str__(self) -> str:
+        return f"Register {self.shop_id} {self.business_date}"
+
+    @property
+    def is_locked(self) -> bool:
+        return self.closed_at is not None

@@ -1,0 +1,241 @@
+"""Takings over any window the shopkeeper asks for.
+
+The dashboard could only ever answer "today". Every other question - how was
+last month, is this quarter better than the last, what did the year do - meant
+reading the sales list by eye.
+
+Three things this does that the existing summary endpoint does not:
+
+- Buckets the window into a series, so the shape of the period is visible and
+  not just its total.
+- Reads the payment mix from TENDER ROWS rather than `Sale.payment_mode`. A
+  split bill is stored as SPLIT, so bucketing on the mode loses the cash and
+  the UPI inside it entirely.
+- Returns the immediately preceding, equally long window, so the comparison is
+  computed on the server against all sales rather than against whatever page
+  of history the browser happens to be holding.
+"""
+from __future__ import annotations
+
+from datetime import date as date_cls, timedelta
+from decimal import Decimal
+
+from django.db.models import Count, DecimalField, Sum, Value
+from django.db.models.functions import Coalesce
+from django.utils import timezone
+from rest_framework import exceptions, permissions
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from platform_apps.payments.models import SalePayment
+from platform_apps.sales.models import Sale
+from platform_apps.shops.models import ShopMembership
+from platform_apps.shops.permissions import get_membership_or_403
+
+_ZERO = Decimal("0.00")
+
+#: A window longer than this is refused rather than served slowly. Five years
+#: is past any question a shop counter asks, and an unbounded range invites a
+#: scan of the whole sales table.
+MAX_RANGE_DAYS = 366 * 5
+
+MIX_LABELS = {
+    "CASH": "Cash",
+    "UPI": "UPI",
+    "CARD": "Card",
+    "BANK": "Bank",
+    "CREDIT": "Khata",
+    "OTHER": "Other",
+}
+
+
+def _parse(raw, field: str, fallback: date_cls) -> date_cls:
+    text = str(raw or "").strip()
+    if not text:
+        return fallback
+    try:
+        return date_cls.fromisoformat(text)
+    except ValueError:
+        raise exceptions.ValidationError({field: "Expected YYYY-MM-DD."})
+
+
+def _money(value) -> Decimal:
+    return (value or _ZERO).quantize(Decimal("0.01"))
+
+
+def _sum(queryset, field: str) -> Decimal:
+    return _money(
+        queryset.aggregate(
+            total=Coalesce(
+                Sum(field),
+                Value(_ZERO),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            )
+        )["total"]
+    )
+
+
+class SaleTakingsView(APIView):
+    """Totals, mix and a series for one date window."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, shop_id):
+        membership = get_membership_or_403(
+            request.user, shop_id, ShopMembership.Role.VIEWER
+        )
+        shop = membership.shop
+        today = timezone.localdate()
+
+        date_from = _parse(request.query_params.get("from"), "from", today)
+        date_to = _parse(request.query_params.get("to"), "to", today)
+        if date_from > date_to:
+            # Obvious what was meant; refusing it would be pedantry.
+            date_from, date_to = date_to, date_from
+
+        span = (date_to - date_from).days + 1
+        if span > MAX_RANGE_DAYS:
+            raise exceptions.ValidationError(
+                {"detail": f"Range too long. Ask for {MAX_RANGE_DAYS} days or fewer."}
+            )
+
+        sales = self._sales(shop, date_from, date_to)
+        total = _sum(sales, "total_amount")
+        bill_count = sales.count()
+
+        # The preceding window of EQUAL length. Comparing a 30-day month
+        # against a 31-day one manufactures a change that did not happen.
+        previous_to = date_from - timedelta(days=1)
+        previous_from = previous_to - timedelta(days=span - 1)
+        previous_total = _sum(
+            self._sales(shop, previous_from, previous_to), "total_amount"
+        )
+
+        return Response(
+            {
+                "from": date_from.isoformat(),
+                "to": date_to.isoformat(),
+                "days": span,
+                "total": total,
+                "bill_count": bill_count,
+                "average_bill": (
+                    (total / bill_count).quantize(Decimal("0.01")) if bill_count else _ZERO
+                ),
+                "previous_total": previous_total,
+                "previous_from": previous_from.isoformat(),
+                "previous_to": previous_to.isoformat(),
+                "mix": self._mix(shop, date_from, date_to),
+                "series": self._series(shop, date_from, date_to, span),
+                "granularity": self._granularity(span),
+            }
+        )
+
+    # --- pieces ----------------------------------------------------------
+
+    @staticmethod
+    def _sales(shop, date_from: date_cls, date_to: date_cls):
+        # Voided sales are excluded everywhere: a refunded bill that still
+        # counts toward takings is a figure nobody can reconcile.
+        return Sale.objects.filter(
+            shop=shop,
+            tombstone=False,
+            sale_date__gte=date_from,
+            sale_date__lte=date_to,
+        ).exclude(status=Sale.Status.VOID)
+
+    @staticmethod
+    def _granularity(span: int) -> str:
+        if span <= 1:
+            return "hour"
+        if span <= 92:
+            return "day"
+        return "month"
+
+    def _mix(self, shop, date_from: date_cls, date_to: date_cls):
+        """How the money actually arrived, read from the tenders."""
+        rows = (
+            SalePayment.objects.filter(
+                sale__shop=shop,
+                sale__tombstone=False,
+                sale__sale_date__gte=date_from,
+                sale__sale_date__lte=date_to,
+            )
+            .exclude(sale__status=Sale.Status.VOID)
+            .values("payment_method")
+            .annotate(
+                amount=Coalesce(
+                    Sum("amount"),
+                    Value(_ZERO),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                ),
+                count=Count("id"),
+            )
+        )
+        mix = [
+            {
+                "key": (row["payment_method"] or "OTHER").upper(),
+                "label": MIX_LABELS.get(
+                    (row["payment_method"] or "OTHER").upper(),
+                    (row["payment_method"] or "OTHER").title(),
+                ),
+                "amount": _money(row["amount"]),
+                "count": row["count"],
+            }
+            for row in rows
+            if (row["amount"] or _ZERO) > _ZERO
+        ]
+        mix.sort(key=lambda slice_: slice_["amount"], reverse=True)
+        return mix
+
+    def _series(self, shop, date_from: date_cls, date_to: date_cls, span: int):
+        """Buckets for the chart, with empty periods kept.
+
+        Dropping a zero day would compress a quiet week into a shorter line
+        and make a slump look like normal trading.
+        """
+        granularity = self._granularity(span)
+        sales = self._sales(shop, date_from, date_to)
+
+        if granularity == "hour":
+            buckets = {hour: _ZERO for hour in range(24)}
+            for sale in sales.only("occurred_at", "total_amount"):
+                local = timezone.localtime(sale.occurred_at)
+                buckets[local.hour] += sale.total_amount or _ZERO
+            return [
+                {"label": f"{hour:02d}:00", "amount": _money(amount)}
+                for hour, amount in sorted(buckets.items())
+            ]
+
+        totals = {
+            row["sale_date"]: row["amount"]
+            for row in sales.values("sale_date").annotate(
+                amount=Coalesce(
+                    Sum("total_amount"),
+                    Value(_ZERO),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                )
+            )
+        }
+
+        if granularity == "day":
+            series = []
+            cursor = date_from
+            while cursor <= date_to:
+                series.append(
+                    {"label": cursor.isoformat(), "amount": _money(totals.get(cursor))}
+                )
+                cursor += timedelta(days=1)
+            return series
+
+        months: dict[str, Decimal] = {}
+        cursor = date_from
+        while cursor <= date_to:
+            months.setdefault(f"{cursor.year:04d}-{cursor.month:02d}", _ZERO)
+            cursor += timedelta(days=1)
+        for day, amount in totals.items():
+            key = f"{day.year:04d}-{day.month:02d}"
+            months[key] = months.get(key, _ZERO) + (amount or _ZERO)
+        return [
+            {"label": label, "amount": _money(amount)}
+            for label, amount in sorted(months.items())
+        ]
