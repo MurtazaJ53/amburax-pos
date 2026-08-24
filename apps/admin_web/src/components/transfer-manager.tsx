@@ -253,7 +253,7 @@ export function TransferManager({
             <button
               type="button"
               onClick={() => setComposing((v) => !v)}
-              className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2 text-xs font-extrabold text-white hover:bg-[var(--primary-hover)]"
+              className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)]/12 px-4 py-2 text-xs font-extrabold text-[var(--primary-dark)] hover:bg-[var(--primary-hover)] border border-[var(--primary)]/25"
             >
               {composing ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
               {composing ? "Cancel" : "Send stock"}
@@ -405,7 +405,7 @@ export function TransferManager({
             type="button"
             onClick={() => void submit()}
             disabled={submitting}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-6 py-3.5 text-sm font-extrabold text-white hover:bg-[var(--primary-hover)] disabled:opacity-50"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)]/12 px-6 py-3.5 text-sm font-extrabold text-[var(--primary-dark)] hover:bg-[var(--primary-hover)] disabled:opacity-50 border border-[var(--primary)]/25"
           >
             <TruckIcon className="w-4 h-4" />
             {submitting ? "Sending…" : "Send stock"}

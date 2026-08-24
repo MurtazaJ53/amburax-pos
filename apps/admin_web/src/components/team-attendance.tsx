@@ -3,6 +3,10 @@
 import { useT } from "@/lib/i18n";
 
 import React, { useState, useMemo } from "react";
+import { StatTile } from "@/components/ui/stat-tile";
+import { formatRole } from "@/lib/formatters";
+import { summariseWeek, weekStart } from "@/lib/attendance-week";
+import { shopDateKey } from "@/lib/dashboard-metrics";
 import {
   Plus,
   Shield,
@@ -26,9 +30,18 @@ interface TeamAttendanceProps {
   initialSessions: AttendanceSession[];
   initialSummary: AttendanceSummaryPayload;
   shopId: string;
+  /** The shop's IANA timezone, for deciding which week is the current one. */
+  timeZone?: string;
 }
 
-export function TeamAttendance({ initialTeam, initialSessions, initialSummary }: TeamAttendanceProps) {
+export function TeamAttendance({
+  initialTeam,
+  initialSessions,
+  initialSummary,
+  // The week has to be the shop's week. A UTC clock rolls over five and a
+  // half hours early for an Indian shop, which would move Monday.
+  timeZone = "Asia/Kolkata",
+}: TeamAttendanceProps) {
   const t = useT();
   const [staff, setStaff] = useState<WorkspaceTeamMemberPayload[]>(initialTeam ?? []);
   const [attendance, setAttendance] = useState<AttendanceSession[]>(initialSessions ?? []);
@@ -65,6 +78,25 @@ export function TeamAttendance({ initialTeam, initialSessions, initialSummary }:
   const myMember = useMemo(() => {
     return staff.find((member) => member.is_current_user) ?? null;
   }, [staff]);
+
+  /** Everyone clocked in and not yet clocked out. The one question this
+   *  screen exists to answer and never did. */
+  /** The current week's timesheet, rolled up from the sessions already
+   *  loaded — no extra request, and the same figures wages are paid on. */
+  const weekStartKey = useMemo(
+    () => weekStart(shopDateKey(new Date(), timeZone)),
+    [timeZone],
+  );
+
+  const weekRows = useMemo(
+    () => summariseWeek(attendance, weekStartKey),
+    [attendance, weekStartKey],
+  );
+
+  const openShifts = useMemo(
+    () => attendance.filter((session) => session.clock_in_at && !session.clock_out_at),
+    [attendance],
+  );
 
   const myActiveSession = useMemo(() => {
     if (!myMember) return null;
@@ -255,7 +287,7 @@ export function TeamAttendance({ initialTeam, initialSessions, initialSummary }:
 
           <button
             onClick={() => setIsInviteOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 text-xs font-semibold rounded-xl"
           >
             <Plus className="w-4 h-4" />
             <span>Invite Team Member</span>
@@ -263,29 +295,159 @@ export function TeamAttendance({ initialTeam, initialSessions, initialSummary }:
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl">
-          <div className="text-xs text-[var(--text-tertiary)] font-medium">Total Roster Strength</div>
-          <div className="text-2xl font-black text-text-primary font-mono mt-1">
-            {staff.length}
-          </div>
-        </div>
-
-        <div className="p-4 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl">
-          <div className="text-xs text-[var(--text-tertiary)] font-medium">Present Workers Today</div>
-          <div className="text-2xl font-black text-[var(--success-strong)] font-mono mt-1">
-            {summary.active_workers_today}
-          </div>
-        </div>
-
-        <div className="p-4 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl">
-          <div className="text-xs text-[var(--text-tertiary)] font-medium">Total Attendance Logs</div>
-          <div className="text-2xl font-black text-blue-500 font-mono mt-1">
-            {summary.total_sessions}
-          </div>
-        </div>
+      {/* Four figures about the roster */}
+      <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+        <StatTile
+          label="Roster"
+          value={String(staff.length)}
+          note={`${staff.filter((m) => m.status === "active").length} active`}
+          className="animate-fade-in-up delay-1"
+        />
+        <StatTile
+          label="On shift now"
+          value={String(openShifts.length)}
+          note={
+            openShifts.length === 0
+              ? "Nobody is clocked in"
+              : openShifts.map((sh) => sh.member_name).join(", ")
+          }
+          tone={openShifts.length > 0 ? "good" : "neutral"}
+          noteToneOverride="neutral"
+          className="animate-fade-in-up delay-2"
+        />
+        <StatTile
+          label="Present today"
+          value={String(summary.active_workers_today)}
+          note={`of ${staff.length} on the roster`}
+          className="animate-fade-in-up delay-3"
+        />
+        <StatTile
+          label="Attendance logs"
+          value={String(summary.total_sessions)}
+          note="Recorded all time"
+          className="animate-fade-in-up delay-4"
+        />
       </div>
+
+      {/* Who is actually on the counter. The page has always promised shift
+          monitoring; until now it showed a roster and left you to guess. */}
+      {openShifts.length > 0 && (
+        <div className="rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm animate-fade-in-up delay-3">
+          <div className="mb-3 flex items-center gap-2.5">
+            <h3 className="text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
+              On the counter right now
+            </h3>
+            <span className="tnum rounded-md bg-[var(--success)]/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[var(--success-strong)]">
+              {openShifts.length}
+            </span>
+          </div>
+
+          <ul className="m-0 flex list-none flex-wrap gap-2.5 p-0">
+            {openShifts.map((shift) => (
+              <li
+                key={shift.id}
+                className="flex items-center gap-2.5 rounded-[12px] border border-[var(--success)]/40 bg-[var(--success)]/10 px-3 py-2"
+              >
+                <span className="grid h-7 w-7 flex-none place-items-center rounded-lg bg-[var(--success)] text-[11px] font-extrabold text-white">
+                  {(shift.member_name || "?").charAt(0).toUpperCase()}
+                </span>
+                <span>
+                  <span className="block text-[12.5px] font-extrabold text-[var(--success-strong)]">
+                    {shift.member_name}
+                    {shift.member_role ? ` · ${formatRole(shift.member_role)}` : ""}
+                  </span>
+                  <span className="mt-0.5 block font-mono text-[10.5px] font-semibold text-[var(--success-strong)] opacity-80">
+                    {shift.clock_in_at
+                      ? `since ${new Date(shift.clock_in_at).toLocaleTimeString("en-IN", {
+                          timeStyle: "short",
+                        })}`
+                      : "clock-in time not recorded"}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* The week behind wages. Days present, hours and overtime are what a
+          shopkeeper actually pays on; the session log alone does not answer it. */}
+      {weekRows.length > 0 && (
+        <div className="overflow-hidden rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm animate-fade-in-up delay-4">
+          <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--border-soft)] px-4 py-3">
+            <h3 className="text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
+              This week
+            </h3>
+            <span className="rounded-full border border-[var(--border-soft)] bg-[var(--bg-base)] px-2.5 py-1 font-mono text-[11px] font-bold text-[var(--text-secondary)]">
+              from {new Date(weekStartKey).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+              })}
+            </span>
+            <span className="ml-auto font-mono text-[11px] font-medium text-[var(--text-tertiary)]">
+              {weekRows.reduce((sum, r) => sum + r.hours, 0).toFixed(1)} hours total
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-[var(--border-soft)] bg-[var(--bg-soft)] font-mono text-[9.5px] font-semibold uppercase tracking-[0.13em] text-[var(--text-tertiary)]">
+                  <th className="px-4 py-2.5">Member</th>
+                  <th className="px-4 py-2.5">Role</th>
+                  <th className="px-4 py-2.5 text-right">Days present</th>
+                  <th className="px-4 py-2.5 text-right">Hours</th>
+                  <th className="px-4 py-2.5 text-right">Overtime</th>
+                  <th className="px-4 py-2.5">Now</th>
+                </tr>
+              </thead>
+              <tbody>
+                {weekRows.map((row) => (
+                  <tr
+                    key={row.membershipId}
+                    className="border-b border-[var(--border-soft)] transition-colors last:border-b-0 hover:bg-[var(--bg-base)]"
+                  >
+                    <td className="px-4 py-3 text-[12.5px] font-extrabold text-[var(--text-primary)]">
+                      {row.name}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex rounded-full bg-[var(--primary)]/10 px-2.5 py-1 text-[11px] font-bold text-[var(--primary-hover)]">
+                        {formatRole(row.role)}
+                      </span>
+                    </td>
+                    <td className="tnum px-4 py-3 text-right font-mono text-[12.5px] font-semibold">
+                      {row.daysPresent}
+                    </td>
+                    <td className="tnum px-4 py-3 text-right font-mono text-[12.5px] font-bold text-[var(--text-primary)]">
+                      {row.hours.toFixed(1)}
+                    </td>
+                    <td
+                      className={`tnum px-4 py-3 text-right font-mono text-[12.5px] font-semibold ${
+                        row.overtime > 0
+                          ? "text-[var(--warning-strong)]"
+                          : "text-[var(--text-tertiary)]"
+                      }`}
+                    >
+                      {row.overtime.toFixed(1)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.onShift ? (
+                        <span className="inline-flex rounded-full bg-[var(--success)]/10 px-2.5 py-1 text-[11px] font-bold text-[var(--success-strong)]">
+                          On shift
+                        </span>
+                      ) : (
+                        <span className="text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+                          Clocked out
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-2 border-b border-[var(--border-soft)]">
@@ -335,7 +497,7 @@ export function TeamAttendance({ initialTeam, initialSessions, initialSummary }:
                 {staff.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-xs text-[var(--text-tertiary)]">
-                      No staff members enrolled yet.
+                      No staff yet. Invite a cashier and they will appear here with their role and shift history.
                     </td>
                   </tr>
                 ) : (
@@ -347,11 +509,19 @@ export function TeamAttendance({ initialTeam, initialSessions, initialSummary }:
                       <td className="py-3 px-4 text-[var(--text-secondary)] font-mono">
                         {member.member_email}
                       </td>
-                      <td className="py-3 px-4 capitalize">
-                        <span className="inline-flex items-center gap-1">
-                          <Shield className="w-3.5 h-3.5 text-blue-500" />
-                          <span className="text-[var(--text-secondary)]">{member.role}</span>
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--primary)]/10 px-2.5 py-1 text-[11px] font-bold text-[var(--primary-hover)]">
+                          <Shield className="h-3 w-3" />
+                          {member.role_label || formatRole(member.role)}
                         </span>
+                        {/* What the role actually permits. The server has sent
+                            this all along; the cell showed the bare word, which
+                            tells whoever is assigning it nothing. */}
+                        {member.role_summary && (
+                          <span className="mt-1 block text-[11px] font-semibold text-[var(--text-tertiary)]">
+                            {member.role_summary}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-4 font-mono text-[var(--text-tertiary)]">
                         {member.phone || "—"}
@@ -527,7 +697,7 @@ export function TeamAttendance({ initialTeam, initialSessions, initialSummary }:
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 text-xs font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-semibold text-[var(--primary-dark)] bg-[var(--primary)]/12/12 hover:bg-[var(--primary)]/12/20 rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50 border border-[var(--primary)]/25"
                 >
                   {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>Send Invitation</span>
@@ -625,7 +795,7 @@ export function TeamAttendance({ initialTeam, initialSessions, initialSummary }:
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 text-xs font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-semibold text-[var(--primary-dark)] bg-[var(--primary)]/12/12 hover:bg-[var(--primary)]/12/20 rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50 border border-[var(--primary)]/25"
                 >
                   {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>Save Record</span>

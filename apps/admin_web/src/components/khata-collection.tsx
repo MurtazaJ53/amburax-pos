@@ -288,7 +288,7 @@ export function KhataCollection({
             <button
               type="button"
               onClick={() => void startRound()}
-              className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-2.5 text-xs font-extrabold text-white hover:bg-[var(--primary-hover)]"
+              className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)]/12 px-5 py-2.5 text-xs font-extrabold text-[var(--primary-dark)] hover:bg-[var(--primary-hover)] border border-[var(--primary)]/25"
             >
               <Send className="w-3.5 h-3.5" />
               Remind everyone ({chaseable})
@@ -314,7 +314,7 @@ export function KhataCollection({
                 <button
                   type="button"
                   onClick={() => void sendCurrent()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2 text-xs font-extrabold text-white hover:bg-[var(--primary-hover)]"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)]/12 px-4 py-2 text-xs font-extrabold text-[var(--primary-dark)] hover:bg-[var(--primary-hover)] border border-[var(--primary)]/25"
                 >
                   <Send className="w-3.5 h-3.5" />
                   Open WhatsApp
@@ -414,7 +414,7 @@ export function KhataCollection({
                 className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold disabled:opacity-40 ${
                   debtor.reminded_today
                     ? "border border-border-soft text-text-secondary"
-                    : "bg-[var(--primary)] text-white"
+                    : "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20"
                 }`}
               >
                 <MessageCircle className="w-3.5 h-3.5" />

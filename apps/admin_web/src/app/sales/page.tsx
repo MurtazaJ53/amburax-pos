@@ -1,6 +1,13 @@
 import { SalesManager } from "@/components/sales-manager";
 import { AdminShell } from "@/components/admin-shell";
-import { getSession, resolveActiveShop, getSales, getSalesSummary } from "@/lib/admin-api";
+import { refundsBySale } from "@/lib/sale-returns";
+import {
+  getSaleReturns,
+  getSales,
+  getSalesSummary,
+  getSession,
+  resolveActiveShop,
+} from "@/lib/admin-api";
 
 export const metadata = {
   title: "Sales History & Orders | Business Hub",
@@ -12,20 +19,33 @@ export default async function SalesPage() {
   const activeShop = resolveActiveShop(session);
   const shopId = activeShop?.shop.id || "";
 
-  const [sales, summary] = await Promise.all([
+  const [sales, summary, returns] = await Promise.all([
     getSales(shopId),
     getSalesSummary(shopId),
+    // A bill that was sent back looks identical to one that was not, because
+    // the return is a separate document. Reading them here is what lets the
+    // table say so.
+    getSaleReturns(shopId).catch(() => []),
   ]);
+
+  const refundedBySale = refundsBySale(returns);
 
   return (
     <AdminShell
       session={session}
       activeShop={activeShop}
       activeRoute="sales"
+      fitViewport
       title="Sales History & Invoices"
       subtitle="Complete transaction logs, customer invoices, payment breakdowns, and returns"
     >
-      <SalesManager initialSales={sales} initialSummary={summary} shopId={shopId} />
+      <SalesManager
+        initialSales={sales}
+        initialSummary={summary}
+        shopId={shopId}
+        refundedBySale={refundedBySale}
+        timeZone={activeShop?.shop.timezone || "Asia/Kolkata"}
+      />
     </AdminShell>
   );
 }

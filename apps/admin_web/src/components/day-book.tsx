@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Copy, RefreshCw, Share2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Copy, RefreshCw, Share2 } from "lucide-react";
+
+import { addDays, shopDateKey } from "@/lib/dashboard-metrics";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -41,6 +43,20 @@ function money(value: string | number, currency: string): string {
   }
 }
 
+function amount(value: string | undefined): number {
+  const n = parseFloat(String(value ?? "0"));
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** The jama split, in a fixed order so the bar never reshuffles. */
+const JAMA_ROWS = [
+  { key: "cash", label: "Cash", color: "var(--success)" },
+  { key: "upi", label: "UPI", color: "var(--primary-bright)" },
+  { key: "card", label: "Card", color: "var(--violet-strong)" },
+  { key: "bank", label: "Bank", color: "var(--info)" },
+  { key: "khata_repayments", label: "Khata repayments", color: "var(--warning)" },
+] as const;
+
 /**
  * The day's Roj Mel, in the two columns a shopkeeper already keeps on paper.
  *
@@ -49,8 +65,17 @@ function money(value: string | number, currency: string): string {
  * and weak collection reads as healthy on a single revenue figure, and that is
  * exactly the day worth noticing.
  */
-export function DayBook({ upiVpa: _upiVpa = "" }: { upiVpa?: string }) {
-  const today = new Date().toISOString().slice(0, 10);
+export function DayBook({
+  upiVpa: _upiVpa = "",
+  timeZone = "Asia/Kolkata",
+}: {
+  upiVpa?: string;
+  /** The shop's own clock. Without it a Kolkata shop billing after 6:30 PM
+   *  local — when UTC is still on the previous date — would open the book on
+   *  yesterday, because toISOString() reports UTC. */
+  timeZone?: string;
+}) {
+  const today = useMemo(() => shopDateKey(new Date(), timeZone), [timeZone]);
   const [date, setDate] = useState(today);
   const [data, setData] = useState<DayBook | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,8 +93,7 @@ export function DayBook({ upiVpa: _upiVpa = "" }: { upiVpa?: string }) {
       }
       setData(await res.json());
     } catch (err) {
-      setData(null);
-      setError(errorMessage(err, "Something went wrong loading the day book."));
+      setError(errorMessage(err, "Could not load the day book."));
     } finally {
       setLoading(false);
     }
@@ -84,9 +108,9 @@ export function DayBook({ upiVpa: _upiVpa = "" }: { upiVpa?: string }) {
     try {
       await navigator.clipboard.writeText(data.summary_text);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError("Could not copy. Select the summary text and copy it manually.");
+      setError("Could not copy the summary. Select the text and copy it by hand.");
     }
   };
 
@@ -102,133 +126,229 @@ export function DayBook({ upiVpa: _upiVpa = "" }: { upiVpa?: string }) {
   };
 
   const c = data?.currency_code ?? "INR";
+  const isToday = date === today;
+
+  const jamaSegments = useMemo(() => {
+    if (!data) return [];
+    return JAMA_ROWS.map((row) => ({
+      ...row,
+      value: amount(data.jama[row.key]),
+    })).filter((row) => row.value > 0);
+  }, [data]);
+
+  const jamaTotal = jamaSegments.reduce((sum, row) => sum + row.value, 0);
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <input
-          type="date"
-          value={date}
-          max={today}
-          onChange={(e) => setDate(e.target.value)}
-          className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-bold text-[var(--text-primary)]"
-        />
+    <div className="flex flex-col gap-4">
+      {/* Step through days. A date picker is three taps to answer "and
+          yesterday?", which is the question this screen gets asked most. */}
+      <div className="flex flex-wrap items-center gap-2.5 animate-fade-in-up">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setDate(addDays(date, -1))}
+            aria-label="Previous day"
+            className="focus-ring grid h-9 w-9 cursor-pointer place-items-center rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary-hover)]"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
+          <input
+            type="date"
+            value={date}
+            max={today}
+            onChange={(e) => setDate(e.target.value)}
+            aria-label="Day book date"
+            className="rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3.5 py-2 font-mono text-[12.5px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
+          />
+
+          <button
+            type="button"
+            onClick={() => setDate(addDays(date, 1))}
+            disabled={isToday}
+            aria-label="Next day"
+            className="focus-ring grid h-9 w-9 cursor-pointer place-items-center rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        {!isToday && (
+          <button
+            type="button"
+            onClick={() => setDate(today)}
+            className="focus-ring cursor-pointer rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3.5 py-2 text-[12.5px] font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+          >
+            Today
+          </button>
+        )}
+
+        {data && (
+          <span className="font-mono text-[11px] font-medium text-[var(--text-tertiary)]">
+            {data.sales_count} {data.sales_count === 1 ? "bill" : "bills"}
+          </span>
+        )}
+
         <button
           type="button"
           onClick={() => void load()}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-2 text-xs font-extrabold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50"
+          className="focus-ring ml-auto inline-flex cursor-pointer items-center gap-2 rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3.5 py-2 text-[12.5px] font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </button>
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-[var(--error)]/30 bg-[var(--error)]/10 px-5 py-4 text-sm font-semibold text-[var(--error-strong)]">
+        <div className="rounded-[16px] border border-[var(--error)]/30 bg-[var(--error)]/10 px-5 py-4 text-sm font-semibold text-[var(--error-strong)]">
           {error}
+        </div>
+      )}
+
+      {loading && !data && (
+        <div className="grid gap-3.5 sm:grid-cols-2">
+          {[0, 1].map((i) => (
+            <div
+              key={i}
+              className="h-52 animate-pulse rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface-strong)]"
+            />
+          ))}
         </div>
       )}
 
       {data && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* Jama — money in */}
-            <section className="rounded-[24px] border border-[var(--success)]/30 bg-[var(--success)]/5 p-5">
-              <h3 className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[var(--success-strong)]">
+          <div className="grid gap-3.5 sm:grid-cols-2">
+            {/* Jama — money actually received */}
+            <section className="rounded-[20px] border border-[var(--success)]/40 bg-[var(--success)]/10 p-5 animate-fade-in-up delay-1">
+              <h3 className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--success-strong)]">
                 Jama · received
               </h3>
-              <p className="mt-1 text-2xl font-[900] tracking-tight text-[var(--text-primary)]">
+              <p className="tnum mt-1.5 font-mono text-[30px] font-bold leading-none tracking-tight text-[var(--success-strong)]">
                 {money(data.jama.total, c)}
               </p>
-              <dl className="mt-3.5 space-y-1.5 text-xs">
-                {[
-                  ["Cash", data.jama.cash],
-                  ["UPI", data.jama.upi],
-                  ["Card", data.jama.card],
-                  ["Bank", data.jama.bank],
-                  ["Khata repayments", data.jama.khata_repayments],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between gap-3">
-                    <dt className="font-semibold text-[var(--text-secondary)]">{label}</dt>
-                    <dd className="font-extrabold text-[var(--text-primary)] tabular-nums">
-                      {money(value, c)}
-                    </dd>
-                  </div>
-                ))}
+
+              {jamaTotal > 0 && (
+                <div
+                  className="mt-3.5 flex h-2 gap-0.5"
+                  role="img"
+                  aria-label={`Split: ${jamaSegments
+                    .map((row) => `${row.label} ${money(row.value, c)}`)
+                    .join(", ")}`}
+                >
+                  {jamaSegments.map((row) => (
+                    <span
+                      key={row.key}
+                      className="block rounded-full"
+                      style={{ flex: row.value, background: row.color }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <dl className="mt-3.5 space-y-1.5">
+                {JAMA_ROWS.map((row) => {
+                  const value = amount(data.jama[row.key]);
+                  return (
+                    <div key={row.key} className="flex items-center gap-2.5">
+                      <span
+                        className="block h-2 w-2 flex-none rounded-[3px]"
+                        style={{ background: value > 0 ? row.color : "var(--border)" }}
+                        aria-hidden="true"
+                      />
+                      <dt className="text-[12.5px] font-semibold text-[var(--text-secondary)]">
+                        {row.label}
+                      </dt>
+                      <dd className="tnum ml-auto font-mono text-[12.5px] font-bold text-[var(--text-primary)]">
+                        {money(value, c)}
+                      </dd>
+                    </div>
+                  );
+                })}
               </dl>
             </section>
 
-            {/* Udhaar — credit out */}
-            <section className="rounded-[24px] border border-[var(--warning)]/30 bg-[var(--warning)]/5 p-5">
-              <h3 className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[var(--warning-strong)]">
+            {/* Udhaar — value handed over and still owed */}
+            <section className="flex flex-col rounded-[20px] border border-[var(--warning)]/40 bg-[var(--warning)]/10 p-5 animate-fade-in-up delay-2">
+              <h3 className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--warning-strong)]">
                 Udhaar · given
               </h3>
-              <p className="mt-1 text-2xl font-[900] tracking-tight text-[var(--text-primary)]">
+              <p className="tnum mt-1.5 font-mono text-[30px] font-bold leading-none tracking-tight text-[var(--warning-strong)]">
                 {money(data.udhaar.credit_given, c)}
               </p>
-              <dl className="mt-3.5 space-y-1.5 text-xs">
-                <div className="flex justify-between gap-3">
-                  <dt className="font-semibold text-[var(--text-secondary)]">
+
+              <dl className="mt-4 space-y-1.5">
+                <div className="flex items-center gap-3">
+                  <dt className="text-[12.5px] font-semibold text-[var(--text-secondary)]">
                     Customers on credit
                   </dt>
-                  <dd className="font-extrabold text-[var(--text-primary)] tabular-nums">
+                  <dd className="tnum ml-auto font-mono text-[12.5px] font-bold text-[var(--text-primary)]">
                     {data.udhaar.customers}
                   </dd>
                 </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="font-semibold text-[var(--text-secondary)]">Expenses</dt>
-                  <dd className="font-extrabold text-[var(--text-primary)] tabular-nums">
+                <div className="flex items-center gap-3">
+                  <dt className="text-[12.5px] font-semibold text-[var(--text-secondary)]">
+                    Expenses paid out
+                  </dt>
+                  <dd className="tnum ml-auto font-mono text-[12.5px] font-bold text-[var(--text-primary)]">
                     {money(data.money_out.expenses, c)}
                   </dd>
                 </div>
-                <div className="flex justify-between gap-3 border-t border-[var(--border-soft)] pt-1.5">
-                  <dt className="font-semibold text-[var(--text-secondary)]">
-                    Cash in hand
-                  </dt>
-                  <dd className="font-extrabold text-[var(--text-primary)] tabular-nums">
-                    {money(data.cash_in_hand, c)}
-                  </dd>
-                </div>
               </dl>
+
+              {/* The number counted against the drawer at close. */}
+              <div className="mt-auto rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface)] p-3.5">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
+                  Cash in hand
+                </span>
+                <p className="tnum mt-1 font-mono text-[22px] font-bold tracking-tight text-[var(--text-primary)]">
+                  {money(data.cash_in_hand, c)}
+                </p>
+                <p className="mt-1 text-[11px] font-medium text-[var(--text-tertiary)]">
+                  {money(data.jama.cash, c)} cash taken, less{" "}
+                  {money(data.money_out.expenses, c)} paid out
+                </p>
+              </div>
             </section>
           </div>
 
-          <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface)] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-sm font-extrabold text-[var(--text-primary)]">
+          <div className="rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm animate-fade-in-up delay-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h3 className="text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
                 Summary to send
               </h3>
-              <div className="flex items-center gap-2">
+              <span className="rounded-full border border-[var(--border-soft)] bg-[var(--bg-base)] px-2.5 py-1 text-[11px] font-bold text-[var(--text-secondary)]">
+                {data.sales_count} {data.sales_count === 1 ? "bill" : "bills"} on{" "}
+                {new Date(data.date).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </span>
+
+              <div className="ml-auto flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => void copy()}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--border)] px-3.5 py-2 text-xs font-extrabold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  className="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3.5 py-2 text-[12px] font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                 >
-                  <Copy className="w-3.5 h-3.5" />
+                  <Copy className="h-3.5 w-3.5" />
                   {copied ? "Copied" : "Copy"}
                 </button>
                 <button
                   type="button"
                   onClick={share}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--primary)] px-3.5 py-2 text-xs font-extrabold text-white hover:bg-[var(--primary-hover)]"
+                  className="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] bg-[var(--success)] px-3.5 py-2 text-[12px] font-bold text-white transition-colors hover:bg-[var(--success-dark)]"
                 >
-                  <Share2 className="w-3.5 h-3.5" />
+                  <Share2 className="h-3.5 w-3.5" />
                   WhatsApp
                 </button>
               </div>
             </div>
-            <pre className="mt-3 whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-[var(--text-secondary)]">
+
+            <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-[14px] border border-dashed border-[var(--border)] bg-[var(--bg-base)] px-4 py-3.5 font-mono text-[11.5px] leading-[1.75] text-[var(--text-secondary)]">
               {data.summary_text}
             </pre>
-            <p className="mt-2 text-[10px] font-semibold text-[var(--text-tertiary)]">
-              {data.sales_count} bill{data.sales_count === 1 ? "" : "s"} on{" "}
-              {new Date(data.date).toLocaleDateString("en-IN", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </p>
           </div>
         </>
       )}

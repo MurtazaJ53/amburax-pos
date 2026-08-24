@@ -277,7 +277,7 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
 
           <button
             onClick={() => setIsNewPoOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20"
           >
             <Plus className="w-4 h-4" />
             <span>Record Inward PO</span>
@@ -512,7 +512,7 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-5 py-2 text-xs font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-xl shadow-md disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-semibold text-[var(--primary-dark)] bg-[var(--primary)]/12/12 hover:bg-[var(--primary)]/12/20 rounded-xl shadow-md disabled:opacity-50 border border-[var(--primary)]/25"
                 >
                   {isSaving ? "Saving…" : "Record Inward Stock"}
                 </button>
@@ -626,7 +626,7 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-5 py-2 text-xs font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-xl shadow-md disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-semibold text-[var(--primary-dark)] bg-[var(--primary)]/12/12 hover:bg-[var(--primary)]/12/20 rounded-xl shadow-md disabled:opacity-50 border border-[var(--primary)]/25"
                 >
                   {isSaving ? "Saving…" : "Save Supplier"}
                 </button>

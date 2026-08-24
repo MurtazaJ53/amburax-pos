@@ -26,7 +26,11 @@ export default async function DayBookPage() {
           body="This account is signed in, but there is no active shop membership yet."
         />
       ) : (
-        <DayBook upiVpa={activeShop.shop.upi_vpa ?? ""} />
+        <DayBook
+          upiVpa={activeShop.shop.upi_vpa ?? ""}
+          // The book must open on the shop's date, not the server's.
+          timeZone={activeShop.shop.timezone || "Asia/Kolkata"}
+        />
       )}
     </AdminShell>
   );

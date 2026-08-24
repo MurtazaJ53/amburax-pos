@@ -36,7 +36,7 @@ export default function AppError({
           <button
             type="button"
             onClick={reset}
-            className="rounded-2xl bg-[var(--primary)] px-5 py-2.5 text-xs font-extrabold text-white hover:bg-[var(--primary-hover)] transition-colors"
+            className="rounded-2xl bg-[var(--primary)]/12 px-5 py-2.5 text-xs font-extrabold text-[var(--primary-dark)] hover:bg-[var(--primary-hover)] transition-colors border border-[var(--primary)]/25"
           >
             Try again
           </button>

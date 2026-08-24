@@ -333,7 +333,7 @@ export function SpreadsheetImport() {
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-xs font-extrabold text-white"
+          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)]/12 px-5 py-2.5 text-xs font-extrabold text-[var(--primary-dark)] border border-[var(--primary)]/25"
         >
           <Upload className="w-3.5 h-3.5" />
           Choose file
@@ -485,7 +485,7 @@ export function SpreadsheetImport() {
               type="button"
               onClick={() => void runImport()}
               disabled={busy || missingRequired.length > 0 || (preview?.rows.length ?? 0) === 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-xs font-extrabold text-white disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)]/12 px-5 py-2.5 text-xs font-extrabold text-[var(--primary-dark)] disabled:opacity-50 border border-[var(--primary)]/25"
             >
               {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               {busy ? "Importing…" : `Import ${preview?.rows.length ?? 0} rows`}

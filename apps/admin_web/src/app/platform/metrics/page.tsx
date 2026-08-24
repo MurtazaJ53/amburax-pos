@@ -54,15 +54,15 @@ export default async function PlatformMetricsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="panel-soft rounded-[24px] p-6">
             <p className="eyebrow">Total Users</p>
-            <p className="mt-2 text-3xl font-bold text-white">{metrics.total_users}</p>
+            <p className="mt-2 text-3xl font-bold text-[var(--text-primary)]">{metrics.total_users}</p>
           </div>
           <div className="panel-soft rounded-[24px] p-6">
             <p className="eyebrow">New Shops (30d)</p>
-            <p className="mt-2 text-3xl font-bold text-white">{metrics.shops_created_last_30d}</p>
+            <p className="mt-2 text-3xl font-bold text-[var(--text-primary)]">{metrics.shops_created_last_30d}</p>
           </div>
           <div className={`panel-soft rounded-[24px] p-6 border-t-4 ${metrics.open_plan_requests > 0 ? "border-t-[var(--warning)]" : "border-t-transparent"}`}>
             <p className="eyebrow">Open Plan Requests</p>
-            <p className={`mt-2 text-3xl font-bold ${metrics.open_plan_requests > 0 ? "text-[var(--warning)]" : "text-white"}`}>
+            <p className={`mt-2 text-3xl font-bold ${metrics.open_plan_requests > 0 ? "text-[var(--warning)]" : "text-[var(--text-primary)]"}`}>
               {metrics.open_plan_requests}
             </p>
           </div>

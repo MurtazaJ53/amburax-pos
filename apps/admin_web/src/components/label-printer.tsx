@@ -337,7 +337,7 @@ export function LabelPrinter({ shopName }: { shopName: string }) {
               type="button"
               onClick={() => window.print()}
               disabled={sheet.length === 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-6 py-2.5 text-xs font-extrabold text-white hover:bg-[var(--primary-hover)] disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)]/12 px-6 py-2.5 text-xs font-extrabold text-[var(--primary-dark)] hover:bg-[var(--primary-hover)] disabled:opacity-50 border border-[var(--primary)]/25"
             >
               <Printer className="w-3.5 h-3.5" />
               Print labels

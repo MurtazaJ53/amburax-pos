@@ -132,7 +132,7 @@ export default async function KhataStatementPage({
         >
           <span
             className={`text-[10px] font-extrabold uppercase tracking-[0.12em] ${
-              owes ? "text-white/80" : "text-[var(--text-tertiary)]"
+              owes ? "text-[var(--text-primary)]/80" : "text-[var(--text-tertiary)]"
             }`}
           >
             {owes ? "Amount due" : "Your balance"}

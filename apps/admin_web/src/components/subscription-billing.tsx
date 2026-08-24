@@ -228,7 +228,7 @@ export function SubscriptionBilling() {
                 type="button"
                 onClick={() => void checkout(plan.period)}
                 disabled={checkingOut !== null}
-                className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2.5 text-xs font-extrabold text-white disabled:opacity-50"
+                className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--primary)]/12 px-4 py-2.5 text-xs font-extrabold text-[var(--primary-dark)] disabled:opacity-50 border border-[var(--primary)]/25"
               >
                 {checkingOut === plan.period ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />

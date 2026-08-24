@@ -210,7 +210,7 @@ export function LoyaltySettings() {
                     point_value: pointValue,
                   })
                 }
-                className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-xs font-extrabold text-white disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)]/12 px-5 py-2.5 text-xs font-extrabold text-[var(--primary-dark)] disabled:opacity-50 border border-[var(--primary)]/25"
               >
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Save rules

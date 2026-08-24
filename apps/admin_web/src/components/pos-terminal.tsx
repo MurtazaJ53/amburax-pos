@@ -14,7 +14,8 @@ import {
   LayoutGrid,
   List,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatQuantity } from "@/lib/utils";
+import { isOversell, oversellSummary, resultingStock } from "@/lib/oversell";
 import { PosCheckoutModal } from "@/components/pos-checkout-modal";
 import { CameraScanButton } from "@/components/camera-scanner";
 import { ThermalReceiptModal } from "@/components/thermal-receipt-modal";
@@ -26,6 +27,7 @@ import type {
 import type { ProductItem } from "@/components/inventory-manager";
 import { useT } from "@/lib/i18n";
 import { mapInventoryRow } from "@/lib/inventory-rows";
+import { findExistingCustomer } from "@/lib/customer-match";
 import { computeCartTotals } from "@/lib/cart-totals";
 import { stateCodeFromGstin } from "@/lib/gst-states";
 
@@ -128,7 +130,120 @@ export function PosTerminal({
   const commandIdRef = useRef<string>("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
+  const customerInputRef = React.useRef<HTMLInputElement>(null);
+  const customerBoxRef = React.useRef<HTMLDivElement>(null);
+
+
+
+  /** Closes checkout and puts the cursor in the customer field. Khata needs a
+   *  customer, and refusing without offering the fix is what made that
+   *  control feel broken rather than conditional. */
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const [newCustomerError, setNewCustomerError] = useState("");
+
+  /** Creates a customer from whatever was typed in the search box and
+   *  attaches them to the bill.
+   *
+   *  Without this, a first-time khata customer meant leaving the till, going
+   *  to Clients, adding them, coming back and building the cart again — with
+   *  someone waiting at the counter. The typed text is the name; a phone
+   *  number can be added later from Clients. */
+  const createAndAttachCustomer = async () => {
+    const name = customerSearch.trim();
+    if (!name) return;
+    setIsCreatingCustomer(true);
+    setNewCustomerError("");
+    try {
+      const looksLikePhone = /^[0-9+\-\s]{6,}$/.test(name);
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: looksLikePhone ? `Customer ${name}` : name,
+          phone: looksLikePhone ? name.replace(/[^0-9+]/g, "") : "",
+        }),
+      });
+      if (!res.ok) {
+        throw new Error((await res.text()) || "Could not add the customer.");
+      }
+      const created: Customer = await res.json();
+      setCustomers((previous) => [created, ...previous]);
+      setSelectedCustomer(created);
+      setShowCustomerDropdown(false);
+      setCustomerSearch("");
+    } catch (err) {
+      setNewCustomerError(
+        err instanceof Error ? err.message : "Could not add the customer.",
+      );
+    } finally {
+      setIsCreatingCustomer(false);
+    }
+  };
+
+  /** Attaches whoever the cashier named at checkout.
+   *
+   *  An existing phone number wins: opening a second account for someone
+   *  already on the books splits their khata in two, and neither balance is
+   *  then what they actually owe. */
+  const ensureCustomer = async (name: string, phone: string): Promise<Customer | null> => {
+    const existing = findExistingCustomer(customers, name, phone);
+    if (existing) {
+      setSelectedCustomer(existing);
+      return existing;
+    }
+
+    const res = await fetch("/api/customers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: name || `Customer ${phone}`,
+        phone: phone.replace(/[^0-9+]/g, ""),
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(await res.text());
+    }
+    const created: Customer = await res.json();
+    setCustomers((previous) => [created, ...previous]);
+    setSelectedCustomer(created);
+    return created;
+  };
+
+  const focusCustomerField = () => {
+    setShowCustomerDropdown(true);
+    window.setTimeout(() => customerInputRef.current?.focus(), 60);
+  };
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+
+  /** Close the customer list on a click anywhere else, or on Escape.
+   *
+   *  It only closed via its own "Close" button, so it sat open over the cart
+   *  lines while the cashier carried on scanning — hiding the very items they
+   *  were adding. */
+  useEffect(() => {
+    if (!showCustomerDropdown) return;
+
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const box = customerBoxRef.current;
+      if (box && !box.contains(event.target as Node)) {
+        setShowCustomerDropdown(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowCustomerDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showCustomerDropdown]);
 
   useEffect(() => {
     let cancelled = false;
@@ -293,6 +408,7 @@ export function PosTerminal({
         discount_amount: 0,
         total_price: product.selling_price,
         available_stock: product.current_stock,
+        is_tracked: product.is_tracked,
         unit: product.unit || "",
         price_includes_tax: product.price_includes_tax ?? true,
       };
@@ -353,7 +469,13 @@ export function PosTerminal({
     payments: SplitPaymentTender,
     changeDue: number,
     buyerGstin?: string,
+    /** Passed by the checkout dialog when it resolved or opened an account
+     *  during submit. Reading selectedCustomer here would still be null: the
+     *  setState behind it has not re-rendered yet, and the bill would save
+     *  with the credit attached to nobody. */
+    customerOverride?: Customer | null,
   ) => {
+    const saleCustomer = customerOverride ?? selectedCustomer;
     if (isSubmitting) return;
     setIsSubmitting(true);
     if (!commandIdRef.current) {
@@ -379,7 +501,7 @@ export function PosTerminal({
       }
 
       const salePayload = {
-        customer_id: selectedCustomer?.id || null,
+        customer_id: saleCustomer?.id || null,
         subtotal_amount: cartSubtotal.toFixed(2),
         discount_amount: cartDiscounts.toFixed(2),
         total_amount: grandTotal.toFixed(2),
@@ -442,8 +564,8 @@ Press Pay again to retry — ` +
         totalAmount: grandTotal,
         payments,
         changeDue,
-        customerName: selectedCustomer?.name,
-        customerPhone: selectedCustomer?.phone,
+        customerName: saleCustomer?.name,
+        customerPhone: saleCustomer?.phone,
       });
 
       setIsCheckoutOpen(false);
@@ -475,11 +597,11 @@ Press Pay again to retry — ` +
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-14rem)]">
+    <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
       {/* ========================================================= */}
       {/* LEFT COLUMN: Product Catalog & Search                      */}
       {/* ========================================================= */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[var(--surface)] border border-[var(--border-soft)] rounded-[28px] overflow-hidden shadow-sm">
+      <div className="flex min-h-0 flex-1 flex-col min-w-0 overflow-hidden rounded-[28px] border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm">
         {/* Search Bar & Barcode Scanner */}
         <div className="p-4 border-b border-[var(--bg-soft)] bg-[var(--bg-base)] flex items-center gap-3">
           <div className="relative flex-1">
@@ -534,7 +656,7 @@ Press Pay again to retry — ` +
               onClick={() => setSelectedCategory(cat)}
               className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all ${
                 selectedCategory === cat
-                  ? "bg-[var(--primary)] text-white shadow-md shadow-[var(--primary)]/25"
+                  ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20"
                   : "bg-[var(--bg-base)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-soft)]"
               }`}
             >
@@ -548,7 +670,8 @@ Press Pay again to retry — ` +
             only confirms it. Items with no photo fall back to their initial
             rather than a broken image or an empty grey box. */}
         {compactView ? (
-          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-1.5">
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            <div className="flex flex-col gap-1.5">
             {filteredProducts.length === 0 ? (
               <p className="py-16 text-center text-xs font-bold text-[var(--text-tertiary)]">
                 {searchQuery
@@ -560,8 +683,12 @@ Press Pay again to retry — ` +
                 <button
                   key={prod.id}
                   onClick={() => addToCart(prod)}
-                  disabled={prod.is_out_of_stock}
-                  className="focus-ring flex items-center gap-2.5 rounded-[11px] border border-[var(--border-soft)] bg-[var(--surface)] p-2 text-left transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-50"
+                  // Never blocked on stock. A counter that refuses the sale
+                  // because the system says zero is a counter that loses the
+                  // customer standing in front of it - and the count is wrong
+                  // far more often than the shelf is. The oversell is recorded
+                  // and surfaced in Stock instead of being prevented here.
+                  className="focus-ring flex cursor-pointer items-center gap-2.5 rounded-[11px] border border-[var(--border-soft)] bg-[var(--surface)] p-2 text-left transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary)]/5"
                 >
                   <span className="grid h-9 w-9 flex-none place-items-center overflow-hidden rounded-[9px] bg-[var(--bg-soft)]">
                     {prod.image_data ? (
@@ -579,11 +706,15 @@ Press Pay again to retry — ` +
                     </span>
                     <span className="mt-0.5 block truncate font-mono text-[10px] font-semibold text-[var(--text-tertiary)]">
                       {prod.sku}
-                      {prod.is_out_of_stock
-                        ? " · out of stock"
-                        : prod.is_low_stock
-                          ? ` · ${prod.current_stock} left`
-                          : ` · ${prod.current_stock} in stock`}
+                      {!prod.is_tracked
+                        ? " · stock not tracked"
+                        : prod.current_stock < 0
+                          ? ` · short by ${formatQuantity(Math.abs(prod.current_stock))}`
+                          : prod.is_out_of_stock
+                            ? " · shelf empty - sells anyway"
+                            : prod.is_low_stock
+                              ? ` · ${formatQuantity(prod.current_stock)} left`
+                              : ` · ${formatQuantity(prod.current_stock)} in stock`}
                     </span>
                   </span>
                   <span className="tnum flex-none font-mono text-[13.5px] font-bold text-[var(--text-primary)]">
@@ -592,9 +723,11 @@ Press Pay again to retry — ` +
                 </button>
               ))
             )}
+            </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-3.5 grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))] content-start">
+          <div className="min-h-0 flex-1 overflow-y-auto p-3.5">
+            <div className="grid content-start gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
             {filteredProducts.length === 0 ? (
               <p className="col-span-full py-16 text-center text-xs font-bold text-[var(--text-tertiary)]">
                 {searchQuery
@@ -606,10 +739,10 @@ Press Pay again to retry — ` +
                 <button
                   key={prod.id}
                   onClick={() => addToCart(prod)}
-                  disabled={prod.is_out_of_stock}
-                  className={`focus-ring group flex flex-col overflow-hidden rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface)] text-left transition-all hover:-translate-y-[3px] hover:border-[var(--primary)] hover:shadow-md active:translate-y-0 ${
-                    prod.is_out_of_stock ? "opacity-60" : ""
-                  }`}
+                  // Sellable regardless of the count - see the comment on the
+                  // compact row. The tile stays fully legible rather than
+                  // dimmed: it is not disabled, so it must not look disabled.
+                  className="focus-ring group flex cursor-pointer flex-col overflow-hidden rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface)] text-left transition-all hover:-translate-y-[3px] hover:border-[var(--primary)] hover:shadow-md active:translate-y-0"
                 >
                   <span className="relative block aspect-[4/3] w-full overflow-hidden border-b border-[var(--border-soft)] bg-[var(--bg-soft)]">
                     {prod.image_data ? (
@@ -627,13 +760,21 @@ Press Pay again to retry — ` +
                     )}
 
                     {/* State on the picture, with words as well as colour. */}
-                    {prod.is_out_of_stock ? (
+                    {/* An untracked item gets no badge at all. Its count says
+                        nothing, so a badge could only say something untrue -
+                        and 144 red badges across the grid teach the cashier to
+                        ignore the ones that matter. */}
+                    {!prod.is_tracked ? null : prod.current_stock < 0 ? (
                       <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--error)] px-2 py-0.5 text-[10px] font-extrabold text-white">
-                        Out
+                        Short {formatQuantity(Math.abs(prod.current_stock))}
+                      </span>
+                    ) : prod.is_out_of_stock ? (
+                      <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--warning)] px-2 py-0.5 text-[10px] font-extrabold text-white">
+                        Shelf empty
                       </span>
                     ) : prod.is_low_stock ? (
                       <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--warning)] px-2 py-0.5 text-[10px] font-extrabold text-white">
-                        {prod.current_stock} left
+                        {formatQuantity(prod.current_stock)} left
                       </span>
                     ) : null}
                   </span>
@@ -643,9 +784,15 @@ Press Pay again to retry — ` +
                       {prod.name}
                     </span>
                     <span className="font-mono text-[10px] font-semibold text-[var(--text-tertiary)]">
-                      {prod.is_out_of_stock
-                        ? "Nothing on the shelf"
-                        : `${prod.current_stock}${prod.unit ? ` ${prod.unit}` : " in stock"}`}
+                      {!prod.is_tracked
+                        ? "Stock not tracked"
+                        : prod.current_stock < 0
+                          ? `Short by ${formatQuantity(Math.abs(prod.current_stock))} - fix in Stock`
+                          : prod.is_out_of_stock
+                            ? "Shelf empty - still sellable"
+                            : `${formatQuantity(prod.current_stock)}${
+                                prod.unit ? ` ${prod.unit}` : " in stock"
+                              }`}
                     </span>
                     <span className="mt-auto flex items-baseline gap-1.5 pt-1.5">
                       <b className="tnum font-mono text-[15px] font-bold tracking-tight text-[var(--text-primary)]">
@@ -661,6 +808,7 @@ Press Pay again to retry — ` +
                 </button>
               ))
             )}
+            </div>
           </div>
         )}
       </div>
@@ -668,7 +816,7 @@ Press Pay again to retry — ` +
       {/* ========================================================= */}
       {/* RIGHT COLUMN: Interactive Cart & Tender Total              */}
       {/* ========================================================= */}
-      <div className="w-full lg:w-[420px] flex flex-col bg-[var(--surface)] border border-[var(--border-soft)] rounded-[28px] overflow-hidden shadow-sm shrink-0">
+      <div className="flex w-full min-h-0 shrink-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm lg:w-[400px]">
         {/* Cart Header */}
         <div className="p-4 border-b border-[var(--bg-soft)] bg-[var(--bg-base)] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -678,7 +826,7 @@ Press Pay again to retry — ` +
             <span className="font-extrabold text-sm text-[var(--text-primary)]">
               {t("webCurrentCart")}
             </span>
-            <span className="px-2.5 py-0.5 text-xs font-extrabold bg-[var(--primary)] text-white rounded-full">
+            <span className="px-2.5 py-0.5 text-xs font-extrabold bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 rounded-full">
               {/* Rounded: adding 0.1 + 0.2 in binary floating point gives
                   0.30000000000000004, and a badge on a till reading that
                   destroys confidence in every other number on the screen. */}
@@ -701,7 +849,7 @@ Press Pay again to retry — ` +
           {selectedCustomer ? (
             <div className="flex items-center justify-between p-2.5 rounded-2xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-[var(--primary)] text-white flex items-center justify-center text-xs font-black shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 flex items-center justify-center text-xs font-black shrink-0">
                   {selectedCustomer.name.charAt(0)}
                 </div>
                 <div className="truncate">
@@ -721,10 +869,11 @@ Press Pay again to retry — ` +
               </button>
             </div>
           ) : (
-            <div className="relative">
+            <div className="relative" ref={customerBoxRef}>
               <div className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-base)] border border-[var(--border-soft)] rounded-xl">
                 <User className="w-4 h-4 text-[var(--text-tertiary)]" />
                 <input
+                  ref={customerInputRef}
                   type="text"
                   value={customerSearch}
                   onFocus={() => setShowCustomerDropdown(true)}
@@ -767,11 +916,39 @@ Press Pay again to retry — ` +
                         </div>
                       </button>
                     ))}
+                  {/* A first-time khata customer used to mean abandoning the
+                      cart and going to Clients. They can be added from here. */}
+                  {customerSearch.trim() && (
+                    <button
+                      onClick={() => void createAndAttachCustomer()}
+                      disabled={isCreatingCustomer}
+                      className="focus-ring flex w-full items-center gap-2 rounded-xl border-t border-[var(--bg-soft)] p-2.5 text-left text-xs transition-colors hover:bg-[var(--primary)]/8 disabled:opacity-60"
+                    >
+                      <span className="grid h-7 w-7 flex-none place-items-center rounded-lg bg-[var(--primary)]/12 text-[var(--primary-dark)]">
+                        <User className="h-3.5 w-3.5" />
+                      </span>
+                      <span>
+                        <span className="block font-extrabold text-[var(--text-primary)]">
+                          {isCreatingCustomer ? "Adding…" : `Add "${customerSearch.trim()}"`}
+                        </span>
+                        <span className="block text-[10px] font-semibold text-[var(--text-tertiary)]">
+                          Creates the account and attaches it to this bill
+                        </span>
+                      </span>
+                    </button>
+                  )}
+
+                  {newCustomerError && (
+                    <p className="m-0 px-2.5 py-2 text-[10px] font-bold text-[var(--error-strong)]">
+                      {newCustomerError}
+                    </p>
+                  )}
+
                   <button
                     onClick={() => setShowCustomerDropdown(false)}
-                    className="w-full text-center py-2 text-[10px] font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border-t border-[var(--bg-soft)]"
+                    className="w-full border-t border-[var(--bg-soft)] py-2 text-center text-[10px] font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
                   >
-                    Close Dropdown
+                    Close
                   </button>
                 </div>
               )}
@@ -780,7 +957,7 @@ Press Pay again to retry — ` +
         </div>
 
         {/* Cart Items List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 divide-y divide-[var(--bg-soft)]">
+        <div className="min-h-0 flex-1 space-y-3 divide-y divide-[var(--bg-soft)] overflow-y-auto p-4">
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 text-[var(--text-tertiary)]">
               <ShoppingCart className="w-12 h-12 stroke-1 mb-2 text-[var(--border)]" />
@@ -799,6 +976,14 @@ Press Pay again to retry — ` +
                     <span>•</span>
                     <span>GST {item.tax_rate}%</span>
                   </div>
+
+                  {/* Named at the moment it happens. An oversell that only
+                      shows up in a report next week never gets corrected. */}
+                  {isOversell(item) && (
+                    <p className="m-0 mt-1 text-[10px] font-bold text-[var(--warning-strong)]">
+                      Stock will read {formatQuantity(resultingStock(item))}
+                    </p>
+                  )}
 
                   {/* Quantity Stepper Controls */}
                   <div className="flex items-center gap-2 mt-2">
@@ -869,7 +1054,16 @@ Press Pay again to retry — ` +
         </div>
 
         {/* Financial Summary & Checkout Button */}
-        <div className="p-5 border-t border-[var(--bg-soft)] bg-[var(--bg-base)] space-y-3">
+        <div className="shrink-0 space-y-3 border-t border-[var(--bg-soft)] bg-[var(--bg-base)] p-5">
+          {/* Stated once for the whole cart, in the place the cashier is
+              already looking before taking money. Worded as a consequence and
+              a next step, not as a failure - nothing has gone wrong, the shop
+              sold something it had not recorded buying. */}
+          {oversellSummary(cart) && (
+            <p className="m-0 rounded-[10px] border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2 text-[11px] font-bold leading-[1.45] text-[var(--warning-strong)]">
+              {oversellSummary(cart)}
+            </p>
+          )}
           <div className="space-y-1.5 text-xs font-semibold text-[var(--text-secondary)]">
             {/* Reads as an addition, because it is one:
                     taxable value + GST = grand total.
@@ -908,7 +1102,7 @@ Press Pay again to retry — ` +
             )}
           </div>
 
-          <div className="pt-3 border-t border-[var(--border-soft)] flex items-baseline justify-between">
+          <div className="flex items-center justify-between gap-4 border-t border-[var(--border-soft)] pt-3">
             <div>
               <div className="text-[10px] uppercase font-black tracking-wider text-[var(--text-tertiary)]">
                 {t("webGrandTotal")}
@@ -921,10 +1115,10 @@ Press Pay again to retry — ` +
             <button
               disabled={cart.length === 0 || isSubmitting}
               onClick={() => setIsCheckoutOpen(true)}
-              className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-[var(--primary-light)] to-[var(--primary-hover)] hover:from-[var(--primary)] hover:to-[var(--primary-dark)] disabled:opacity-40 text-text-primary font-extrabold text-xs rounded-2xl shadow-[0_8px_20px_rgba(14,165,233,0.35)] transition-all cursor-pointer"
+              className="focus-ring flex cursor-pointer items-center gap-2 rounded-2xl border border-[var(--success)]/40 bg-[var(--success)]/20 px-6 py-3.5 text-xs font-extrabold text-[var(--success-dark)] transition-colors hover:bg-[var(--success)]/30 disabled:opacity-40"
             >
               <CreditCard className="w-4 h-4" />
-              <span>CHARGE (F2)</span>
+              <span>Proceed (F2)</span>
             </button>
           </div>
         </div>
@@ -940,6 +1134,9 @@ Press Pay again to retry — ` +
         selectedCustomer={selectedCustomer}
         shopName={shopName}
         requireBuyerGstin={requireBuyerGstin}
+        onAttachCustomer={focusCustomerField}
+        customers={customers}
+        onEnsureCustomer={ensureCustomer}
         onCompleteSale={handleCompleteSale}
       />
 

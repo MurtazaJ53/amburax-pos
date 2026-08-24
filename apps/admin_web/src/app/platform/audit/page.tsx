@@ -65,7 +65,7 @@ export default async function PlatformAuditPage({
               placeholder="Search reasons or metadata..."
               className="panel-soft w-80 rounded-xl border border-[var(--border-soft)] px-4 py-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--warning)]"
             />
-            <button type="submit" className="rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] px-4 py-2 text-sm font-semibold text-white">
+            <button type="submit" className="rounded-xl bg-[var(--primary)]/12/12 hover:bg-[var(--primary)]/12/20 px-4 py-2 text-sm font-semibold text-[var(--primary-dark)] border border-[var(--primary)]/25">
               Search
             </button>
           </form>

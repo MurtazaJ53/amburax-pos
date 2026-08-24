@@ -185,7 +185,7 @@ export function ReportsAnalytics() {
             onClick={() => setTab("pnl")}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold ${
               tab === "pnl"
-                ? "bg-[var(--primary)] text-white"
+                ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20"
                 : "text-text-secondary hover:text-text-primary"
             }`}
           >
@@ -197,7 +197,7 @@ export function ReportsAnalytics() {
             onClick={() => setTab("gst")}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold ${
               tab === "gst"
-                ? "bg-[var(--primary)] text-white"
+                ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20"
                 : "text-text-secondary hover:text-text-primary"
             }`}
           >
@@ -303,7 +303,7 @@ export function ReportsAnalytics() {
                   type="button"
                   onClick={() => void downloadGstr1()}
                   disabled={downloading || rangeIsBackwards}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2 text-xs font-extrabold text-white disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)]/12 px-4 py-2 text-xs font-extrabold text-[var(--primary-dark)] disabled:opacity-50 border border-[var(--primary)]/25"
                 >
                   {downloading ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />

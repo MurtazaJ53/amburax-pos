@@ -47,6 +47,7 @@ export default async function CustomersPage() {
       session={session}
       activeShop={activeShop}
       activeRoute="customers"
+      fitViewport
       title="Customer CRM & Udhaar Khata"
       subtitle="Store credit ledger, balance reminders, customer loyalty, and repayment logging"
     >

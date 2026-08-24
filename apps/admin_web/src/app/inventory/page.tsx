@@ -1,6 +1,7 @@
 import { InventoryManager } from "@/components/inventory-manager";
 import { AdminShell } from "@/components/admin-shell";
 import { getSession, resolveActiveShop, getInventory, getInventorySummary } from "@/lib/admin-api";
+import { canViewCosts } from "@/lib/roles";
 import type { InventoryItem, InventorySummaryPayload } from "@/lib/types";
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -49,6 +50,7 @@ export default async function InventoryPage() {
       session={session}
       activeShop={activeShop}
       activeRoute="inventory"
+      fitViewport
       title="Inventory & Catalog"
       subtitle="Real-time stock valuation, barcode registry, low-stock threshold triggers & batch adjustments"
     >
@@ -68,7 +70,16 @@ export default async function InventoryPage() {
           </pre>
         </div>
       ) : (
-        <InventoryManager initialInventory={inventory} initialSummary={summary} shopId={shopId} />
+        <InventoryManager
+          initialInventory={inventory}
+          initialSummary={summary}
+          shopId={shopId}
+          // The server already hides costs from anyone below admin by sending
+          // null. Telling the screen the same rule lets it distinguish "no
+          // cost recorded" from "not yours to see", instead of asking a
+          // cashier to fill in a field they cannot read.
+          canViewCosts={canViewCosts(activeShop?.role ?? null)}
+        />
       )}
     </AdminShell>
   );

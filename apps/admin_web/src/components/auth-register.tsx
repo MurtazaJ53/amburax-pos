@@ -50,9 +50,9 @@ export function AuthRegister() {
         {/* Header */}
         <div className="p-8 pb-6 text-center border-b border-[var(--border-soft)] bg-gradient-to-b from-[var(--bg-soft)] to-transparent">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25 mb-4">
-            <Store className="w-7 h-7 text-white" />
+            <Store className="w-7 h-7 text-[var(--text-primary)]" />
           </div>
-          <h1 className="text-xl font-extrabold text-white tracking-tight">
+          <h1 className="text-xl font-extrabold text-[var(--text-primary)] tracking-tight">
             Create Business Hub Store
           </h1>
           <p className="text-xs text-[var(--text-tertiary)] mt-1">
@@ -133,7 +133,7 @@ export function AuthRegister() {
 
             <button
               type="submit"
-              className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 mt-4"
+              className="w-full py-3 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 text-xs font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 mt-4"
             >
               <span>Continue to Store Setup</span>
               <ArrowRight className="w-4 h-4" />
@@ -210,7 +210,7 @@ export function AuthRegister() {
               </button>
               <button
                 type="submit"
-                className="flex-1 py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 text-xs font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2"
               >
                 <span>Launch Store</span>
                 <CheckCircle2 className="w-4 h-4" />
@@ -222,7 +222,7 @@ export function AuthRegister() {
         {/* Footer */}
         <div className="p-4 bg-[var(--bg-soft)] border-t border-[var(--border-soft)] text-center text-xs text-[var(--text-tertiary)]">
           Already registered?{" "}
-          <Link href="/login" className="text-white font-semibold hover:underline">
+          <Link href="/login" className="text-[var(--text-primary)] font-semibold hover:underline">
             Sign in here
           </Link>
         </div>

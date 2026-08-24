@@ -69,7 +69,8 @@ export default async function TeamPage() {
           </pre>
         </div>
       ) : (
-        <TeamAttendance initialTeam={team} initialSessions={sessions} initialSummary={summary} shopId={shopId} />
+        <TeamAttendance
+          timeZone={activeShop?.shop.timezone || "Asia/Kolkata"} initialTeam={team} initialSessions={sessions} initialSummary={summary} shopId={shopId} />
       )}
     </AdminShell>
   );

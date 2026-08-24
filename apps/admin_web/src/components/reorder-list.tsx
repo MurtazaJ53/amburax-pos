@@ -130,7 +130,7 @@ export function ReorderList({ shopName }: { shopName: string }) {
           type="button"
           onClick={() => void copyOrder()}
           disabled={selected.length === 0}
-          className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2.5 text-xs font-extrabold text-white disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)]/12 px-4 py-2.5 text-xs font-extrabold text-[var(--primary-dark)] disabled:opacity-50 border border-[var(--primary)]/25"
         >
           <ClipboardCopy className="w-3.5 h-3.5" />
           {copied ? "Copied!" : `Copy order (${selected.length} items)`}

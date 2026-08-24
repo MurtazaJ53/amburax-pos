@@ -51,16 +51,29 @@ export function BusinessPulse() {
   // A cashier can read best sellers but not the shop's cash position, so the
   // two halves fail independently.
   const [cashDenied, setCashDenied] = useState(false);
+  /** Net across twice the chosen window, used only to work out the previous
+   *  period. Null when that second call did not succeed. */
+  const [doubleWindowNet, setDoubleWindowNet] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     setCashDenied(false);
     try {
-      const [cashRes, sellersRes] = await Promise.all([
+      // The endpoint takes a rolling window only, so the previous period is
+      // derived: net over twice the window, minus net over this one. Without
+      // it the headline figure has nothing to be judged against.
+      const [cashRes, sellersRes, priorRes] = await Promise.all([
         fetch(`/api/reports/cash-flow?days=${days}`),
         fetch(`/api/reports/best-sellers?days=${days}`),
+        fetch(`/api/reports/cash-flow?days=${days * 2}`),
       ]);
+
+      if (priorRes.ok) {
+        setDoubleWindowNet(num((await priorRes.json())?.net));
+      } else {
+        setDoubleWindowNet(null);
+      }
 
       if (cashRes.ok) {
         setCashFlow(await cashRes.json());
@@ -90,6 +103,15 @@ export function BusinessPulse() {
   }, [load]);
 
   const net = num(cashFlow?.net);
+
+  /** Change against the period before this one, or null when there is no
+   *  usable baseline. A rise measured against zero is noise, not insight. */
+  const changeVsPrevious = (() => {
+    if (doubleWindowNet === null || cashFlow === null) return null;
+    const previous = doubleWindowNet - net;
+    if (previous <= 0) return null;
+    return Math.round(((net - previous) / previous) * 100);
+  })();
   const topQty = sellers.length ? num(sellers[0].quantity_sold) : 0;
   const anyProfitHidden = sellers.some((s) => s.profit === null);
 
@@ -105,7 +127,7 @@ export function BusinessPulse() {
               onClick={() => setDays(w)}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-colors ${
                 days === w
-                  ? "bg-[var(--primary)] text-white shadow-sm"
+                  ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 shadow-sm"
                   : "text-text-secondary hover:text-text-primary"
               }`}
             >
@@ -144,9 +166,27 @@ export function BusinessPulse() {
               : "border-[var(--error)]/30 bg-[var(--error)]/10"
           }`}
         >
-          <p className="text-[11px] font-extrabold uppercase tracking-wider text-text-tertiary">
-            Money kept in the last {cashFlow?.days ?? days} days
-          </p>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-text-tertiary">
+              Money kept in the last {cashFlow?.days ?? days} days
+            </p>
+            {changeVsPrevious !== null && (
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-bold ${
+                  changeVsPrevious >= 0
+                    ? "bg-[var(--success)]/10 text-[var(--success-strong)]"
+                    : "bg-[var(--error)]/10 text-[var(--error-strong)]"
+                }`}
+              >
+                {changeVsPrevious >= 0 ? (
+                  <ArrowUpRight className="h-3 w-3" />
+                ) : (
+                  <ArrowDownRight className="h-3 w-3" />
+                )}
+                {Math.abs(changeVsPrevious)}% vs previous {cashFlow?.days ?? days} days
+              </span>
+            )}
+          </div>
           <p
             className={`mt-1 text-3xl sm:text-4xl font-[900] tracking-tight ${
               net >= 0 ? "text-[var(--success-strong)]" : "text-[var(--error-strong)]"
@@ -209,11 +249,19 @@ export function BusinessPulse() {
                     <th className="px-6 py-3 font-extrabold text-right">Sold</th>
                     <th className="px-6 py-3 font-extrabold text-right">Revenue</th>
                     <th className="px-6 py-3 font-extrabold text-right">Profit</th>
+                    <th className="px-6 py-3 font-extrabold text-right">Margin</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sellers.map((item, index) => {
                     const share = topQty > 0 ? num(item.quantity_sold) / topQty : 0;
+                    // Margin as a share of what the customer paid — the figure
+                    // a shopkeeper compares against a distributor's offer.
+                    const revenue = num(item.revenue);
+                    const margin =
+                      item.profit === null || revenue <= 0
+                        ? null
+                        : (num(item.profit) / revenue) * 100;
                     return (
                       <tr
                         key={`${item.name}-${index}`}
@@ -254,6 +302,28 @@ export function BusinessPulse() {
                               }
                             >
                               {formatCurrency(num(item.profit))}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right text-sm font-bold">
+                          {margin === null ? (
+                            <span
+                              className="rounded-full bg-[var(--warning)]/10 px-2.5 py-1 text-[11px] font-bold text-[var(--warning-strong)]"
+                              title="At least one bill for this item had no cost price, so margin cannot be worked out."
+                            >
+                              No cost
+                            </span>
+                          ) : (
+                            <span
+                              className={
+                                margin < 0
+                                  ? "text-[var(--error-strong)]"
+                                  : margin < 10
+                                    ? "text-[var(--warning-strong)]"
+                                    : "text-[var(--success-strong)]"
+                              }
+                            >
+                              {margin.toFixed(1)}%
                             </span>
                           )}
                         </td>

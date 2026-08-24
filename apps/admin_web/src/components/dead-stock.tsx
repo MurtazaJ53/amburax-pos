@@ -107,7 +107,7 @@ export function DeadStock() {
               onClick={() => setDays(w)}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-colors ${
                 days === w
-                  ? "bg-[var(--primary)] text-white shadow-sm"
+                  ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 shadow-sm"
                   : "text-text-secondary hover:text-text-primary"
               }`}
             >

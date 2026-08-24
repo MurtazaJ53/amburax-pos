@@ -228,7 +228,7 @@ export function AuthLogin() {
         {/* Brand Hero matching Flutter _BrandHero */}
         <div className="flex flex-col items-center text-center mb-6">
           <div className="w-20 h-20 rounded-[26px] bg-gradient-to-br from-[var(--primary-light)] to-[var(--primary-hover)] flex items-center justify-center shadow-[0_12px_28px_rgba(14,165,233,0.38)] mb-4">
-            <Store className="w-10 h-10 text-white" />
+            <Store className="w-10 h-10 text-[var(--text-primary)]" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-[900] text-[var(--text-primary)] tracking-tight">
             Business Hub
@@ -320,7 +320,7 @@ export function AuthLogin() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-13 py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-extrabold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 mt-3 cursor-pointer"
+                className="w-full h-13 py-3.5 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 text-xs font-extrabold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 mt-3 cursor-pointer"
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -490,7 +490,7 @@ export function AuthLogin() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-13 py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-extrabold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 mt-3 cursor-pointer"
+                className="w-full h-13 py-3.5 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 text-xs font-extrabold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 mt-3 cursor-pointer"
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -554,7 +554,7 @@ export function AuthLogin() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-13 py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-extrabold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 mt-3 cursor-pointer"
+                className="w-full h-13 py-3.5 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 text-xs font-extrabold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 mt-3 cursor-pointer"
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -635,7 +635,7 @@ export function AuthLogin() {
                 type="button"
                 onClick={() => handlePinSubmit(pin)}
                 disabled={pin.length < 4 || isLoading}
-                className="w-full h-13 py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:bg-[var(--border)] text-white text-xs font-extrabold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer"
+                className="w-full h-13 py-3.5 bg-[var(--primary)]/12/12 hover:bg-[var(--primary)]/12/20 disabled:bg-[var(--border)] text-[var(--primary-dark)] text-xs font-extrabold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer border border-[var(--primary)]/25"
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

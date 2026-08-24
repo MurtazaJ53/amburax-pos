@@ -72,9 +72,9 @@ export function PlatformLifecycleDialog({
           />
           <div className="relative w-full max-w-lg rounded-2xl bg-[rgba(9,14,22,0.95)] p-6 shadow-2xl border border-[var(--border-soft)]">
             <p className="eyebrow text-[var(--warning)]">Operator action — audited</p>
-            <h2 className="mt-2 text-2xl font-semibold text-white">{actionLabel}</h2>
+            <h2 className="mt-2 text-2xl font-semibold text-[var(--text-primary)]">{actionLabel}</h2>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
-              {actionDescription} For shop: <strong className="text-white">{shopName}</strong>
+              {actionDescription} For shop: <strong className="text-[var(--text-primary)]">{shopName}</strong>
             </p>
 
             <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -120,7 +120,7 @@ export function PlatformLifecycleDialog({
                   type="button"
                   onClick={() => setIsOpen(false)}
                   disabled={loading}
-                  className="rounded-xl px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-white"
+                  className="rounded-xl px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
                   Cancel
                 </button>

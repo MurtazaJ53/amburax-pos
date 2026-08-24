@@ -42,6 +42,7 @@ export default async function PosPage() {
       session={session}
       activeShop={activeShop}
       activeRoute="pos"
+      fitViewport
       title="Retail POS Terminal"
       subtitle="Fast barcode scanning, dynamic GST calculation, split tender & instant thermal printing"
     >

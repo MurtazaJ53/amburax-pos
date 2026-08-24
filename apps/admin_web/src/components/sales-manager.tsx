@@ -2,7 +2,7 @@
 
 import { useT } from "@/lib/i18n";
 
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Receipt,
   Search,
@@ -10,6 +10,19 @@ import {
   Lock,
   Undo2,
 } from "lucide-react";
+import { MixBar } from "@/components/ui/mix-bar";
+import { StatTile } from "@/components/ui/stat-tile";
+import { shopDateKey } from "@/lib/dashboard-metrics";
+import {
+  closeRequestBody,
+  discrepancy,
+  isMoneyInput,
+  moneyValue,
+  emptyClose,
+  expectedInTill,
+  readRegisterPayload,
+} from "@/lib/register-close";
+import type { RegisterClose } from "@/lib/register-close";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { SaleReturnSheet } from "@/components/sale-return-sheet";
 import { ThermalReceiptModal } from "@/components/thermal-receipt-modal";
@@ -47,6 +60,11 @@ interface SalesManagerProps {
   initialSales: ApiSale[];
   initialSummary?: unknown;
   shopId: string;
+  /** Total refunded per sale id. A return does not alter the sale, so without
+   *  this a bill that was fully sent back looks exactly like one that stands. */
+  refundedBySale?: Record<string, number>;
+  /** The shop's clock, for deciding which day is being closed. */
+  timeZone?: string;
 }
 
 /** A sale row as the API returns it. Only the fields this screen reads. */
@@ -147,7 +165,13 @@ function toSaleOrder(item: ApiSale): SaleOrder {
   } as SaleOrder;
 }
 
-export function SalesManager({ initialSales }: SalesManagerProps) {
+export function SalesManager({
+  initialSales,
+  initialSummary: _initialSummary,
+  shopId,
+  refundedBySale = {},
+  timeZone = "Asia/Kolkata",
+}: SalesManagerProps) {
   const t = useT();
   const mappedInitial = React.useMemo(() => {
     return (initialSales ?? []).map(toSaleOrder);
@@ -166,10 +190,85 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
   const [returningSaleId, setReturningSaleId] = useState<string | null>(null);
 
   // Day Close Form state
-  const [openingCash] = useState(5000);
-  const [actualCountedCash, setActualCountedCash] = useState("6450");
-  const [dayCloseNotes, setDayCloseNotes] = useState("");
-  const [isDayClosed, setIsDayClosed] = useState(false);
+  /** The close for the current shop-day. Both figures start empty: the float
+   *  used to be hardcoded to 5,000 and the counted cash pre-filled with
+   *  6,450, so the over/short reading was produced from two numbers nobody
+   *  had entered. */
+  const [registerClose, setRegisterClose] = useState<RegisterClose>(() =>
+    emptyClose(shopDateKey(new Date(), timeZone)),
+  );
+  /** Cash the API summed from the tender rows for this business day. The
+   *  browser's own sales list is filtered and paged, so it is the wrong thing
+   *  to reconcile a drawer against. */
+  const [registerCash, setRegisterCash] = useState<number | null>(null);
+  const [closeError, setCloseError] = useState("");
+  // What is literally in the two money fields. Kept apart from the numbers
+  // because "10." is a valid thing to be part-way through typing and is not a
+  // number yet; round-tripping through one would eat the dot.
+  const [floatText, setFloatText] = useState("");
+  const [countedText, setCountedText] = useState("");
+  const [isSavingClose, setIsSavingClose] = useState(false);
+  const floatEntered = registerClose.floatEntered;
+
+  useEffect(() => {
+    let active = true;
+    const date = shopDateKey(new Date(), timeZone);
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/sales/register?date=${date}`);
+        if (!res.ok) throw new Error("Could not load the day close.");
+        const read = readRegisterPayload(await res.json(), date);
+        if (!active) return;
+        setRegisterClose(read.close);
+        setRegisterCash(read.cashSales);
+        setFloatText(read.close.floatEntered ? String(read.close.openingFloat) : "");
+        setCountedText(read.close.countedCash ? String(read.close.countedCash) : "");
+      } catch (err) {
+        // Leaving the day unanswered is the honest failure here. Falling back
+        // to zeros would render a confident "Balanced" against figures that
+        // were never loaded.
+        if (active) setCloseError(errorMessage(err, "Could not load the day close."));
+      }
+    };
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [shopId, timeZone]);
+
+  /** Send the count to the server. `lock` signs the day off.
+   *
+   *  Called when a field is left, not on every keystroke: a drawer count is
+   *  typed digit by digit, and a request per digit would put a dozen writes
+   *  behind one figure. A rejected write is surfaced rather than swallowed —
+   *  a close the cashier believes was saved and was not is the worst outcome
+   *  this screen has.
+   */
+  const persistClose = async (next: RegisterClose, lock = false) => {
+    setRegisterClose(next);
+    setCloseError("");
+    setIsSavingClose(true);
+    try {
+      const res = await fetch("/api/sales/register", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(closeRequestBody(next, lock)),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(
+          (body as { detail?: string })?.detail || "Could not save the day close.",
+        );
+      }
+      const read = readRegisterPayload(body, next.date);
+      setRegisterClose(read.close);
+      setRegisterCash(read.cashSales);
+    } catch (err) {
+      setCloseError(errorMessage(err, "Could not save the day close."));
+    } finally {
+      setIsSavingClose(false);
+    }
+  };
 
   async function fetchSales() {
     try {
@@ -221,26 +320,34 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
     const totalRev = sales.reduce((sum, s) => sum + s.total_amount, 0);
     const count = sales.length;
     const aov = count > 0 ? totalRev / count : 0;
-    const cashTotal = sales
-      .filter((s) => s.payment_mode === "cash")
-      .reduce((sum, s) => sum + s.total_amount, 0);
-    const upiTotal = sales
-      .filter((s) => s.payment_mode === "upi")
-      .reduce((sum, s) => sum + s.total_amount, 0);
-    const cardTotal = sales
-      .filter((s) => s.payment_mode === "card")
-      .reduce((sum, s) => sum + s.total_amount, 0);
+    // Sum the tenders, not the mode. A split bill has payment_mode "split",
+    // so matching on the mode dropped it from every bucket: its money showed
+    // in gross sales and nowhere in the breakdown, and its cash never reached
+    // the drawer figure the register is counted against at close.
+    // payment_breakdown is already derived from the sale's payment rows.
+    const cashTotal = sales.reduce((sum, s) => sum + (s.payment_breakdown?.cash ?? 0), 0);
+    const upiTotal = sales.reduce((sum, s) => sum + (s.payment_breakdown?.upi ?? 0), 0);
+    const cardTotal = sales.reduce((sum, s) => sum + (s.payment_breakdown?.card ?? 0), 0);
+    const khataTotal = sales.reduce(
+      (sum, s) => sum + (s.payment_breakdown?.khata_due ?? 0),
+      0,
+    );
 
-    return { totalRev, count, aov, cashTotal, upiTotal, cardTotal };
+    return { totalRev, count, aov, cashTotal, upiTotal, cardTotal, khataTotal };
   }, [sales]);
 
   // Day close calculations
-  const expectedCashInDrawer = openingCash + metrics.cashTotal;
-  const countedNum = parseFloat(actualCountedCash) || 0;
-  const cashDifference = countedNum - expectedCashInDrawer;
+  // The drawer is reconciled against the server's tender total. `metrics` is
+  // computed from the sales list on screen, which is filtered and paged, so it
+  // would quietly under-count the day.
+  const drawerCash = registerCash ?? 0;
+  const expectedCashInDrawer = expectedInTill(registerClose.openingFloat, drawerCash);
+  const isDayClosed = registerClose.closedAt !== null;
+  const cashDifference =
+    registerCash === null ? null : discrepancy(registerClose, drawerCash, floatEntered);
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-5">
       {/* Top Header & View Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -257,7 +364,7 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
             onClick={() => setActiveView("history")}
             className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeView === "history"
-                ? "bg-[var(--primary)] text-white shadow-sm"
+                ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 shadow-sm"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
@@ -267,7 +374,7 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
             onClick={() => setActiveView("dayclose")}
             className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeView === "dayclose"
-                ? "bg-[var(--primary)] text-white shadow-sm"
+                ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 shadow-sm"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
@@ -277,43 +384,68 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
       </div>
 
       {activeView === "history" ? (
-        <>
-          {/* Metrics Summary Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl">
-              <div className="text-xs text-[var(--text-tertiary)] font-medium">
-                Today&apos;s Gross Sales
-              </div>
-              <div className="text-2xl font-black text-[var(--text-primary)] font-mono mt-1">
-                {formatCurrency(metrics.totalRev)}
-              </div>
-              <div className="text-[11px] text-[var(--success-dark)] font-semibold mt-1">
-                {metrics.count} completed orders
-              </div>
-            </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-5">
+          {/* Two figures, and the shape of how the money arrived */}
+          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.6fr]">
+            <StatTile
+              label="Gross sales"
+              value={formatCurrency(metrics.totalRev)}
+              note={`${metrics.count} ${metrics.count === 1 ? "bill" : "bills"} in this view`}
+              className="animate-fade-in-up delay-1"
+            />
+            <StatTile
+              label="Average bill"
+              value={formatCurrency(metrics.aov)}
+              note="Basket size per checkout"
+              className="animate-fade-in-up delay-2"
+            />
 
-            <div className="p-4 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl">
-              <div className="text-xs text-[var(--text-tertiary)] font-medium">
-                Average Order Value (AOV)
+            <div className="rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface)] p-4 shadow-sm animate-fade-in-up delay-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
+                  How it was paid
+                </span>
+                <span className="font-mono text-[10px] font-medium text-[var(--text-tertiary)]">
+                  by amount
+                </span>
               </div>
-              <div className="text-2xl font-black text-[var(--text-primary)] font-mono mt-1">
-                {formatCurrency(metrics.aov)}
-              </div>
-              <div className="text-[11px] text-[var(--text-tertiary)] mt-1">
-                Basket size per checkout
-              </div>
-            </div>
 
-            <div className="p-4 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl">
-              <div className="text-xs text-[var(--text-tertiary)] font-medium">
-                UPI vs Cash Collection
-              </div>
-              <div className="text-lg font-bold text-[var(--info-strong)] font-mono mt-1">
-                UPI: {formatCurrency(metrics.upiTotal)} | Cash: {formatCurrency(metrics.cashTotal)}
-              </div>
-              <div className="text-[11px] text-[var(--text-tertiary)] mt-1">
-                Card: {formatCurrency(metrics.cardTotal)}
-              </div>
+              {metrics.upiTotal + metrics.cashTotal + metrics.cardTotal > 0 ? (
+                <div className="mt-3">
+                  <MixBar
+                    segments={[
+                      {
+                        key: "UPI",
+                        label: "UPI",
+                        amount: metrics.upiTotal,
+                        color: "var(--primary-bright)",
+                      },
+                      {
+                        key: "CASH",
+                        label: "Cash",
+                        amount: metrics.cashTotal,
+                        color: "var(--success)",
+                      },
+                      {
+                        key: "CARD",
+                        label: "Card",
+                        amount: metrics.cardTotal,
+                        color: "var(--violet-strong)",
+                      },
+                    ]}
+                    format={(amount) => formatCurrency(amount)}
+                    ariaLabel={`Payment split: UPI ${formatCurrency(
+                      metrics.upiTotal,
+                    )}, cash ${formatCurrency(metrics.cashTotal)}, card ${formatCurrency(
+                      metrics.cardTotal,
+                    )}`}
+                  />
+                </div>
+              ) : (
+                <p className="mt-3 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+                  The split appears here once money comes in.
+                </p>
+              )}
             </div>
           </div>
 
@@ -343,11 +475,13 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
             </select>
           </div>
 
-          {/* Sales History Data Table */}
-          <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
+          {/* Only the rows move. The figures above and the column headings
+              stay put, so you never lose track of which column you are
+              reading halfway down a long day. */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm">
+            <div className="min-h-0 flex-1 overflow-auto">
               <table className="w-full text-left border-collapse text-xs">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="bg-[var(--bg-soft)] border-b border-[var(--border-soft)] text-[var(--text-tertiary)] font-semibold uppercase tracking-wider text-[10px]">
                     <th className="py-3 px-4">Invoice #</th>
                     <th className="py-3 px-4">Date & Time</th>
@@ -372,7 +506,9 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
                   ) : filteredSales.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="py-12 text-center text-[var(--text-tertiary)]">
-                        No sales found matching your criteria.
+                        {sales.length === 0
+                          ? "No sales yet. Every bill rung up at the counter lands here."
+                          : "No sales match this search."}
                       </td>
                     </tr>
                   ) : (
@@ -380,6 +516,22 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
                       <tr key={sale.id} className="hover:bg-bg-base transition-colors">
                         <td className="py-3 px-4 font-mono font-semibold text-[var(--text-primary)]">
                           {sale.receipt_number}
+                          {/* The return is its own document and leaves the sale
+                              untouched, so without this a fully returned bill
+                              reads exactly like one that still stands. */}
+                          {(refundedBySale[sale.id] ?? 0) > 0 && (
+                            <span
+                              className={`mt-1 block w-fit rounded-full px-2 py-0.5 font-sans text-[10px] font-bold ${
+                                (refundedBySale[sale.id] ?? 0) >= sale.total_amount
+                                  ? "bg-[var(--error)]/10 text-[var(--error-strong)]"
+                                  : "bg-[var(--warning)]/10 text-[var(--warning-strong)]"
+                              }`}
+                            >
+                              {(refundedBySale[sale.id] ?? 0) >= sale.total_amount
+                                ? "Fully returned"
+                                : `Returned ${formatCurrency(refundedBySale[sale.id] ?? 0)}`}
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-[var(--text-tertiary)]">
                           {formatDate(sale.created_at, true)}
@@ -424,31 +576,58 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
                               <span>Invoice</span>
                             </button>
 
-                            {sale.status === "voided" ? (
-                              <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-[var(--error)]/20 text-[var(--error)] border border-[var(--error)]/30">
-                                Voided
-                              </span>
-                            ) : (
-                              <>
-                              {/* Return takes back individual lines and leaves
-                                  the bill intact; Void cancels the whole sale.
-                                  Different jobs, so both are offered. */}
-                              <button
-                                onClick={() => setReturningSaleId(sale.id)}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--warning)]/10 hover:bg-[var(--warning)]/20 text-[var(--warning-strong)] rounded-lg text-[11px] transition-colors border border-[var(--warning)]/20"
-                              >
-                                <Undo2 className="w-3 h-3" />
-                                <span>Return</span>
-                              </button>
-                              <button
-                                onClick={() => handleVoidSale(sale.id)}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--error)]/10 hover:bg-[var(--error)]/20 text-[var(--error)] hover:text-[var(--error)] rounded-lg text-[11px] transition-colors border border-[var(--error)]/20"
-                              >
-                                <RotateCcw className="w-3 h-3" />
-                                <span>Void</span>
-                              </button>
-                              </>
-                            )}
+                            {(() => {
+                              const refunded = refundedBySale[sale.id] ?? 0;
+                              const fullyReturned = refunded >= sale.total_amount;
+
+                              if (sale.status === "voided") {
+                                return (
+                                  <span className="rounded bg-[var(--error)]/15 px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--error-strong)]">
+                                    Voided
+                                  </span>
+                                );
+                              }
+
+                              return (
+                                <>
+                                  {/* Return takes back individual lines and leaves
+                                      the bill intact; Void cancels the whole sale.
+                                      Neither is offered once the bill has already
+                                      been sent back — see below. */}
+                                  {!fullyReturned && (
+                                    <button
+                                      onClick={() => setReturningSaleId(sale.id)}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-[var(--warning)]/20 bg-[var(--warning)]/10 px-2 py-1 text-[11px] text-[var(--warning-strong)] transition-colors hover:bg-[var(--warning)]/20"
+                                    >
+                                      <Undo2 className="h-3 w-3" />
+                                      <span>{refunded > 0 ? "Return more" : "Return"}</span>
+                                    </button>
+                                  )}
+
+                                  {/* Void restocks every line of the sale and
+                                      reverses the money, and the server does not
+                                      check whether a return already did some of
+                                      that. Offering it after a return invites
+                                      double-restocking the same goods. */}
+                                  {refunded > 0 ? (
+                                    <span
+                                      className="rounded bg-[var(--bg-soft)] px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--text-tertiary)]"
+                                      title="This bill has already been returned. Voiding it as well would put the same stock back twice."
+                                    >
+                                      {fullyReturned ? "Returned" : "Part returned"}
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleVoidSale(sale.id)}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-[var(--error)]/20 bg-[var(--error)]/10 px-2 py-1 text-[11px] text-[var(--error-strong)] transition-colors hover:bg-[var(--error)]/20"
+                                    >
+                                      <RotateCcw className="h-3 w-3" />
+                                      <span>Void</span>
+                                    </button>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </td>
                       </tr>
@@ -458,12 +637,12 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
               </table>
             </div>
           </div>
-        </>
+        </div>
       ) : (
         /* ========================================================= */
         /* DAY CLOSE REGISTER AUDIT                                  */
         /* ========================================================= */
-        <div className="max-w-2xl mx-auto bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl p-6 shadow-2xl space-y-6">
+        <div className="mx-auto w-full max-w-2xl space-y-6 overflow-y-auto rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-sm">
           <div className="flex items-center justify-between pb-4 border-b border-[var(--border-soft)]">
             <div className="flex items-center gap-2">
               <Lock className="w-5 h-5 text-[var(--warning-strong)]" />
@@ -481,93 +660,192 @@ export function SalesManager({ initialSales }: SalesManagerProps) {
             )}
           </div>
 
-          <div className="space-y-3 bg-[var(--surface-muted)] p-4 rounded-xl border border-[var(--border-soft)] text-xs">
-            <div className="flex justify-between py-1">
-              <span className="text-[var(--text-tertiary)]">Opening Cash Float:</span>
-              <span className="font-mono font-semibold text-[var(--text-primary)]">
-                {formatCurrency(openingCash)}
+          {/* What the drawer should hold. The float is asked for rather than
+              assumed: it used to be hardcoded at 5,000, which made every
+              over/short reading a comparison against money nobody counted. */}
+          <div className="rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4">
+            <label className="block">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
+                Opening cash float
               </span>
-            </div>
-            <div className="flex justify-between py-1 border-t border-[var(--border-soft)]">
-              <span className="text-[var(--text-tertiary)]">+ Cash Sales Received:</span>
-              <span className="font-mono font-semibold text-[var(--success-strong)]">
-                +{formatCurrency(metrics.cashTotal)}
+              <span className="mt-1 block text-[11px] font-medium text-[var(--text-tertiary)]">
+                What was in the drawer before trading started.
               </span>
-            </div>
-            <div className="flex justify-between py-1 border-t border-[var(--border-soft)]">
-              <span className="text-[var(--text-tertiary)]">Digital UPI / QR Collections:</span>
-              <span className="font-mono font-semibold text-[var(--info-strong)]">
-                {formatCurrency(metrics.upiTotal)}
-              </span>
-            </div>
-            <div className="flex justify-between py-1 border-t border-[var(--border-soft)]">
-              <span className="text-[var(--text-tertiary)]">Card POS Collections:</span>
-              <span className="font-mono font-semibold text-purple-600">
-                {formatCurrency(metrics.cardTotal)}
-              </span>
-            </div>
-            <div className="flex justify-between py-2 border-t border-[var(--border-soft)] font-bold text-sm text-[var(--text-primary)]">
-              <span>Calculated Cash Expected in Till:</span>
-              <span className="font-mono">{formatCurrency(expectedCashInDrawer)}</span>
-            </div>
+              <input
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                disabled={isDayClosed}
+                value={floatText}
+                placeholder="0.00"
+                onChange={(e) => {
+                  const text = e.target.value;
+                  // Anything that is not money is ignored outright. Accepting
+                  // it would coerce a typo to zero and quietly invent a float.
+                  if (!isMoneyInput(text)) return;
+                  setFloatText(text);
+                  setRegisterClose({
+                    ...registerClose,
+                    openingFloat: moneyValue(text),
+                    floatEntered: text !== "",
+                  });
+                }}
+                onBlur={() => void persistClose(registerClose)}
+                className="tnum mt-2 w-full rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3.5 py-2.5 font-mono text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] disabled:opacity-60"
+              />
+            </label>
+
+            <dl className="mt-3.5 space-y-1.5 border-t border-[var(--border-soft)] pt-3.5">
+              <div className="flex justify-between text-xs">
+                <dt className="text-[var(--text-secondary)]">Cash sales taken</dt>
+                <dd className="tnum font-mono font-bold text-[var(--success-strong)]">
+                  +{formatCurrency(drawerCash)}
+                </dd>
+              </div>
+              <div className="flex justify-between text-xs">
+                <dt className="text-[var(--text-tertiary)]">UPI / QR (not in the drawer)</dt>
+                <dd className="tnum font-mono font-semibold text-[var(--text-tertiary)]">
+                  {formatCurrency(metrics.upiTotal)}
+                </dd>
+              </div>
+              <div className="flex justify-between text-xs">
+                <dt className="text-[var(--text-tertiary)]">Card (not in the drawer)</dt>
+                <dd className="tnum font-mono font-semibold text-[var(--text-tertiary)]">
+                  {formatCurrency(metrics.cardTotal)}
+                </dd>
+              </div>
+              <div className="flex justify-between border-t border-[var(--border-soft)] pt-2.5 text-sm font-extrabold text-[var(--text-primary)]">
+                <dt>Cash expected in till</dt>
+                <dd className="tnum font-mono">{formatCurrency(expectedCashInDrawer)}</dd>
+              </div>
+            </dl>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
-                Actual Physical Cash Counted (₹) *
-              </label>
+          <div className="mt-4 space-y-4">
+            <label className="block">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
+                Cash counted in the drawer
+              </span>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
                 disabled={isDayClosed}
-                value={actualCountedCash}
-                onChange={(e) => setActualCountedCash(e.target.value)}
-                className="w-full px-4 py-2.5 bg-[var(--surface-muted)] border border-[var(--border-soft)] rounded-xl text-base font-mono font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
+                value={countedText}
+                placeholder="0.00"
+                onChange={(e) => {
+                  const text = e.target.value;
+                  if (!isMoneyInput(text)) return;
+                  setCountedText(text);
+                  setRegisterClose({ ...registerClose, countedCash: moneyValue(text) });
+                }}
+                onBlur={() => void persistClose(registerClose)}
+                className="tnum mt-2 w-full rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3.5 py-2.5 font-mono text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] disabled:opacity-60"
               />
-            </div>
+            </label>
 
-            {/* Discrepancy Flag */}
-            <div
-              className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
-                cashDifference === 0
-                  ? "bg-[var(--success)]/15 border-[var(--success)]/30 text-[var(--success-strong)]"
-                  : cashDifference > 0
-                  ? "bg-[var(--info)]/15 border-[var(--info)]/30 text-[var(--info-strong)]"
-                  : "bg-[var(--error)]/15 border-[var(--error)]/30 text-[var(--error-strong)]"
-              }`}
-            >
-              <span>Cash Discrepancy (Over / Short):</span>
-              <strong className="font-mono text-sm">
-                {cashDifference === 0
-                  ? "Exact Match (₹0.00)"
-                  : cashDifference > 0
-                  ? `+${formatCurrency(cashDifference)} (Cash Over)`
-                  : `${formatCurrency(cashDifference)} (Cash Short)`}
-              </strong>
-            </div>
+            {/* This figure can get a cashier accused of a shortfall, so it is
+                withheld until both halves of it were actually entered. */}
+            {cashDifference === null ? (
+              <p className="rounded-[12px] border border-dashed border-[var(--border)] bg-[var(--bg-base)] px-4 py-3 text-[12px] font-semibold text-[var(--text-tertiary)]">
+                Enter the opening float to see whether the till is over or short.
+              </p>
+            ) : (
+              <div
+                className={`flex items-center justify-between rounded-[12px] border px-4 py-3 ${
+                  cashDifference === 0
+                    ? "border-[var(--success)]/40 bg-[var(--success)]/10"
+                    : cashDifference > 0
+                      ? "border-[var(--warning)]/40 bg-[var(--warning)]/10"
+                      : "border-[var(--error)]/40 bg-[var(--error)]/10"
+                }`}
+              >
+                <span
+                  className={`text-xs font-bold ${
+                    cashDifference === 0
+                      ? "text-[var(--success-strong)]"
+                      : cashDifference > 0
+                        ? "text-[var(--warning-strong)]"
+                        : "text-[var(--error-strong)]"
+                  }`}
+                >
+                  {cashDifference === 0
+                    ? "Balanced"
+                    : cashDifference > 0
+                      ? "Cash over"
+                      : "Cash short"}
+                </span>
+                <span
+                  className={`tnum font-mono text-lg font-bold ${
+                    cashDifference === 0
+                      ? "text-[var(--success-strong)]"
+                      : cashDifference > 0
+                        ? "text-[var(--warning-strong)]"
+                        : "text-[var(--error-strong)]"
+                  }`}
+                >
+                  {cashDifference > 0 ? "+" : ""}
+                  {formatCurrency(cashDifference)}
+                </span>
+              </div>
+            )}
 
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
-                Closing Manager Notes
-              </label>
+            <label className="block">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
+                Notes
+              </span>
               <textarea
                 rows={3}
                 disabled={isDayClosed}
-                value={dayCloseNotes}
-                onChange={(e) => setDayCloseNotes(e.target.value)}
-                placeholder="Add any notes regarding cash variance, till handover, or exceptional refunds..."
-                className="w-full px-3 py-2 bg-[var(--surface-muted)] border border-[var(--border-soft)] rounded-xl text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none"
+                value={registerClose.notes}
+                onChange={(e) =>
+                  setRegisterClose({ ...registerClose, notes: e.target.value })
+                }
+                onBlur={() => void persistClose(registerClose)}
+                placeholder="Anything worth explaining about the count, a handover, or a refund."
+                className="mt-2 w-full rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3.5 py-2.5 text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--primary)] disabled:opacity-60"
               />
-            </div>
+            </label>
 
-            {!isDayClosed && (
+            {isDayClosed ? (
+              <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] px-4 py-3">
+                <p className="m-0 text-[12px] font-bold text-[var(--text-primary)]">
+                  Day closed at{" "}
+                  {new Date(registerClose.closedAt as string).toLocaleTimeString("en-IN", {
+                    timeStyle: "short",
+                  })}
+                </p>
+                {registerClose.closedByName && (
+                  <p className="m-0 mt-0.5 text-[11px] font-medium text-[var(--text-tertiary)]">
+                    Counted by {registerClose.closedByName}
+                  </p>
+                )}
+              </div>
+            ) : (
               <button
-                onClick={() => setIsDayClosed(true)}
-                className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-500/25 transition-all active:scale-98"
+                type="button"
+                disabled={!floatEntered || isSavingClose}
+                onClick={() => void persistClose(registerClose, true)}
+                className="focus-ring w-full cursor-pointer rounded-[12px] border border-[var(--primary)]/25 bg-[var(--primary)]/12 py-3 text-xs font-bold text-[var(--primary-dark)] transition-colors hover:bg-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Submit & Lock Day Close Register
+                {floatEntered ? "Lock the day close" : "Enter the opening float first"}
               </button>
             )}
+
+            {closeError && (
+              <p
+                role="alert"
+                className="m-0 rounded-[10px] border border-[var(--error)]/40 bg-[var(--error)]/10 px-3 py-2 text-[11.5px] font-semibold text-[var(--error-strong)]"
+              >
+                {closeError}
+              </p>
+            )}
+
+            <p className="m-0 text-[11px] font-medium text-[var(--text-tertiary)]">
+              {isSavingClose
+                ? "Saving..."
+                : "Saved to your shop's records, and visible on every device."}
+            </p>
           </div>
         </div>
       )}

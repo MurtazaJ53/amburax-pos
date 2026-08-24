@@ -94,7 +94,7 @@ export function NotificationsFeed() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-white tracking-tight">Store Notifications & Alerts</h2>
+          <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">Store Notifications & Alerts</h2>
           <p className="text-xs text-[var(--text-tertiary)]">
             Real-time stock alerts, khata receipts, shift check-ins, and system notices
           </p>
@@ -119,8 +119,8 @@ export function NotificationsFeed() {
           onClick={() => setFilter("all")}
           className={`pb-3 px-3 text-xs font-semibold border-b-2 transition-colors ${
             filter === "all"
-              ? "border-[var(--primary)] text-white"
-              : "border-transparent text-[var(--text-tertiary)] hover:text-white"
+              ? "border-[var(--primary)] text-[var(--text-primary)]"
+              : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
           }`}
         >
           All Activity ({notifications.length})
@@ -129,8 +129,8 @@ export function NotificationsFeed() {
           onClick={() => setFilter("unread")}
           className={`pb-3 px-3 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
             filter === "unread"
-              ? "border-[var(--primary)] text-white"
-              : "border-transparent text-[var(--text-tertiary)] hover:text-white"
+              ? "border-[var(--primary)] text-[var(--text-primary)]"
+              : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
           }`}
         >
           <span>Unread Alerts</span>
@@ -191,7 +191,7 @@ export function NotificationsFeed() {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-xs font-bold text-white">{item.title}</h4>
+                  <h4 className="text-xs font-bold text-[var(--text-primary)]">{item.title}</h4>
                   <span className="text-[10px] text-[var(--text-tertiary)] font-mono">
                     {formatDate(item.created_at, true)}
                   </span>

@@ -82,6 +82,17 @@ type AdminShellProps = {
   title: string;
   subtitle: string;
   surfaceMode?: "product" | "internal";
+  /**
+   * "bar" is the default: the screen name, timezone and currency live in the
+   * top bar, so no card in the body repeats what the sidebar already shows.
+   * "card" is the old titled block, kept for any screen that still wants a
+   * heading and a description in the body.
+   */
+  headerVariant?: "card" | "bar";
+  /** Pin the whole screen to the viewport and let the page scroll its own
+   *  regions. Use on table screens where the figures and filters should stay
+   *  put while only the rows move. */
+  fitViewport?: boolean;
   children: ReactNode;
 };
 
@@ -91,6 +102,8 @@ export function AdminShell({
   activeRoute,
   title,
   subtitle,
+  headerVariant = "bar",
+  fitViewport = false,
   children,
 }: AdminShellProps) {
   const router = useRouter();
@@ -167,6 +180,12 @@ export function AdminShell({
   const adminNav = [...allowed(everydayNav), ...accountNav];
   const moreNav = allowed(occasionalNav);
 
+  /** The label of the nav item you are on. Taken from the nav config rather
+   *  than a per-page string, so the word you clicked is the word you land on. */
+  const currentScreenLabel =
+    [...mainNav, ...adminNav, ...moreNav].find((item) => item.key === activeRoute)?.label ??
+    title;
+
   const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => {
     // Opened if the shopkeeper left it open, or if they are standing on a page
@@ -188,7 +207,11 @@ export function AdminShell({
   ];
 
   return (
-    <div className="min-h-screen bg-bg-app text-text-primary flex flex-col transition-colors duration-200">
+    <div
+      className={`bg-bg-app text-text-primary flex flex-col transition-colors duration-200 ${
+        fitViewport ? "lg:h-screen lg:overflow-hidden min-h-screen" : "min-h-screen"
+      }`}
+    >
       {/* Above the header on purpose: this is the one message that has to
           reach a shopkeeper who never opens the billing page. */}
       <TrialBanner />
@@ -197,11 +220,11 @@ export function AdminShell({
       <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-md border-b border-border-soft px-4 lg:px-8 py-3 transition-colors duration-200">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4">
           
-          {/* Logo & Store Selector */}
+          {/* Logo, current screen, and store selector */}
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[var(--primary-light)] to-[var(--primary-hover)] flex items-center justify-center shadow-[0_4px_12px_rgba(14,165,233,0.3)]">
-                <Store className="w-5 h-5 text-white" />
+                <Store className="w-5 h-5 text-[var(--text-primary)]" />
               </div>
               <div>
                 <span className="text-base font-black text-text-primary tracking-tight hidden sm:inline">
@@ -213,8 +236,24 @@ export function AdminShell({
               </div>
             </Link>
 
+            {/* Where you are. This used to be a full card in the page body
+                restating what the sidebar already highlighted, plus the
+                timezone and currency, which cost the top quarter of every
+                screen. */}
+            <div className="hidden md:flex items-center gap-3 ml-3 pl-3 border-l border-border-soft">
+              <span className="text-sm font-extrabold tracking-tight text-text-primary">
+                {currentScreenLabel}
+              </span>
+              {activeShop && (
+                <span className="font-mono text-[10.5px] font-medium text-text-tertiary">
+                  {activeShop.shop.timezone || "Asia/Kolkata"} &middot;{" "}
+                  {activeShop.shop.currency_code || "INR"}
+                </span>
+              )}
+            </div>
+
             {activeShop && (
-              <div className="hidden md:flex items-center gap-2 ml-4 pl-4 border-l border-border-soft">
+              <div className="hidden xl:flex items-center gap-2 ml-1 pl-3 border-l border-border-soft">
                 <div className="px-3 py-1.5 bg-bg-base border border-border-soft rounded-xl flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse" />
                   <span className="text-xs font-bold text-text-primary">{activeShop.shop.name}</span>
@@ -230,7 +269,7 @@ export function AdminShell({
           <div className="flex items-center gap-2.5">
             <Link
               href="/pos"
-              className="px-4 py-2 bg-gradient-to-r from-[var(--primary-light)] to-[var(--primary-hover)] hover:from-[var(--primary)] hover:to-[var(--primary-dark)] text-white rounded-xl text-xs font-extrabold shadow-[0_4px_14px_rgba(14,165,233,0.3)] flex items-center gap-1.5 transition-all"
+              className="px-4 py-2 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 rounded-xl text-xs font-extrabold shadow-[0_4px_14px_rgba(14,165,233,0.3)] flex items-center gap-1.5 transition-all"
             >
               <ShoppingCart className="w-4 h-4" />
               <span className="hidden sm:inline">OPEN POS TERMINAL</span>
@@ -278,10 +317,20 @@ export function AdminShell({
       </header>
 
       {/* Main Layout Grid */}
-      <div className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] gap-6">
+      <div
+        className={`flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] gap-6 ${
+          fitViewport ? "lg:min-h-0 lg:overflow-hidden" : ""
+        }`}
+      >
         
         {/* Left Sidebar Navigation matching APK tabs */}
-        <aside className="hidden lg:flex flex-col gap-6">
+        <aside
+          className={`hidden lg:flex flex-col gap-6 no-scrollbar ${
+            fitViewport
+              ? "lg:min-h-0 lg:overflow-y-auto"
+              : "lg:sticky lg:top-[92px] lg:max-h-[calc(100vh-108px)] lg:overflow-y-auto lg:self-start"
+          }`}
+        >
           
           {/* Main App Navigation Panel (Core Workflows) */}
           <div className="bg-surface border border-border-soft rounded-[24px] p-3.5 shadow-sm space-y-1 transition-colors duration-200">
@@ -297,13 +346,13 @@ export function AdminShell({
                   href={item.href}
                   className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                     isActive
-                      ? "bg-[var(--primary)] text-white shadow-[0_4px_12px_rgba(14,165,233,0.3)]"
+                      ? "relative bg-[var(--primary)]/12 text-[var(--primary-hover)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--primary)]"
                       : item.highlight
                       ? "bg-[var(--primary)]/10 text-primary hover:bg-[var(--primary)]/20"
                       : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? "text-white" : ""}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? "text-[var(--text-primary)]" : ""}`} />
                   <span>{item.label}</span>
                 </Link>
               );
@@ -324,7 +373,7 @@ export function AdminShell({
                   href={item.href}
                   className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                     isActive
-                      ? "bg-[var(--primary)] text-white shadow-[0_4px_12px_rgba(14,165,233,0.3)]"
+                      ? "relative bg-[var(--primary)]/12 text-[var(--primary-hover)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--primary)]"
                       : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
                   }`}
                 >
@@ -364,7 +413,7 @@ export function AdminShell({
                       href={item.href}
                       className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                         isActive
-                          ? "bg-[var(--primary)] text-white shadow-[0_4px_12px_rgba(14,165,233,0.3)]"
+                          ? "relative bg-[var(--primary)]/12 text-[var(--primary-hover)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--primary)]"
                           : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
                       }`}
                     >
@@ -391,7 +440,7 @@ export function AdminShell({
                     href={item.href}
                     className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                       isActive
-                        ? "bg-[var(--primary)] text-white shadow-[0_4px_12px_rgba(14,165,233,0.3)]"
+                        ? "relative bg-[var(--primary)]/12 text-[var(--primary-hover)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--primary)]"
                         : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
                     }`}
                   >
@@ -416,9 +465,23 @@ export function AdminShell({
         </aside>
 
         {/* Content Area */}
-        <main className="flex-1 flex flex-col min-w-0">
+        <main
+          className={`flex-1 flex flex-col min-w-0 ${
+            fitViewport ? "lg:min-h-0 lg:overflow-hidden" : ""
+          }`}
+        >
           
+          {/* The screen name, timezone and currency now live in the top bar,
+              so nothing in the body repeats them. Kept for assistive tech,
+              which still needs the page announced. */}
+          {headerVariant === "bar" && (
+            <span className="sr-only">
+              {title}. {subtitle}
+            </span>
+          )}
+
           {/* Header Card */}
+          {headerVariant === "card" && (
           <div className="bg-surface border border-border-soft rounded-[28px] p-6 sm:p-7 shadow-sm mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition-colors duration-200">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-extrabold bg-primary/10 text-primary mb-2 uppercase">
@@ -448,9 +511,12 @@ export function AdminShell({
               </div>
             </div>
           </div>
+          )}
 
           {/* Child Page Rendering */}
-          <div className="flex-1">{children}</div>
+          <div className={`flex-1 ${fitViewport ? "min-h-0 flex flex-col" : ""}`}>
+            {children}
+          </div>
         </main>
       </div>
     </div>

@@ -514,7 +514,7 @@ export function StoreSettings({
           <button
             type="submit"
             disabled={isSaving || isLoading}
-            className="flex items-center gap-2 px-6 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-semibold rounded-xl shadow-lg shadow-blue-500/25 disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-2.5 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 text-xs font-semibold rounded-xl shadow-lg shadow-blue-500/25 disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             <span>{isSaving ? "Saving…" : "Save Store Preferences"}</span>

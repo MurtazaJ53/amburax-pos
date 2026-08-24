@@ -278,7 +278,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-left transition-all ${
                     isSelected
-                      ? "bg-[var(--primary)] text-white shadow-md shadow-blue-500/20"
+                      ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 shadow-md shadow-blue-500/20"
                       : "text-[var(--text-primary)] hover:bg-[var(--surface-strong)]"
                   }`}
                 >

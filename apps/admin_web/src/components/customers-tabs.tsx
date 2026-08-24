@@ -32,7 +32,7 @@ export function CustomersTabs({
   const [tab, setTab] = useState<TabKey>("customers");
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap gap-2">
         {TABS.map(({ key, label, icon: Icon }) => (
           <button

@@ -281,7 +281,7 @@ export function DataHealth() {
                     type="button"
                     disabled={busy}
                     onClick={() => confirmAndMerge(report.duplicateGroups)}
-                    className="rounded-xl bg-[var(--primary)] px-4 py-2 text-xs font-extrabold text-white disabled:opacity-50"
+                    className="rounded-xl bg-[var(--primary)]/12 px-4 py-2 text-xs font-extrabold text-[var(--primary-dark)] disabled:opacity-50 border border-[var(--primary)]/25"
                   >
                     {busy ? "Merging…" : "Merge all"}
                   </button>

@@ -304,7 +304,7 @@ export function ThermalReceiptModal({
         <div className="p-5 bg-[var(--bg-base)] flex items-center gap-3">
           <button
             onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-2 py-3 px-5 bg-gradient-to-r from-[var(--primary-light)] to-[var(--primary-hover)] hover:from-[var(--primary)] hover:to-[var(--primary-dark)] text-white rounded-2xl font-extrabold text-xs shadow-[0_8px_20px_rgba(14,165,233,0.35)] transition-all cursor-pointer"
+            className="flex-1 flex items-center justify-center gap-2 py-3 px-5 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 rounded-2xl font-extrabold text-xs shadow-[0_8px_20px_rgba(14,165,233,0.35)] transition-all cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             <span>Print Receipt</span>

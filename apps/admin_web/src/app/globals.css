@@ -8,72 +8,82 @@
 :root,
 [data-theme="light"] {
   /* APK Light Theme Palette (AppPalette from mobile_flutter/lib/core/theme/app_theme.dart) */
-  --bg-app: #EEF2F6;
-  --bg-base: #F8FAFC;
-  --bg-soft: #F1F5F9;
-  --surface: #FFFFFF;
-  --surface-strong: #F4F4F5;
-  --surface-muted: #F8FAFC;
-  --border-soft: #E4E4E7;
-  --border: #D4D4D8;
-  --border-strong: #A1A1AA;
+  --bg-app: #EFF6FC;
+  --bg-base: #FDFEFF;
+  --bg-soft: #F1F7FC;
+  --surface: #FDFEFF;
+  --surface-strong: #F1F7FC;
+  --surface-muted: #F1F7FC;
+  --border-soft: #DCEAF5;
+  --border: #C5DCEC;
+  --border-strong: #93B4CC;
 
   /* Text Hierarchy (Slate / Zinc ink) */
-  --text-primary: #0F172A;
-  --text-secondary: #3F3F46;
-  --text-tertiary: #71717A;
-  --text-disabled: #A1A1AA;
+  --text-primary: #0F2942;
+  --text-secondary: #3D5A73;
+  --text-tertiary: #64748B;
+  --text-disabled: #93A8BC;
 
-  /* Brand Colors - Sky Blue */
-  --primary: #0EA5E9;
-  --primary-hover: #0284C7;
-  --primary-light: #38BDF8;
-  --primary-dark: #0369A1;
+  /* Light sky.
+     Four attempts read as "too dark" for one reason: the buttons carried
+     WHITE text, and white text forces a dark fill to stay legible. A light
+     sky fill under white measures 1.15:1 — unusable. So the buttons flipped
+     instead: a pale sky ground with DARK sky ink on it, which measures 7:1
+     and up while actually looking light.
+     These tokens are therefore the INK values — used for text, links and
+     borders. The pale grounds come from the same hue at low alpha. */
+  --primary: #0369A1;        /* 5.88:1 as text */
+  --primary-hover: #075985;  /* 7.49:1 as text */
+  --primary-light: #0369A1;  /* legacy gradients keep white text legible */
+  --primary-dark: #0C4A6E;   /* ink on a pale sky button - 8.24:1 */
+  --primary-bright: #0284C7; /* chart strokes and bars - 4.06:1, non-text */
 
-  --accent: #0284C7;
-  --accent-hover: #0369A1;
-  --accent-light: #38BDF8;
+  --accent: #0369A1;
+  --accent-hover: #075985;
+  --accent-light: #0284C7;
 
   /* Semantic Colors */
-  --success: #10B981;
-  --success-light: #34D399;
-  --success-dark: #059669;
+  --success: #15803D;
+  --success-light: #22C55E;
+  --success-dark: #14532D;
 
-  --warning: #F59E0B;
-  --warning-light: #FBBF24;
-  --warning-dark: #D97706;
+  --warning: #D97706;
+  --warning-light: #F59E0B;
+  --warning-dark: #7C2D12;
 
-  --error: #EF4444;
-  --error-light: #F87171;
-  --error-dark: #DC2626;
+  --error: #B91C1C;
+  --error-light: #EF4444;
+  --error-dark: #7F1D1D;
 
-  --info: #3B82F6;
-  --info-light: #60A5FA;
-  --info-dark: #2563EB;
+  --info: #1D4ED8;
+  --info-light: #3B82F6;
+  --info-dark: #1E3A8A;
 
-  /* Status text that has to stay readable on a tinted panel. Light theme wants
-     the deep shade; dark theme overrides these with the light shade. */
-  --success-strong: #059669;
-  --warning-strong: #D97706;
-  --error-strong: #DC2626;
-  --info-strong: #2563EB;
+  /* Status text that has to stay readable on a tinted panel. Light theme
+     wants the deep shade; dark theme overrides with the light shade. Kept
+     deliberately distant from the teal accent so a status never reads as
+     branding. */
+  --success-strong: #15803D;  /* 4.76:1 */
+  --warning-strong: #B45309;  /* 4.77:1 */
+  --error-strong: #B91C1C;    /* 6.15:1 */
+  --info-strong: #1D4ED8;     /* 6.37:1 */
 
   /* Domain Colors */
-  --revenue: #10B981;
-  --expense: #EF4444;
-  --inventory: #0EA5E9;
-  --customer: #0284C7;
-  --alert: #F59E0B;
+  --revenue: #15803D;
+  --expense: #B91C1C;
+  --inventory: #0369A1;
+  --customer: #0369A1;
+  --alert: #B45309;
 
   /* Panel Background Soft with opacity */
-  --bg-panel-soft: rgba(255, 255, 255, 0.85);
+  --bg-panel-soft: rgba(253, 254, 255, 0.85);
 
   /* Shadows (Soft APK elevated card shadows) */
   --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
-  --shadow-2: 0 4px 12px rgba(14, 165, 233, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
-  --shadow-3: 0 10px 25px -5px rgba(14, 165, 233, 0.08), 0 8px 16px -6px rgba(0, 0, 0, 0.04);
-  --shadow-4: 0 20px 35px -8px rgba(14, 165, 233, 0.12), 0 10px 20px -5px rgba(0, 0, 0, 0.05);
-  --shadow-glow: 0 0 0 1px rgba(14, 165, 233, 0.25), 0 8px 24px rgba(14, 165, 233, 0.20);
+  --shadow-2: 0 4px 12px rgba(3, 105, 161, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-3: 0 10px 25px -5px rgba(3, 105, 161, 0.08), 0 8px 16px -6px rgba(0, 0, 0, 0.04);
+  --shadow-4: 0 20px 35px -8px rgba(3, 105, 161, 0.12), 0 10px 20px -5px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 0 1px rgba(3, 105, 161, 0.25), 0 8px 24px rgba(3, 105, 161, 0.20);
 
   /* Typography */
   /* --font-outfit / --font-jetbrains-mono are set on <html> by next/font. */
@@ -83,61 +93,64 @@
 
 [data-theme="dark"] {
   /* Premium Dark Mode Palette */
-  --bg-app: #0B0F19;         /* Dark background */
-  --bg-base: #0B0F19;
-  --bg-soft: #151B2C;        /* Dark soft surface */
-  --surface: #1E293B;        /* Card surface */
-  --surface-strong: #0F172A; /* Deeper slate surface */
-  --surface-muted: #1E293B;
-  --border-soft: #2E3A52;    /* Dark border soft */
-  --border: #3F4E6B;         /* Dark border normal */
-  --border-strong: #64748B;
+  --bg-app: #08131D;         /* Dark background */
+  --bg-base: #08131D;
+  --bg-soft: #0E1D2A;        /* Dark soft surface */
+  --surface: #132638;        /* Card surface */
+  --surface-strong: #0E1D2A; /* Deeper slate surface */
+  --surface-muted: #132638;
+  --border-soft: #22384C;    /* Dark border soft */
+  --border: #33506A;         /* Dark border normal */
+  --border-strong: #557794;
 
   /* Text Hierarchy */
-  --text-primary: #F8FAFC;
-  --text-secondary: #CBD5E1;
-  --text-tertiary: #94A3B8;
-  --text-disabled: #475569;
+  --text-primary: #EAF4FB;
+  --text-secondary: #B4CBDD;
+  --text-tertiary: #8AA6BE;
+  --text-disabled: #55708A;
 
-  /* Brand Colors - Sky Blue */
-  --primary: #38BDF8;
-  --primary-hover: #7DD3FC;
-  --primary-light: #93C5FD;
-  --primary-dark: #0EA5E9;
+  /* Brand Colors - Counter teal, dark. On a #1C1A17 card these measure
+     9.33:1 and up. */
+  --primary: #7DD3FC;
+  --primary-hover: #BAE6FD;
+  --primary-light: #BAE6FD;
+  --primary-dark: #38BDF8;
+  --primary-bright: #38BDF8;
 
-  --accent: #38BDF8;
-  --accent-hover: #7DD3FC;
-  --accent-light: #BAE6FD;
+  --accent: #7DD3FC;
+  --accent-hover: #BAE6FD;
+  --accent-light: #38BDF8;
 
   /* Semantic Colors */
-  --success: #10B981;
+  --success: #4ADE80;
   --success-light: #34D399;
   --success-dark: #059669;
 
-  --warning: #F59E0B;
+  --warning: #FBBF24;
   --warning-light: #FBBF24;
   --warning-dark: #D97706;
 
-  --error: #EF4444;
+  --error: #FCA5A5;
   --error-light: #F87171;
   --error-dark: #DC2626;
 
-  --info: #3B82F6;
+  --info: #93B4FD;
   --info-light: #60A5FA;
   --info-dark: #2563EB;
 
   /* See the light-theme note: the deep shades go muddy on a dark panel. */
-  --success-strong: #34D399;
+  --violet-strong: #C4B5FD;
+  --success-strong: #4ADE80;
   --warning-strong: #FBBF24;
-  --error-strong: #F87171;
-  --info-strong: #60A5FA;
+  --error-strong: #FCA5A5;
+  --info-strong: #93B4FD;
 
   /* Domain Colors */
-  --revenue: #10B981;
-  --expense: #EF4444;
-  --inventory: #38BDF8;
-  --customer: #38BDF8;
-  --alert: #F59E0B;
+  --revenue: #4ADE80;
+  --expense: #FCA5A5;
+  --inventory: #7DD3FC;
+  --customer: #7DD3FC;
+  --alert: #FBBF24;
 
   /* Panel Background Soft with opacity */
   --bg-panel-soft: rgba(30, 41, 59, 0.85);
@@ -192,7 +205,7 @@ body {
   min-height: 100vh;
   background-color: var(--bg-app);
   background-image: 
-    radial-gradient(circle at 10% 20%, rgba(14, 165, 233, 0.04) 0%, transparent 40%),
+    radial-gradient(circle at 10% 20%, rgba(3, 105, 161, 0.04) 0%, transparent 40%),
     radial-gradient(circle at 90% 80%, rgba(56, 189, 248, 0.04) 0%, transparent 40%);
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -206,7 +219,7 @@ a {
 }
 
 ::selection {
-  background: rgba(14, 165, 233, 0.25);
+  background: rgba(3, 105, 161, 0.25);
   color: #0369A1;
 }
 
@@ -258,7 +271,7 @@ a {
 .nav-pill-active {
   background: linear-gradient(135deg, var(--primary), var(--primary-hover));
   color: #ffffff;
-  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
+  box-shadow: 0 4px 14px rgba(3, 105, 161, 0.35);
   font-weight: 700;
   border-radius: 14px;
 }
@@ -293,7 +306,7 @@ a {
   letter-spacing: 0.01em;
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.3);
+  box-shadow: 0 4px 14px rgba(3, 105, 161, 0.3);
   transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-flex;
   align-items: center;
@@ -383,7 +396,7 @@ a {
 .input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+  box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.15);
 }
 
 .input:disabled {
@@ -406,9 +419,9 @@ a {
 }
 
 .badge-primary {
-  background: rgba(14, 165, 233, 0.12);
+  background: rgba(3, 105, 161, 0.12);
   color: var(--primary);
-  border: 1px solid rgba(14, 165, 233, 0.20);
+  border: 1px solid rgba(3, 105, 161, 0.20);
 }
 
 .badge-success {
@@ -570,26 +583,15 @@ a {
 @keyframes pulseGlow {
   0% {
     opacity: 0.6;
-    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4);
+    box-shadow: 0 0 0 0 rgba(3, 105, 161, 0.4);
   }
   50% {
     opacity: 1;
-    box-shadow: 0 0 0 6px rgba(14, 165, 233, 0.2);
+    box-shadow: 0 0 0 6px rgba(3, 105, 161, 0.2);
   }
   100% {
     opacity: 0.6;
-    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4);
-  }
-}
-
-@keyframes scaleUp {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(3, 105, 161, 0.4);
   }
 }
 
@@ -599,10 +601,6 @@ a {
 
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out both;
-}
-
-.animate-scale-up {
-  animation: scaleUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .pulse-glow {
@@ -616,7 +614,7 @@ a {
 .hover-lift:hover {
   transform: translateY(-3px);
   box-shadow: var(--shadow-3);
-  border-color: rgba(14, 165, 233, 0.4);
+  border-color: rgba(3, 105, 161, 0.4);
 }
 
 .delay-1 { animation-delay: 40ms; }
@@ -627,3 +625,101 @@ a {
 .delay-6 { animation-delay: 240ms; }
 .delay-7 { animation-delay: 280ms; }
 .delay-8 { animation-delay: 320ms; }
+
+/* ---------------------------------------------------------------------------
+   Home v4 design-system additions.
+
+   These are shared primitives, not home-screen one-offs: the stat tiles,
+   panels, sparklines and severity rows in src/components/ui/ all read from
+   here, so any screen redesigned onto the same language picks them up.
+   --------------------------------------------------------------------------- */
+
+/* Figures that sit in a column must not jitter as digits change. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* A sparkline narrating the day once on load: line draws, area fades in
+   behind it, endpoint lands last. Purely decorative movement — the shape is
+   already correct at frame zero for anyone who never sees the animation. */
+@keyframes sparkDraw {
+  from { stroke-dashoffset: var(--spark-length, 800); }
+  to   { stroke-dashoffset: 0; }
+}
+
+.spark-line {
+  stroke-dasharray: var(--spark-length, 800);
+  animation: sparkDraw 1.1s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+
+.spark-area {
+  animation: fadeIn 0.6s ease 0.75s both;
+}
+
+.spark-dot {
+  animation: fadeIn 0.35s ease 1.1s both;
+}
+
+/* Rows in an attention queue nudge toward their action on hover. Transform
+   only, so neighbouring rows never reflow. */
+.hover-nudge {
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.18s ease,
+              background-color 0.18s ease;
+}
+
+.hover-nudge:hover {
+  transform: translateX(3px);
+}
+
+/* Keyboard users get the same affordance mouse users get. */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 14px;
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced motion.
+
+   The app had no prefers-reduced-motion handling at all: every fade-in,
+   lift, pulse and draw ran regardless of the visitor's OS setting. This
+   stops all of it and leaves the page at its final state.
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-fade-in,
+  .spark-line,
+  .spark-area,
+  .spark-dot,
+  .pulse-glow {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+
+  .hover-lift:hover,
+  .hover-nudge:hover {
+    transform: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Used on the pinned sidebar and the POS category strip: they scroll, but a
+   visible track on a short list reads as clutter. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

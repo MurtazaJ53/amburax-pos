@@ -271,7 +271,7 @@ export function StocktakeScreen({
             type="button"
             onClick={() => void start()}
             disabled={busy}
-            className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-xs font-extrabold text-white hover:bg-[var(--primary-hover)] disabled:opacity-50"
+            className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)]/12 px-5 py-3 text-xs font-extrabold text-[var(--primary-dark)] hover:bg-[var(--primary-hover)] disabled:opacity-50 border border-[var(--primary)]/25"
           >
             <Play className="w-4 h-4" />
             Start a stocktake
@@ -410,7 +410,7 @@ export function StocktakeScreen({
                   type="button"
                   onClick={() => void record()}
                   disabled={busy}
-                  className="mt-3 w-full rounded-2xl bg-[var(--primary)] px-5 py-3 text-xs font-extrabold text-white hover:bg-[var(--primary-hover)] disabled:opacity-50"
+                  className="mt-3 w-full rounded-2xl bg-[var(--primary)]/12 px-5 py-3 text-xs font-extrabold text-[var(--primary-dark)] hover:bg-[var(--primary-hover)] disabled:opacity-50 border border-[var(--primary)]/25"
                 >
                   {busy ? "Saving…" : "Record count"}
                 </button>
@@ -494,7 +494,7 @@ export function StocktakeScreen({
                   type="button"
                   onClick={() => void apply()}
                   disabled={busy}
-                  className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-6 py-3.5 text-sm font-extrabold text-white hover:bg-[var(--primary-hover)] disabled:opacity-50"
+                  className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)]/12 px-6 py-3.5 text-sm font-extrabold text-[var(--primary-dark)] hover:bg-[var(--primary-hover)] disabled:opacity-50 border border-[var(--primary)]/25"
                 >
                   <ClipboardCheck className="w-4 h-4" />
                   {busy ? "Applying…" : "Apply the count to stock"}

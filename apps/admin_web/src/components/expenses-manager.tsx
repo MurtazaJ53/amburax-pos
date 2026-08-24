@@ -7,10 +7,10 @@ import {
   Wallet,
   Plus,
   Search,
-  DollarSign,
   X,
   Loader2,
 } from "lucide-react";
+import { StatTile } from "@/components/ui/stat-tile";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Expense, ExpenseSummaryPayload } from "@/lib/types";
 
@@ -96,11 +96,44 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
 
   const metrics = React.useMemo(() => {
     const total = parseFloat(summary.total_amount || "0");
-    const cashOutflow = expenses
-      .filter((e) => e.payment_method === "CASH")
-      .reduce((s, e) => s + parseFloat(e.amount || "0"), 0);
-    return { total, cashOutflow };
+    const sum = (rows: Expense[]) =>
+      rows.reduce((s, e) => s + (parseFloat(e.amount || "0") || 0), 0);
+    const cashOutflow = sum(expenses.filter((e) => e.payment_method === "CASH"));
+    // Everything that did not come out of the drawer. Grouping UPI, bank and
+    // card together is the distinction that matters here: till cash has to be
+    // counted against the drawer at close, the rest does not.
+    const digitalOutflow = sum(expenses.filter((e) => e.payment_method !== "CASH"));
+    return { total, cashOutflow, digitalOutflow };
   }, [expenses, summary]);
+
+  /** Spend per category, biggest first. The summary endpoint reports only the
+   *  biggest one, which cannot answer "where is the money actually going". */
+  const byCategory = React.useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const e of expenses) {
+      const key = (e.category || "Uncategorised").trim() || "Uncategorised";
+      totals.set(key, (totals.get(key) ?? 0) + (parseFloat(e.amount || "0") || 0));
+    }
+    return [...totals.entries()]
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [expenses]);
+
+  const categoryPeak = byCategory[0]?.value ?? 0;
+
+  /** The four almost every Indian shop pays. Tapping one opens the form with
+   *  the category already chosen — the category field is free text, so these
+   *  are a shortcut rather than a restriction. */
+  const QUICK_CATEGORIES = ["Rent", "Electricity", "Staff wages", "Transport"];
+
+  const openWithCategory = (preset: string) => {
+    setCategory(preset);
+    setTitle("");
+    setAmount("");
+    setRefNum("");
+    setSubmitError("");
+    setIsAddOpen(true);
+  };
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,7 +202,7 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
 
           <button
             onClick={() => setIsAddOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20"
           >
             <Plus className="w-4 h-4" />
             <span>Record Expense</span>
@@ -177,36 +210,84 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="p-4 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl flex items-center justify-between">
-          <div>
-            <div className="text-xs text-[var(--text-tertiary)] font-medium">
-              Till Cash Outflows
-            </div>
-            <div className="text-2xl font-black text-[var(--warning-strong)] font-mono mt-1">
-              {formatCurrency(metrics.cashOutflow)}
-            </div>
-            <div className="text-[10px] text-[var(--text-tertiary)] mt-0.5">
-              Deducted automatically from daily cash float
-            </div>
-          </div>
-          <Wallet className="w-8 h-8 text-[var(--warning)]/40" />
-        </div>
+      {/* Three figures: what went out, and out of which pocket */}
+      <div className="grid gap-3.5 sm:grid-cols-3">
+        <StatTile
+          label="Total recorded"
+          value={formatCurrency(metrics.total)}
+          note={`${expenses.length} ${expenses.length === 1 ? "entry" : "entries"}${
+            byCategory.length > 0 ? ` across ${byCategory.length} categories` : ""
+          }`}
+          className="animate-fade-in-up delay-1"
+        />
+        <StatTile
+          label="Paid from till"
+          value={formatCurrency(metrics.cashOutflow)}
+          note="Comes straight off cash in hand"
+          tone={metrics.cashOutflow > 0 ? "warning" : "neutral"}
+          noteToneOverride="neutral"
+          className="animate-fade-in-up delay-2"
+        />
+        <StatTile
+          label="Paid by bank or UPI"
+          value={formatCurrency(metrics.digitalOutflow)}
+          note="NEFT, RTGS, UPI or card"
+          className="animate-fade-in-up delay-3"
+        />
+      </div>
 
-        <div className="p-4 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl flex items-center justify-between">
-          <div>
-            <div className="text-xs text-[var(--text-tertiary)] font-medium">
-              Digital / Bank Transfers
-            </div>
-            <div className="text-2xl font-black text-blue-500 font-mono mt-1">
-              {formatCurrency(metrics.total - metrics.cashOutflow)}
-            </div>
-            <div className="text-[10px] text-[var(--text-tertiary)] mt-0.5">
-              Paid via NEFT / RTGS / UPI
-            </div>
-          </div>
-          <DollarSign className="w-8 h-8 text-blue-400/40" />
+      {/* Where the money actually goes, and one tap to add more of it */}
+      <div className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm animate-fade-in-up delay-2">
+        <h3 className="text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
+          {byCategory.length > 0 ? "Where it went" : "The four every shop pays"}
+        </h3>
+        <p className="mt-0.5 text-[12px] font-medium text-[var(--text-secondary)]">
+          {byCategory.length > 0
+            ? "Biggest first. Categories are what keep the profit figure honest."
+            : "Tap one to record it — you can still type any category you like."}
+        </p>
+
+        {byCategory.length > 0 && (
+          <ul className="m-0 mt-3.5 flex list-none flex-col gap-2 p-0">
+            {byCategory.slice(0, 5).map((row) => (
+              <li key={row.name} className="flex items-center gap-3">
+                <span className="w-28 flex-none truncate text-[12.5px] font-bold text-[var(--text-primary)]">
+                  {row.name}
+                </span>
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--bg-soft)]">
+                  <span
+                    className="block h-full rounded-full bg-[var(--primary-bright)]"
+                    style={{
+                      width: `${categoryPeak > 0 ? (row.value / categoryPeak) * 100 : 0}%`,
+                    }}
+                  />
+                </span>
+                <span className="tnum w-24 flex-none text-right font-mono text-[12.5px] font-bold text-[var(--text-primary)]">
+                  {formatCurrency(row.value)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-3.5 flex flex-wrap gap-2">
+          {QUICK_CATEGORIES.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => openWithCategory(preset)}
+              className="focus-ring cursor-pointer rounded-[10px] border border-transparent bg-[var(--primary)]/10 px-3.5 py-2 text-[12.5px] font-bold text-[var(--primary-hover)] transition-colors hover:border-[var(--primary)]"
+            >
+              {preset}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setIsAddOpen(true)}
+            className="focus-ring cursor-pointer rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3.5 py-2 text-[12.5px] font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+          >
+            Something else
+          </button>
         </div>
       </div>
 
@@ -260,7 +341,9 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
               {expenses.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-10 text-center text-xs text-[var(--text-tertiary)]">
-                    No expense entries found.
+                    {search.trim() || categoryFilter !== "all"
+                      ? "No expenses match this search."
+                      : "Nothing recorded yet. Every rupee logged here is one the profit figure stops overstating."}
                   </td>
                 </tr>
               ) : (
@@ -281,8 +364,8 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                           exp.payment_method === "CASH"
-                            ? "bg-[var(--warning)]/10 text-[var(--warning-strong)] dark:text-[var(--warning)]"
-                            : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                            ? "bg-[var(--warning)]/10 text-[var(--warning-strong)]"
+                            : "bg-[var(--primary)]/10 text-[var(--primary-hover)]"
                         }`}
                       >
                         {exp.payment_method}
@@ -422,7 +505,7 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 text-xs font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-semibold text-[var(--primary-dark)] bg-[var(--primary)]/12/12 hover:bg-[var(--primary)]/12/20 rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50 border border-[var(--primary)]/25"
                 >
                   {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>Save Expense</span>
