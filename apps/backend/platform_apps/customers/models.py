@@ -25,6 +25,12 @@ class Customer(SourceTrackedModel):
     # customer up by number WITHOUT decrypting every row. The encrypted `phone`
     # stays the source of truth.
     phone_hash = models.CharField(max_length=64, blank=True, default="", db_index=False)
+    # Where to find someone who owes money. Encrypted for the same reason the
+    # phone is: a khata debtor's home address is exactly the kind of record
+    # that must not be readable straight out of a database dump. Both are
+    # optional — a walk-in paying cash is never asked for either.
+    work_address = encrypt(models.TextField(blank=True, default=""))
+    home_address = encrypt(models.TextField(blank=True, default=""))
     total_spent = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     # Loyalty points currently available to redeem. Whole points only: fractional

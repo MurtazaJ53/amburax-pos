@@ -36,6 +36,8 @@ class CustomerSerializer(serializers.ModelSerializer):
             "name",
             "phone",
             "email",
+            "work_address",
+            "home_address",
             "total_spent",
             "balance",
             "loyalty_points",

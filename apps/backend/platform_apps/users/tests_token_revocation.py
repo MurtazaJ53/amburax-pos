@@ -8,6 +8,7 @@ no control, because the owner stops looking for the phone.
 """
 from __future__ import annotations
 
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -19,6 +20,11 @@ from platform_apps.users.models import PlatformUser
 
 class TokenRevocationTests(TestCase):
     def setUp(self):
+        # The login throttle counts attempts in the shared cache, which is NOT
+        # reset between tests. Every earlier test that signs in leaves its
+        # attempts behind, so this test's login eventually answers 429 - green
+        # on its own, red in a full run, and blamed on whatever changed last.
+        cache.clear()
         self.owner = PlatformUser.objects.create_user(
             email="owner@example.com", password="secret", full_name="Owner"
         )

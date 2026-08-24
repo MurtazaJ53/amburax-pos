@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
@@ -58,6 +58,43 @@ PULSE_AUTO_ESCALATION_RULES = {
 }
 
 
+_CURRENCY_SYMBOLS = {"INR": "₹", "GBP": "£", "USD": "$", "EUR": "€", "AED": "AED "}
+
+
+def format_money(amount, currency_code: str = "INR") -> str:
+    """Money as a shopkeeper reads it, not as a database prints it.
+
+    These strings go straight into the dashboard, so `f"{value:.2f}"` put
+    "36567.20" on screen: no symbol, and Western grouping for a shop that
+    counts in lakhs. INR groups the last three digits then in pairs, which is
+    what makes 36,567.20 legible at a glance to the person it is written for.
+    """
+    try:
+        value = Decimal(str(amount or 0)).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError):
+        return ""
+
+    sign = "-" if value < 0 else ""
+    whole, _, paise = f"{abs(value):.2f}".partition(".")
+
+    if currency_code == "INR":
+        # 1234567 -> 12,34,567
+        if len(whole) > 3:
+            head, tail = whole[:-3], whole[-3:]
+            parts = []
+            while len(head) > 2:
+                parts.insert(0, head[-2:])
+                head = head[:-2]
+            if head:
+                parts.insert(0, head)
+            whole = ",".join(parts + [tail])
+    else:
+        whole = f"{int(whole):,}"
+
+    symbol = _CURRENCY_SYMBOLS.get(currency_code, f"{currency_code} ")
+    return f"{sign}{symbol}{whole}.{paise}"
+
+
 def build_shop_pulse_snapshot(
     shop: Shop,
     *,
@@ -69,6 +106,7 @@ def build_shop_pulse_snapshot(
     seven_days_ago = now - timedelta(days=7)
     stale_session_cutoff = now - timedelta(days=3)
     features = shop.enabled_features
+    currency_code = shop.currency_code or "INR"
     finance_enabled = features.get("finance_summary", False)
     advanced_reports_enabled = features.get("advanced_reports", False)
 
@@ -292,7 +330,7 @@ def build_shop_pulse_snapshot(
 
     if active_credit_customers > 0 and total_outstanding_balance > Decimal("0.00"):
         dues_body = (
-            f"{active_credit_customers} customer account{'s' if active_credit_customers != 1 else ''} still hold {total_outstanding_balance:.2f} in outstanding balance."
+            f"{active_credit_customers} customer account{'s' if active_credit_customers != 1 else ''} still hold {format_money(total_outstanding_balance, currency_code)} in outstanding balance."
             if finance_enabled
             else f"{active_credit_customers} customer account{'s' if active_credit_customers != 1 else ''} still need collection follow-up."
         )
@@ -476,7 +514,7 @@ def build_shop_pulse_snapshot(
             severity="warning" if discount_ratio < Decimal("0.20") else "critical",
             title="Discount activity is elevated",
             body=(
-                f"{discounted_sales_count} discounted receipts were recorded this week. Discount value totals {total_discount:.2f}."
+                f"{discounted_sales_count} discounted receipts were recorded this week. Discount value totals {format_money(total_discount, currency_code)}."
                 if advanced_reports_enabled
                 else f"{discounted_sales_count} discounted receipts were recorded this week."
             ),
@@ -514,7 +552,7 @@ def build_shop_pulse_snapshot(
             body=(
                 f"Credit-style collections are climbing across {active_credit_customers} active due accounts."
                 if not finance_enabled
-                else f"{active_credit_customers} active due accounts now hold {total_outstanding_balance:.2f} outstanding while credit collections remain busy."
+                else f"{active_credit_customers} active due accounts now hold {format_money(total_outstanding_balance, currency_code)} outstanding while credit collections remain busy."
             ),
             route="/customers",
             cta_label="Review customers",

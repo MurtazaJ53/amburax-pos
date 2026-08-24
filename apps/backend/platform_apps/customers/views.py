@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+import uuid
 
 from django.db.models import Count, Sum
 from django.db.models.functions import Coalesce
@@ -25,6 +26,7 @@ from platform_apps.customers.serializers import (
     CustomerSummarySerializer,
 )
 from platform_apps.inventory.views import MAX_REPORTED_ERRORS, _row_error
+from platform_apps.sales.models import Sale
 from platform_apps.shops.models import ShopMembership
 from platform_apps.shops.permissions import get_membership_or_403, has_feature_enabled
 
@@ -292,6 +294,65 @@ class CustomerLedgerTimelineView(ShopScopedMixin, APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
+    @staticmethod
+    def _items_by_entry(shop, entries):
+        """Map ledger entry id -> the sale behind it, with its lines.
+
+        The ledger has never had a foreign key to Sale, but every SALE entry is
+        written with the sale's uuid in `source_id` (see the sales serializer),
+        so the join exists in the data already. Doing it here rather than in the
+        browser keeps it to one query for the whole timeline.
+        """
+        sale_ids = {}
+        for entry in entries:
+            if entry.event_type != CustomerLedgerEntry.EventType.SALE:
+                continue
+            raw = (entry.source_id or "").strip()
+            if not raw:
+                continue
+            try:
+                sale_ids[entry.id] = uuid.UUID(raw)
+            except ValueError:
+                # A row imported from another system may carry a non-uuid id.
+                # It simply has no sale to show; that is not an error.
+                continue
+
+        if not sale_ids:
+            return {}
+
+        sales = {
+            sale.id: sale
+            for sale in Sale.objects.filter(shop=shop, id__in=set(sale_ids.values()))
+            .prefetch_related("items")
+        }
+
+        mapped = {}
+        for entry_id, sale_id in sale_ids.items():
+            sale = sales.get(sale_id)
+            if sale is None:
+                continue
+            mapped[entry_id] = {
+                "id": str(sale.id),
+                "receipt_number": sale.receipt_number,
+                "status": sale.status,
+                "total_amount": sale.total_amount,
+                "discount_amount": sale.discount_amount,
+                "tax_amount": sale.tax_amount,
+                "items": [
+                    {
+                        "name": item.name_snapshot,
+                        "sku": item.sku_snapshot,
+                        "size": item.size_snapshot,
+                        "quantity": item.quantity,
+                        "unit_price": item.unit_price,
+                        "line_total": item.line_total,
+                        "is_return": item.is_return,
+                    }
+                    for item in sorted(sale.items.all(), key=lambda i: i.position)
+                ],
+            }
+        return mapped
+
     def get(self, request, shop_id, customer_id):
         membership = self.get_membership()
         customer = Customer.objects.filter(
@@ -305,6 +366,8 @@ class CustomerLedgerTimelineView(ShopScopedMixin, APIView):
             .select_related("actor_user")
             .order_by("occurred_at", "created_at")
         )
+        items_by_entry = self._items_by_entry(membership.shop, entries)
+
         running = Decimal("0.00")
         timeline = []
         for entry in entries:
@@ -312,6 +375,7 @@ class CustomerLedgerTimelineView(ShopScopedMixin, APIView):
             actor_name = None
             if entry.actor_user_id:
                 actor_name = entry.actor_user.full_name or entry.actor_user.email
+            sale = items_by_entry.get(entry.id)
             timeline.append(
                 {
                     "id": str(entry.id),
@@ -322,6 +386,11 @@ class CustomerLedgerTimelineView(ShopScopedMixin, APIView):
                     "occurred_at": entry.occurred_at,
                     "running_balance": running,
                     "actor_name": actor_name,
+                    # What the money was actually for. Present only for credit
+                    # sales rung up after the ledger began recording the sale
+                    # id; opening balances, manual adjustments and older rows
+                    # have nothing to point at, and say so by staying null.
+                    "sale": sale,
                 }
             )
         timeline.reverse()
