@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.db.models import Count
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
@@ -77,7 +77,24 @@ class InventoryItemListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
         queryset = (
             InventoryItem.objects.filter(shop=membership.shop, tombstone=False)
             .select_related("private")
-            .annotate(stock_on_hand=Coalesce(Sum("ledger_entries__quantity_delta"), Decimal("0")))
+            .annotate(
+                stock_on_hand=Coalesce(Sum("ledger_entries__quantity_delta"), Decimal("0")),
+                # Has this item EVER been given stock? Any positive movement
+                # counts - opening balance, purchase, transfer in, a manual
+                # correction upwards. Asked as "was there ever an inbound
+                # entry" rather than by listing event types, so a new kind of
+                # inbound cannot silently fall outside it.
+                #
+                # This is what separates "the shelf is empty" from "nobody ever
+                # told us about this item". Without it a zero means both, and a
+                # negative reads as a shortfall for an item that was never
+                # counted in the first place.
+                has_stock_history=Exists(
+                    InventoryStockLedger.objects.filter(
+                        item=OuterRef("pk"), quantity_delta__gt=0
+                    )
+                ),
+            )
             .order_by("name", "created_at")
         )
         query = self.request.query_params.get("q", "").strip()
@@ -118,7 +135,24 @@ class InventoryItemListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
         item = (
             InventoryItem.objects.filter(pk=item.pk)
             .select_related("private")
-            .annotate(stock_on_hand=Coalesce(Sum("ledger_entries__quantity_delta"), Decimal("0")))
+            .annotate(
+                stock_on_hand=Coalesce(Sum("ledger_entries__quantity_delta"), Decimal("0")),
+                # Has this item EVER been given stock? Any positive movement
+                # counts - opening balance, purchase, transfer in, a manual
+                # correction upwards. Asked as "was there ever an inbound
+                # entry" rather than by listing event types, so a new kind of
+                # inbound cannot silently fall outside it.
+                #
+                # This is what separates "the shelf is empty" from "nobody ever
+                # told us about this item". Without it a zero means both, and a
+                # negative reads as a shortfall for an item that was never
+                # counted in the first place.
+                has_stock_history=Exists(
+                    InventoryStockLedger.objects.filter(
+                        item=OuterRef("pk"), quantity_delta__gt=0
+                    )
+                ),
+            )
             .get()
         )
         create_workspace_audit_event(
@@ -271,7 +305,24 @@ class InventoryItemDetailView(ShopScopedMixin, generics.RetrieveUpdateDestroyAPI
         return (
             InventoryItem.objects.filter(shop=membership.shop)
             .select_related("private")
-            .annotate(stock_on_hand=Coalesce(Sum("ledger_entries__quantity_delta"), Decimal("0")))
+            .annotate(
+                stock_on_hand=Coalesce(Sum("ledger_entries__quantity_delta"), Decimal("0")),
+                # Has this item EVER been given stock? Any positive movement
+                # counts - opening balance, purchase, transfer in, a manual
+                # correction upwards. Asked as "was there ever an inbound
+                # entry" rather than by listing event types, so a new kind of
+                # inbound cannot silently fall outside it.
+                #
+                # This is what separates "the shelf is empty" from "nobody ever
+                # told us about this item". Without it a zero means both, and a
+                # negative reads as a shortfall for an item that was never
+                # counted in the first place.
+                has_stock_history=Exists(
+                    InventoryStockLedger.objects.filter(
+                        item=OuterRef("pk"), quantity_delta__gt=0
+                    )
+                ),
+            )
         )
 
     def get_serializer_context(self):
@@ -295,7 +346,24 @@ class InventoryItemDetailView(ShopScopedMixin, generics.RetrieveUpdateDestroyAPI
         item = (
             InventoryItem.objects.filter(pk=serializer.instance.pk)
             .select_related("private")
-            .annotate(stock_on_hand=Coalesce(Sum("ledger_entries__quantity_delta"), Decimal("0")))
+            .annotate(
+                stock_on_hand=Coalesce(Sum("ledger_entries__quantity_delta"), Decimal("0")),
+                # Has this item EVER been given stock? Any positive movement
+                # counts - opening balance, purchase, transfer in, a manual
+                # correction upwards. Asked as "was there ever an inbound
+                # entry" rather than by listing event types, so a new kind of
+                # inbound cannot silently fall outside it.
+                #
+                # This is what separates "the shelf is empty" from "nobody ever
+                # told us about this item". Without it a zero means both, and a
+                # negative reads as a shortfall for an item that was never
+                # counted in the first place.
+                has_stock_history=Exists(
+                    InventoryStockLedger.objects.filter(
+                        item=OuterRef("pk"), quantity_delta__gt=0
+                    )
+                ),
+            )
             .get()
         )
         create_workspace_audit_event(
@@ -344,7 +412,24 @@ class InventorySummaryView(ShopScopedMixin, APIView):
         membership = self.get_membership()
         queryset = (
             InventoryItem.objects.filter(shop=membership.shop, tombstone=False)
-            .annotate(stock_on_hand=Coalesce(Sum("ledger_entries__quantity_delta"), Decimal("0")))
+            .annotate(
+                stock_on_hand=Coalesce(Sum("ledger_entries__quantity_delta"), Decimal("0")),
+                # Has this item EVER been given stock? Any positive movement
+                # counts - opening balance, purchase, transfer in, a manual
+                # correction upwards. Asked as "was there ever an inbound
+                # entry" rather than by listing event types, so a new kind of
+                # inbound cannot silently fall outside it.
+                #
+                # This is what separates "the shelf is empty" from "nobody ever
+                # told us about this item". Without it a zero means both, and a
+                # negative reads as a shortfall for an item that was never
+                # counted in the first place.
+                has_stock_history=Exists(
+                    InventoryStockLedger.objects.filter(
+                        item=OuterRef("pk"), quantity_delta__gt=0
+                    )
+                ),
+            )
         )
 
         query = self.request.query_params.get("q", "").strip()

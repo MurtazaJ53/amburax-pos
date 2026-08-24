@@ -34,6 +34,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
     """
 
     stock_on_hand = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    has_stock_history = serializers.SerializerMethodField()
     cost_price = serializers.SerializerMethodField()
     supplier_id = serializers.SerializerMethodField()
     last_purchase_date = serializers.SerializerMethodField()
@@ -75,6 +76,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             "source_meta_json",
             "image_data",
             "stock_on_hand",
+            "has_stock_history",
             "cost_price",
             "supplier_id",
             "last_purchase_date",
@@ -85,6 +87,15 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             "private_last_purchase_date",
         )
         read_only_fields = ("id", "stock_on_hand", "created_at")
+
+    def get_has_stock_history(self, obj) -> bool:
+        """Was this item ever given stock?
+
+        Annotated by the list queries. Defaults to False when it is absent
+        rather than inventing a True: claiming an item is tracked when nobody
+        checked is exactly the confusion this field exists to remove.
+        """
+        return bool(getattr(obj, "has_stock_history", False))
 
     def _can_view_costs(self) -> bool:
         return bool(self.context.get("can_view_costs"))
