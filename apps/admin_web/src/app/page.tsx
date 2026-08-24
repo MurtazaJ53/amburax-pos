@@ -197,11 +197,8 @@ export default async function HomePage() {
       title="Home"
       subtitle="Today's takings, key stats, recent sales, and low stock warnings."
       headerVariant="bar"
-      fitViewport
     >
-      {/* min-h-0 all the way down, or the flex children below refuse to
-          shrink and the page grows a scrollbar anyway. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3.5">
+      <div className="flex flex-col gap-3.5">
         {/* Greeting, and the actions a counter reaches for */}
         <div className="flex flex-wrap items-end gap-3 animate-fade-in-up">
           <div>
@@ -430,13 +427,16 @@ export default async function HomePage() {
           />
         </section>
 
-        {/* What just happened on the left, what is running out on the right,
-            and what to act on underneath both.
+        {/* Sales on the left; what is running out and what to act on stacked
+            on the right.
 
-            The page itself does not scroll: a shopkeeper checking one figure
-            should not lose the takings off the top of the screen to reach an
-            alert below it. Each list scrolls inside its own panel instead. */}
-        <section className="grid min-h-0 flex-1 gap-3.5 lg:grid-cols-[1.1fr_1fr]">
+            The two columns are given one height so they end level instead of
+            one trailing a ragged edge past the other. That height is what
+            makes the lists inside scroll: each panel keeps its heading in
+            place and moves only its own rows, so a long alert list cannot
+            push the sales feed out of shape. The PAGE still scrolls as
+            normal - this bounds the section, not the screen. */}
+        <section className="grid gap-3.5 lg:h-[600px] lg:grid-cols-[1.1fr_1fr]">
           <Panel
             title="Recent sales"
             action={recentSales.length > 0 ? { label: "View all", href: "/sales" } : undefined}
@@ -494,32 +494,33 @@ export default async function HomePage() {
             )}
           </Panel>
 
-          <LowStockWatch
-            rows={dashboardSnapshot.low_stock_preview ?? []}
-            totalCount={lowStockCount}
-            className="min-h-0 animate-fade-in-up delay-6"
-          />
+          {/* The right column carries both, sharing its height between them. */}
+          <div className="flex min-h-0 flex-col gap-3.5">
+            <LowStockWatch
+              rows={dashboardSnapshot.low_stock_preview ?? []}
+              totalCount={lowStockCount}
+              className="min-h-0 flex-1 animate-fade-in-up delay-6"
+            />
+            <Panel
+              title="Needs attention"
+              count={attentionItems.length}
+              countTone={criticalCount > 0 ? "alert" : "warning"}
+              scrollBody
+              className="min-h-0 flex-1 animate-fade-in-up delay-4"
+            >
+              {attentionItems.length === 0 ? (
+                <PanelEmpty>
+                  {pulse === null
+                    ? "Alerts are unavailable right now. Stock and khata figures above are still live."
+                    : "Nothing needs you right now."}
+                </PanelEmpty>
+              ) : (
+                <AttentionList items={attentionItems} />
+              )}
+            </Panel>
+          </div>
         </section>
 
-        <section className="flex min-h-0 flex-[0.8] flex-col">
-          <Panel
-            title="Needs attention"
-            count={attentionItems.length}
-            countTone={criticalCount > 0 ? "alert" : "warning"}
-            scrollBody
-            className="min-h-0 animate-fade-in-up delay-4"
-          >
-            {attentionItems.length === 0 ? (
-              <PanelEmpty>
-                {pulse === null
-                  ? "Alerts are unavailable right now. Stock and khata figures above are still live."
-                  : "Nothing needs you right now."}
-              </PanelEmpty>
-            ) : (
-              <AttentionList items={attentionItems} />
-            )}
-          </Panel>
-        </section>
       </div>
     </AdminShell>
   );
