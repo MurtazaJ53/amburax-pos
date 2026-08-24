@@ -11,7 +11,7 @@ export const MESSAGES = {
     "appName": "Business Hub",
     "navHome": "Home",
     "navStock": "Stock",
-    "navClients": "Clients",
+    "navClients": "Customers",
     "navHistory": "History",
     "navPos": "POS",
     "actionSave": "Save",

@@ -32,7 +32,13 @@ function pythonTuple(source: string, constantName: string): string[] {
 
 /** The dict keys returned by a `def NAME(...)` that ends in a dict literal. */
 function pythonDictKeys(source: string, functionName: string): string[] {
-  const block = source.split(`def ${functionName}(`)[1];
+  // A Windows checkout has core.autocrlf rewrite these files to CRLF, so the
+  // blank line that ends the function arrives as "\r\n\r\n" and the boundary
+  // below matches nothing — the parser then runs to the end of the file and
+  // returns the next function's keys as well. Normalise first, so the same
+  // source reads identically on every platform.
+  const text = source.replace(/\r\n/g, "\n");
+  const block = text.split(`def ${functionName}(`)[1];
   if (block === undefined) {
     throw new Error(`${functionName} not found — has it been renamed?`);
   }
@@ -52,6 +58,30 @@ describe("the parsers themselves", () => {
 
   it("fails loudly when a constant is renamed", () => {
     expect(() => pythonTuple("x = 1", "MISSING")).toThrow(/MISSING/);
+  });
+
+  // core.autocrlf rewrites these files to CRLF on a Windows checkout, so the
+  // blank line that ends a function arrives as CR LF CR LF. A parser looking
+  // for two bare newlines finds none, reads to the end of the file, and
+  // reports the NEXT function's keys as though they belonged to this one --
+  // which silently inverted the plan-gating test below, on Windows only.
+  it("stops at the end of the function even when the file uses CRLF", () => {
+    const CRLF = String.fromCharCode(13, 10);
+    const source = [
+      "def build_plan_features(plan_tier: str) -> dict[str, bool]:",
+      "    return {",
+      '        "expenses": True,',
+      "    }",
+      "",
+      "",
+      "def build_business_type_features(business_type: str) -> dict[str, bool]:",
+      "    return {",
+      '        "weight_selling": True,',
+      "    }",
+      "",
+    ].join(CRLF);
+
+    expect(pythonDictKeys(source, "build_plan_features")).toEqual(["expenses"]);
   });
 });
 

@@ -61,3 +61,19 @@ export function formatPercentage(value: number | string | null | undefined): str
   if (isNaN(num)) return "0.0%";
   return `${num.toFixed(1)}%`;
 }
+
+/** A stock or line quantity as a person would write it.
+ *
+ *  Quantities are decimal on the wire ("1.000") because a shop can sell 1.5 kg
+ *  of rice. Printing that raw put "1.000 left" on the dashboard, which reads
+ *  as a machine talking to itself. Whole numbers lose the trailing zeros; a
+ *  genuine fraction keeps them.
+ */
+export function formatQuantity(raw: string | number | null | undefined): string {
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return "0";
+  if (Number.isInteger(value)) return value.toLocaleString("en-IN");
+  return parseFloat(value.toFixed(3)).toLocaleString("en-IN", {
+    maximumFractionDigits: 3,
+  });
+}

@@ -409,6 +409,11 @@ export type Customer = {
   name: string;
   phone: string;
   email?: string;
+  /** Where to find someone who owes money. Encrypted at rest, like the phone
+   *  and email — a khata debtor's home address must not be readable straight
+   *  out of a database dump. */
+  work_address?: string;
+  home_address?: string;
   total_spent?: string;
   balance?: string;
   notes?: string;
@@ -519,6 +524,26 @@ export type Sale = {
   payment_count: number;
   items: SaleItem[];
   payments: SalePayment[];
+};
+
+/** A return document. It stands beside the sale rather than changing it. */
+export type SaleReturnRecord = {
+  id: string;
+  reference: string;
+  sale_id: string;
+  receipt_number: string;
+  refund_mode: string;
+  refund_amount: string;
+  note: string;
+  occurred_at: string;
+};
+
+/** What GET /shops/{id}/returns/ actually answers with. It is an object with
+ *  a `returns` array inside, not a bare list — treating it as a list is what
+ *  crashed the sales page with "returns is not iterable". */
+export type SaleReturnListPayload = {
+  returns: SaleReturnRecord[];
+  refunded_total: string;
 };
 
 export type SalePaymentRecord = {
@@ -1555,6 +1580,9 @@ export type CartItem = {
   discount_amount: number;
   total_price: number;
   available_stock: number;
+  /** Whether this item has ever been given stock. When false, available_stock
+   *  carries no information and no shortfall can be claimed from it. */
+  is_tracked?: boolean;
   /** Carried from the product so the line can say "1.25 kg" rather than
    *  "1.25", which on a weighed line is the difference between a price a
    *  customer can check and a number they cannot. */

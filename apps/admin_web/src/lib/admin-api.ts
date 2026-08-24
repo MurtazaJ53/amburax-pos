@@ -1,5 +1,6 @@
 import { cache } from "react";
 
+import { toReturnRows } from "@/lib/sale-returns";
 import type {
   AttendanceSession,
   AttendanceSummaryPayload,
@@ -46,6 +47,8 @@ import type {
   PlatformShopListPayload,
   PlatformShopPayload,
   Sale,
+  SaleReturnListPayload,
+  SaleReturnRecord,
   SalePaymentRecord,
   SalesSummaryPayload,
   SessionPayload,
@@ -349,6 +352,16 @@ export const getShopDomainState = cache(
 
 export const getDashboardSnapshot = cache(async (shopId: string): Promise<DashboardSnapshot> => {
   return apiFetch<DashboardSnapshot>(`/shops/${shopId}/projections/dashboard/`);
+});
+
+/** Returns processed by this shop.
+ *
+ *  A return never alters the sale it came from — that is deliberate, an
+ *  issued invoice is not rewritten — so the only way History can show that a
+ *  bill was sent back is to read the return documents and match them up. */
+export const getSaleReturns = cache(async (shopId: string): Promise<SaleReturnRecord[]> => {
+  const payload = await apiFetch<SaleReturnListPayload>(`/shops/${shopId}/returns/`);
+  return toReturnRows(payload);
 });
 
 export const getWorkspacePulse = cache(async (shopId: string): Promise<WorkspacePulseSnapshot> => {
