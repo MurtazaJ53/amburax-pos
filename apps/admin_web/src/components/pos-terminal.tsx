@@ -28,6 +28,7 @@ import type { ProductItem } from "@/components/inventory-manager";
 import { useT } from "@/lib/i18n";
 import { mapInventoryRow } from "@/lib/inventory-rows";
 import { findExistingCustomer } from "@/lib/customer-match";
+import type { NewCustomerDetails } from "@/lib/customer-match";
 import { computeCartTotals } from "@/lib/cart-totals";
 import { stateCodeFromGstin } from "@/lib/gst-states";
 
@@ -185,9 +186,16 @@ export function PosTerminal({
    *  An existing phone number wins: opening a second account for someone
    *  already on the books splits their khata in two, and neither balance is
    *  then what they actually owe. */
-  const ensureCustomer = async (name: string, phone: string): Promise<Customer | null> => {
+  const ensureCustomer = async (
+    name: string,
+    phone: string,
+    details?: NewCustomerDetails,
+  ): Promise<Customer | null> => {
     const existing = findExistingCustomer(customers, name, phone);
     if (existing) {
+      // Already on the books. Nothing typed at the counter overwrites what
+      // the account already holds - a half-typed address here must not
+      // replace the one taken properly when the account was opened.
       setSelectedCustomer(existing);
       return existing;
     }
@@ -198,6 +206,10 @@ export function PosTerminal({
       body: JSON.stringify({
         name: name || `Customer ${phone}`,
         phone: phone.replace(/[^0-9+]/g, ""),
+        // Optional, and only sent when actually given: posting "" would
+        // write an empty address over nothing, which is harmless but noisy.
+        ...(details?.address ? { home_address: details.address } : {}),
+        ...(details?.email ? { email: details.email } : {}),
       }),
     });
     if (!res.ok) {

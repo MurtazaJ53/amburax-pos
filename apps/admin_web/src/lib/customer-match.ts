@@ -65,3 +65,35 @@ export function customerRequired(khataAmount: number): boolean {
 export function canIdentifyCustomer(typedName: string, typedPhone: string): boolean {
   return nameKey(typedName).length > 0 || phoneKey(typedPhone).length === 10;
 }
+
+/** Optional details a new account can carry, none of which gate the sale. */
+export type NewCustomerDetails = {
+  address?: string;
+  email?: string;
+};
+
+/**
+ * Is there enough here to OPEN a khata account for someone new?
+ *
+ * Stricter than `canIdentifyCustomer` on purpose. A name alone is enough to
+ * label a paid bill, but a debt has to be collectable: "Raju" is not someone
+ * you can chase in three weeks, and two Rajus become one account or two
+ * depending on who typed first. A phone number is the one field that makes a
+ * khata customer findable again, so a NEW account needs both.
+ *
+ * An existing customer never goes through this - they already have whatever
+ * details were taken when the account was opened.
+ */
+export function canOpenKhataAccount(typedName: string, typedPhone: string): boolean {
+  return nameKey(typedName).length > 0 && phoneKey(typedPhone).length === 10;
+}
+
+/** What is still missing before credit can be given to someone new. */
+export function missingForKhata(typedName: string, typedPhone: string): string {
+  const hasName = nameKey(typedName).length > 0;
+  const hasPhone = phoneKey(typedPhone).length === 10;
+  if (hasName && hasPhone) return "";
+  if (!hasName && !hasPhone) return "Name and phone number needed to open a khata.";
+  if (!hasName) return "Name needed to open a khata.";
+  return "A 10-digit phone number is needed to open a khata.";
+}

@@ -16,9 +16,12 @@ import type { SplitPaymentTender, Customer } from "@/lib/types";
 import { isValidGstin } from "@/lib/gst-states";
 import {
   canIdentifyCustomer,
+  canOpenKhataAccount,
   customerRequired,
+  missingForKhata,
   findExistingCustomer,
 } from "@/lib/customer-match";
+import type { NewCustomerDetails } from "@/lib/customer-match";
 
 type PosCheckoutModalProps = {
   isOpen: boolean;
@@ -37,7 +40,11 @@ type PosCheckoutModalProps = {
   customers?: Customer[];
   /** Opens an account and attaches it. Resolves to the customer actually
    *  used, which may be an existing one. */
-  onEnsureCustomer?: (name: string, phone: string) => Promise<Customer | null>;
+  onEnsureCustomer?: (
+    name: string,
+    phone: string,
+    details?: NewCustomerDetails,
+  ) => Promise<Customer | null>;
   onCompleteSale: (
     payments: SplitPaymentTender,
     changeDue: number,
@@ -101,6 +108,11 @@ export function PosCheckoutModal({
   const [buyerGstin, setBuyerGstin] = useState("");
   const [typedName, setTypedName] = useState("");
   const [typedPhone, setTypedPhone] = useState("");
+  // Optional on a new account: useful for chasing a debt, never a reason to
+  // hold up the queue.
+  const [typedAddress, setTypedAddress] = useState("");
+  const [typedEmail, setTypedEmail] = useState("");
+  const [showExtraFields, setShowExtraFields] = useState(false);
   const [savingCustomer, setSavingCustomer] = useState(false);
   const [customerError, setCustomerError] = useState("");
 
@@ -128,9 +140,29 @@ export function PosCheckoutModal({
     () => findExistingCustomer(customers, typedName, typedPhone),
     [customers, typedName, typedPhone],
   );
-  const haveCustomer =
-    Boolean(selectedCustomer) || Boolean(matchedCustomer) || canIdentifyCustomer(typedName, typedPhone);
+  /** Someone already on the books needs nothing more - the account carries
+   *  whatever was taken when it was opened. Someone NEW who is being given
+   *  credit needs a name and a number, because a debt has to be collectable
+   *  and "Raju" is not someone you can chase in three weeks. */
+  const knownCustomer = Boolean(selectedCustomer) || Boolean(matchedCustomer);
+  const haveCustomer = needsCustomer
+    ? knownCustomer || canOpenKhataAccount(typedName, typedPhone)
+    : knownCustomer || canIdentifyCustomer(typedName, typedPhone);
   const customerBlocksSale = needsCustomer && !haveCustomer;
+  /** Whether the khata FIELD accepts typing, which is a looser question than
+   *  whether the sale may be confirmed.
+   *
+   *  Gating the field on the strict rule is a trap: khata starts at zero, so
+   *  the field opens on a name alone - and the moment an amount is typed the
+   *  strict rule applies and the field dies under the cashier's fingers. The
+   *  amount is allowed in; the SALE is what waits for a phone number. */
+  const canEnterKhata = knownCustomer || canIdentifyCustomer(typedName, typedPhone);
+  /** Said only once the cashier has started typing, so an untouched form is
+   *  not scolded for being empty. */
+  const khataShortfall =
+    needsCustomer && !knownCustomer && (typedName.trim() || typedPhone.trim())
+      ? missingForKhata(typedName, typedPhone)
+      : "";
 
   /** Regulars matching what is being typed. Capped, because a till does not
    *  need a directory — it needs the few people this might be. "I will pay
@@ -211,7 +243,10 @@ export function PosCheckoutModal({
       setSavingCustomer(true);
       setCustomerError("");
       try {
-        customerForSale = await onEnsureCustomer(typedName.trim(), typedPhone.trim());
+        customerForSale = await onEnsureCustomer(typedName.trim(), typedPhone.trim(), {
+          address: typedAddress.trim() || undefined,
+          email: typedEmail.trim() || undefined,
+        });
         if (!customerForSale && needsCustomer) {
           setCustomerError("Could not save that customer, so the credit has nowhere to go.");
           return;
@@ -243,12 +278,17 @@ export function PosCheckoutModal({
 
   if (!isOpen) return null;
 
+  // Money is typed here and read back across the counter, so it is set at
+  // the size of a figure rather than the size of a form field: tabular so the
+  // columns of a split line up, and tracking-tight so a five-digit rupee
+  // amount does not sprawl. text-sm on a number a customer is checking was
+  // the "off" feeling - it looked like a reference code, not an amount.
   const fieldClass =
-    "tnum w-full max-w-[220px] rounded-[9px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-2 font-mono text-sm font-bold text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--primary)] disabled:opacity-50";
+    "tnum w-full max-w-[220px] rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-2.5 font-mono text-[17px] font-bold leading-none tracking-tight text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--primary)] disabled:opacity-50";
   const refClass =
-    "w-full max-w-[260px] rounded-[9px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-tertiary)] focus:border-[var(--primary)]";
+    "w-full max-w-[260px] rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-2.5 text-[12.5px] font-semibold text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-tertiary)] focus:border-[var(--primary)]";
   const labelClass =
-    "mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]";
+    "mb-1.5 block font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-[var(--text-tertiary)]";
 
   /** Who this is.
    *
@@ -270,7 +310,7 @@ export function PosCheckoutModal({
                           : "bg-[var(--bg-soft)] text-[var(--text-tertiary)]"
                       }`}
                     >
-                      {needsCustomer ? "Required for khata" : "Optional"}
+                      {needsCustomer ? "Name + phone for khata" : "Optional"}
                     </span>
                   </div>
 
@@ -321,6 +361,48 @@ export function PosCheckoutModal({
                     </ul>
                   )}
 
+
+                  {/* Only for someone NEW, and only on request. An existing
+                      account already holds whatever was taken when it was
+                      opened, and a counter queue is no place to be asked for
+                      an email that is not needed. */}
+                  {!matchedCustomer && canIdentifyCustomer(typedName, typedPhone) && (
+                    <div className="mt-2">
+                      {showExtraFields ? (
+                        <div className="flex flex-wrap gap-2">
+                          <input
+                            type="text"
+                            value={typedAddress}
+                            onChange={(e) => setTypedAddress(e.target.value)}
+                            placeholder="Address (optional)"
+                            className={refClass}
+                          />
+                          <input
+                            type="email"
+                            inputMode="email"
+                            value={typedEmail}
+                            onChange={(e) => setTypedEmail(e.target.value)}
+                            placeholder="Email (optional)"
+                            className={refClass}
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setShowExtraFields(true)}
+                          className="focus-ring cursor-pointer text-[11.5px] font-bold text-[var(--primary-hover)] hover:underline"
+                        >
+                          + Address or email
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {khataShortfall && (
+                    <p className="m-0 mt-2 text-[11.5px] font-bold text-[var(--warning-strong)]">
+                      {khataShortfall}
+                    </p>
+                  )}
                   {matchedCustomer ? (
                     <p className="m-0 mt-2 text-[11.5px] font-semibold text-[var(--success-dark)]">
                       Already on the books — this bill will go to{" "}
@@ -357,7 +439,7 @@ export function PosCheckoutModal({
             </span>
             <p
               id="checkout-title"
-              className="tnum m-0 mt-1 font-mono text-[34px] font-bold leading-none tracking-tight text-[var(--text-primary)]"
+              className="tnum m-0 mt-1 font-mono text-[38px] font-bold leading-none tracking-tighter text-[var(--text-primary)]"
             >
               {formatCurrency(totalAmount)}
             </p>
@@ -613,10 +695,10 @@ export function PosCheckoutModal({
                         inputMode="decimal"
                         min="0"
                         step="0.01"
-                        disabled={!haveCustomer}
+                        disabled={!canEnterKhata}
                         value={khataAmount}
                         onChange={(e) => setKhataAmount(e.target.value)}
-                        placeholder={haveCustomer ? "0.00" : "Name the customer below"}
+                        placeholder={canEnterKhata ? "0.00" : "Name the customer below"}
                         className={fieldClass}
                       />
                     </div>
@@ -724,9 +806,9 @@ export function PosCheckoutModal({
           {/* Where the bill stands, then the one action that finishes it. */}
           <footer className="shrink-0 border-t border-[var(--border-soft)] bg-[var(--bg-base)] px-5 py-4">
             <div className="mb-3 flex flex-wrap items-center gap-3">
-              <span className="tnum font-mono text-[12.5px] font-bold text-[var(--text-secondary)]">
+              <span className="tnum font-mono text-[15px] font-bold tracking-tight text-[var(--text-primary)]">
                 {formatCurrency(totalAllocated)}
-                <span className="text-[var(--text-tertiary)]">
+                <span className="text-[12.5px] font-semibold text-[var(--text-tertiary)]">
                   {" "}
                   / {formatCurrency(totalAmount)}
                 </span>
@@ -734,11 +816,11 @@ export function PosCheckoutModal({
 
               <span className="ml-auto">
                 {remaining > 0 ? (
-                  <span className="tnum font-mono text-[13px] font-bold text-[var(--warning-strong)]">
+                  <span className="tnum font-mono text-[14px] font-bold tracking-tight text-[var(--warning-strong)]">
                     {formatCurrency(remaining)} still to allocate
                   </span>
                 ) : totalAllocated > totalAmount ? (
-                  <span className="tnum font-mono text-[13px] font-bold text-[var(--error-strong)]">
+                  <span className="tnum font-mono text-[14px] font-bold tracking-tight text-[var(--error-strong)]">
                     Over by {formatCurrency(totalAllocated - totalAmount)}
                   </span>
                 ) : (

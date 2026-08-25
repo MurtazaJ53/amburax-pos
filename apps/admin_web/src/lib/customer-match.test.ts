@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   canIdentifyCustomer,
+  canOpenKhataAccount,
   customerRequired,
   findExistingCustomer,
+  missingForKhata,
   nameKey,
   phoneKey,
 } from "./customer-match";
@@ -95,5 +97,48 @@ describe("having enough to open an account", () => {
   it("rejects blanks and half-typed numbers", () => {
     expect(canIdentifyCustomer("", "")).toBe(false);
     expect(canIdentifyCustomer("   ", "98765")).toBe(false);
+  });
+});
+
+describe("canOpenKhataAccount", () => {
+  it("needs both a name and a full phone number", () => {
+    expect(canOpenKhataAccount("Raju", "9876543210")).toBe(true);
+  });
+
+  it("refuses a name alone, which is not someone you can chase", () => {
+    // Two Rajus become one account or two depending on who typed first.
+    expect(canOpenKhataAccount("Raju", "")).toBe(false);
+  });
+
+  it("refuses a phone alone", () => {
+    expect(canOpenKhataAccount("", "9876543210")).toBe(false);
+  });
+
+  it("refuses a half-typed number", () => {
+    expect(canOpenKhataAccount("Raju", "98765")).toBe(false);
+  });
+
+  it("ignores the way a number was written", () => {
+    expect(canOpenKhataAccount("Raju", "+91 98765 43210")).toBe(true);
+  });
+
+  it("does not accept whitespace as a name", () => {
+    expect(canOpenKhataAccount("   ", "9876543210")).toBe(false);
+  });
+});
+
+describe("missingForKhata", () => {
+  it("says nothing when both are there", () => {
+    expect(missingForKhata("Raju", "9876543210")).toBe("");
+  });
+
+  it("names the one that is missing, not both", () => {
+    expect(missingForKhata("Raju", "")).toContain("phone");
+    expect(missingForKhata("Raju", "")).not.toContain("Name and");
+    expect(missingForKhata("", "9876543210")).toBe("Name needed to open a khata.");
+  });
+
+  it("asks for both when neither is given", () => {
+    expect(missingForKhata("", "")).toBe("Name and phone number needed to open a khata.");
   });
 });
