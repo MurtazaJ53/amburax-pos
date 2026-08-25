@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClipboardCheck, Play, Search, TriangleAlert, X } from "lucide-react";
 
 import { resolveScan, searchItems } from "@/lib/stock-search";
+import { formatCurrency } from "@/lib/formatters";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -256,8 +257,45 @@ export function StocktakeScreen({
         </div>
       )}
 
+      {/* What this is, for the person who has never done one. The screen
+          opened straight onto "Start a stocktake" with the explanation
+          folded into one paragraph underneath the button. */}
+      <section className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm animate-fade-in-up">
+        <h2 className="m-0 text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
+          What a stocktake is
+        </h2>
+        <p className="m-0 mt-2 max-w-[72ch] text-[13px] font-medium leading-[1.6] text-[var(--text-secondary)]">
+          The app&apos;s stock figures drift. A packet gets damaged, a sale is
+          rung up wrong, something walks out of the door — and nothing in the
+          system knows. A stocktake is walking the shop with the app open,
+          counting what is really on the shelf, and letting the app correct
+          itself to match.
+        </p>
+        <ol className="m-0 mt-3 flex list-none flex-col gap-1.5 p-0 text-[12.5px] font-medium text-[var(--text-secondary)]">
+          {[
+            "Start a count. Nothing changes yet.",
+            "Search or scan each item and type how many are actually there. Take as long as you like - the shop keeps trading.",
+            "Look at what does not match, then apply. Only then does stock change.",
+          ].map((line, index) => (
+            <li key={line} className="flex gap-2">
+              <span aria-hidden="true" className="font-mono text-[var(--text-tertiary)]">
+                {index + 1}.
+              </span>
+              {line}
+            </li>
+          ))}
+        </ol>
+        <p className="m-0 mt-3 rounded-[10px] border border-[var(--primary)]/20 bg-[var(--primary)]/8 px-3 py-2 text-[12px] font-semibold text-[var(--primary-dark)]">
+          Applying posts the <b>difference</b>, not the number you typed. If an
+          item reads 10, you count 8, and three more sell while you are still
+          counting, the shelf ends at 5 — not 8. Your count is never undone by
+          the day&apos;s trading, and the day&apos;s trading is never undone by
+          your count.
+        </p>
+      </section>
+
       {!current ? (
-        <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface)] p-6">
+        <div className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm">
           <h3 className="text-base font-extrabold text-[var(--text-primary)]">
             Count the shelves
           </h3>
@@ -271,7 +309,7 @@ export function StocktakeScreen({
             type="button"
             onClick={() => void start()}
             disabled={busy}
-            className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)]/12 px-5 py-3 text-xs font-extrabold text-[var(--primary-dark)] hover:bg-[var(--primary-hover)] disabled:opacity-50 border border-[var(--primary)]/25"
+            className="mt-4 inline-flex items-center gap-2 focus-ring cursor-pointer rounded-[10px] bg-[var(--primary)]/12 px-4 py-2.5 text-[12.5px] font-extrabold text-[var(--primary-dark)] transition-colors hover:bg-[var(--primary)]/20 disabled:opacity-50 border border-[var(--primary)]/25"
           >
             <Play className="w-4 h-4" />
             Start a stocktake
@@ -280,26 +318,95 @@ export function StocktakeScreen({
       ) : (
         <>
           {/* --- counting ------------------------------------------------- */}
-          <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface)] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <span className="font-mono text-xs font-extrabold text-[var(--text-primary)]">
-                  {current.reference}
-                </span>
-                <span className="ml-2 text-[11px] font-bold text-[var(--text-tertiary)]">
-                  {current.counted_lines} counted
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => void cancel()}
-                disabled={busy}
-                className="text-[11px] font-extrabold text-[var(--text-tertiary)] hover:underline"
-              >
-                Cancel count
-              </button>
-            </div>
+          {/* Where the count stands, at a glance. The header carried one
+              figure - how many lines were counted - which says nothing about
+              whether the shelves agree with the books. */}
+          <div className="flex flex-wrap items-center gap-4 rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-2.5 shadow-sm animate-fade-in-up">
+            <dl className="no-scrollbar m-0 flex min-w-0 flex-1 items-stretch gap-4 overflow-x-auto">
+              {[
+                {
+                  label: "counted",
+                  value: String(current.counted_lines),
+                  detail: "items so far",
+                  tone: "text-[var(--text-primary)]",
+                },
+                {
+                  label: "matched",
+                  value: String(current.matched_count),
+                  detail: "books were right",
+                  tone: "text-[var(--success-strong)]",
+                },
+                {
+                  label: "short",
+                  value: String(current.missing_count),
+                  detail: "less on the shelf",
+                  tone:
+                    current.missing_count > 0
+                      ? "text-[var(--error-strong)]"
+                      : "text-[var(--text-primary)]",
+                },
+                {
+                  label: "over",
+                  value: String(current.extra_count),
+                  detail: "more than expected",
+                  tone:
+                    current.extra_count > 0
+                      ? "text-[var(--warning-strong)]"
+                      : "text-[var(--text-primary)]",
+                },
+                {
+                  label: "worth",
+                  // Null when a varied item has no cost recorded: a partial
+                  // total would understate the loss, and a shopkeeper would
+                  // act on it as if it were the whole number.
+                  value:
+                    current.variance_value === null
+                      ? "--"
+                      : formatCurrency(num(current.variance_value)),
+                  detail:
+                    current.variance_value === null
+                      ? "some items have no cost"
+                      : "at cost",
+                  tone: "text-[var(--text-primary)]",
+                },
+              ].map((stat, index) => (
+                <div
+                  key={stat.label}
+                  className={`flex shrink-0 flex-col justify-center ${
+                    index > 0 ? "border-l border-[var(--border-soft)] pl-4" : ""
+                  }`}
+                >
+                  <dt className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                    {stat.label}
+                  </dt>
+                  <dd className="m-0 flex items-baseline gap-1.5">
+                    <span
+                      className={`tnum font-mono text-[17px] font-bold leading-tight ${stat.tone}`}
+                    >
+                      {stat.value}
+                    </span>
+                    <span className="whitespace-nowrap text-[11px] font-semibold text-[var(--text-tertiary)]">
+                      {stat.detail}
+                    </span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
 
+            <span className="shrink-0 font-mono text-[11px] font-bold text-[var(--text-tertiary)]">
+              {current.reference}
+            </span>
+            <button
+              type="button"
+              onClick={() => void cancel()}
+              disabled={busy}
+              className="focus-ring shrink-0 cursor-pointer rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-2 text-[11.5px] font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--error)] hover:text-[var(--error-strong)] disabled:opacity-50"
+            >
+              Abandon count
+            </button>
+          </div>
+
+          <div className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm">
             {!selected ? (
               <div className="relative mt-4">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
@@ -410,7 +517,7 @@ export function StocktakeScreen({
                   type="button"
                   onClick={() => void record()}
                   disabled={busy}
-                  className="mt-3 w-full rounded-2xl bg-[var(--primary)]/12 px-5 py-3 text-xs font-extrabold text-[var(--primary-dark)] hover:bg-[var(--primary-hover)] disabled:opacity-50 border border-[var(--primary)]/25"
+                  className="mt-3 w-full focus-ring cursor-pointer rounded-[10px] bg-[var(--primary)]/12 px-4 py-2.5 text-[12.5px] font-extrabold text-[var(--primary-dark)] transition-colors hover:bg-[var(--primary)]/20 disabled:opacity-50 border border-[var(--primary)]/25"
                 >
                   {busy ? "Saving…" : "Record count"}
                 </button>
@@ -420,7 +527,7 @@ export function StocktakeScreen({
 
           {/* --- what has been counted ------------------------------------ */}
           {current.lines.length > 0 && (
-            <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface)] p-5">
+            <div className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm">
               <div className="flex flex-wrap items-center gap-3">
                 <Tally label="Missing" value={current.missing_count} tone="bad" />
                 <Tally label="Extra" value={current.extra_count} tone="warn" />
@@ -512,7 +619,7 @@ export function StocktakeScreen({
 
       {/* --- earlier counts ---------------------------------------------- */}
       {history.length > 0 && (
-        <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface)] p-5">
+        <div className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm">
           <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--text-tertiary)]">
             Earlier counts
           </h3>
