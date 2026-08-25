@@ -12,7 +12,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { MixBar } from "@/components/ui/mix-bar";
-import { StatTile } from "@/components/ui/stat-tile";
+import type { MixSegment } from "@/components/ui/mix-bar";
 import { shopDateKey } from "@/lib/dashboard-metrics";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { isValidRange, resolveRange } from "@/lib/date-ranges";
@@ -377,7 +377,45 @@ export function SalesManager({
       0,
     );
 
-    return { totalRev, count, aov, cashTotal, upiTotal, cardTotal, khataTotal };
+    // What is still owed on these bills: money counted in gross sales that
+    // has not arrived. It is the khata bucket by definition, so it is named
+    // rather than summed a second way that could disagree with it.
+    const dueTotal = khataTotal;
+
+    return {
+      totalRev,
+      count,
+      aov,
+      cashTotal,
+      upiTotal,
+      cardTotal,
+      khataTotal,
+      dueTotal,
+    };
+  }, [sales]);
+
+  /** The mix, as coloured segments. Built from the tender buckets so a split
+   *  bill contributes to each method it actually used. */
+  const mixSegments: MixSegment[] = useMemo(
+    () =>
+      [
+        { key: "CASH", label: "Cash", amount: metrics.cashTotal, color: "var(--success)" },
+        { key: "UPI", label: "UPI", amount: metrics.upiTotal, color: "var(--primary-bright)" },
+        { key: "CARD", label: "Card", amount: metrics.cardTotal, color: "var(--primary)" },
+        { key: "KHATA", label: "Khata", amount: metrics.khataTotal, color: "var(--warning)" },
+      ].filter((segment) => segment.amount > 0),
+    [metrics],
+  );
+
+  /** How many bills each payment slice would return. A chip that says
+   *  "Cash 12" answers the question as well as filtering by it. */
+  const paymentCounts = useMemo(() => {
+    const tally: Record<string, number> = { all: sales.length };
+    for (const chip of PAYMENT_CHIPS) {
+      if (chip.key === "all") continue;
+      tally[chip.key] = sales.filter((sale) => sale.payment_mode === chip.key).length;
+    }
+    return tally;
   }, [sales]);
 
   // Day close calculations
@@ -392,16 +430,10 @@ export function SalesManager({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5">
-      {/* Top Header & View Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
-            Sales Orders & Register Reconciliation
-          </h2>
-          <p className="text-xs text-[var(--text-tertiary)]">
-            Review past transactions, print tax invoices, and complete daily register close
-          </p>
-        </div>
+      {/* Just the switch. The screen already names itself in the navbar, and
+          a title card repeating it cost a sixth of the page above the bills
+          it exists to show. */}
+      <div className="flex items-center justify-end gap-4">
 
         <div className="flex items-center p-1 bg-[var(--surface)] border border-[var(--border-soft)] rounded-xl">
           <button
@@ -429,68 +461,75 @@ export function SalesManager({
 
       {activeView === "history" ? (
         <div className="flex min-h-0 flex-1 flex-col gap-5">
-          {/* Two figures, and the shape of how the money arrived */}
-          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.6fr]">
-            <StatTile
-              label="Gross sales"
-              value={formatCurrency(metrics.totalRev)}
-              note={`${metrics.count} ${metrics.count === 1 ? "bill" : "bills"} in this view`}
-              className="animate-fade-in-up delay-1"
-            />
-            <StatTile
-              label="Average bill"
-              value={formatCurrency(metrics.aov)}
-              note="Basket size per checkout"
-              className="animate-fade-in-up delay-2"
-            />
-
-            <div className="rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface)] p-4 shadow-sm animate-fade-in-up delay-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
-                  How it was paid
-                </span>
-                <span className="font-mono text-[10px] font-medium text-[var(--text-tertiary)]">
-                  by amount
-                </span>
-              </div>
-
-              {metrics.upiTotal + metrics.cashTotal + metrics.cardTotal > 0 ? (
-                <div className="mt-3">
-                  <MixBar
-                    segments={[
-                      {
-                        key: "UPI",
-                        label: "UPI",
-                        amount: metrics.upiTotal,
-                        color: "var(--primary-bright)",
-                      },
-                      {
-                        key: "CASH",
-                        label: "Cash",
-                        amount: metrics.cashTotal,
-                        color: "var(--success)",
-                      },
-                      {
-                        key: "CARD",
-                        label: "Card",
-                        amount: metrics.cardTotal,
-                        color: "var(--violet-strong)",
-                      },
-                    ]}
-                    format={(amount) => formatCurrency(amount)}
-                    ariaLabel={`Payment split: UPI ${formatCurrency(
-                      metrics.upiTotal,
-                    )}, cash ${formatCurrency(metrics.cashTotal)}, card ${formatCurrency(
-                      metrics.cardTotal,
-                    )}`}
-                  />
+          {/* One row: the figures on the left, the mix on the right. Three
+              tall cards cost a third of the screen on a page whose job is
+              showing bills. Each figure is a labelled unit with a rule
+              between, so four numbers read as four things. */}
+          <div className="flex items-center gap-4 rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-2.5 shadow-sm animate-fade-in-up">
+            <dl className="no-scrollbar m-0 flex min-w-0 flex-1 items-stretch gap-4 overflow-x-auto">
+              {[
+                {
+                  label: "bills",
+                  value: String(metrics.count),
+                  detail: range.label.toLowerCase(),
+                  tone: "text-[var(--text-primary)]",
+                },
+                {
+                  label: "gross sales",
+                  value: formatCurrency(metrics.totalRev),
+                  detail: "before returns",
+                  tone: "text-[var(--text-primary)]",
+                },
+                {
+                  label: "average bill",
+                  value: formatCurrency(metrics.aov),
+                  detail: "per checkout",
+                  tone: "text-[var(--text-primary)]",
+                },
+                {
+                  label: "still owed",
+                  value: formatCurrency(metrics.dueTotal),
+                  detail: metrics.dueTotal > 0 ? "on khata" : "everyone settled",
+                  tone:
+                    metrics.dueTotal > 0
+                      ? "text-[var(--warning-strong)]"
+                      : "text-[var(--success-strong)]",
+                },
+              ].map((stat, index) => (
+                <div
+                  key={stat.label}
+                  className={`flex shrink-0 flex-col justify-center ${
+                    index > 0 ? "border-l border-[var(--border-soft)] pl-4" : ""
+                  }`}
+                >
+                  <dt className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                    {stat.label}
+                  </dt>
+                  <dd className="m-0 flex items-baseline gap-1.5">
+                    <span
+                      className={`tnum font-mono text-[17px] font-bold leading-tight ${stat.tone}`}
+                    >
+                      {stat.value}
+                    </span>
+                    <span className="whitespace-nowrap text-[11px] font-semibold text-[var(--text-tertiary)]">
+                      {stat.detail}
+                    </span>
+                  </dd>
                 </div>
-              ) : (
-                <p className="mt-3 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
-                  The split appears here once money comes in.
-                </p>
-              )}
-            </div>
+              ))}
+            </dl>
+
+            {mixSegments.length > 0 && (
+              <div className="hidden min-w-[220px] max-w-[380px] shrink-0 lg:block">
+                <MixBar
+                  segments={mixSegments}
+                  format={(amount) => formatCurrency(amount)}
+                  ariaLabel={`How the money arrived: ${mixSegments
+                    .map((segment) => `${segment.label} ${formatCurrency(segment.amount)}`)
+                    .join(", ")}.`}
+                />
+              </div>
+            )}
           </div>
 
           {/* Find, then narrow. The search box is sized to what it holds - a
@@ -553,7 +592,8 @@ export function SalesManager({
                         : "border-[var(--border-soft)] bg-[var(--surface)] text-[var(--text-secondary)] hover:border-[var(--border)] hover:text-[var(--text-primary)]"
                     }`}
                   >
-                    {chip.label}
+                    {chip.label}{" "}
+                    <span className="tnum font-mono">{paymentCounts[chip.key] ?? 0}</span>
                   </button>
                 );
               })}
