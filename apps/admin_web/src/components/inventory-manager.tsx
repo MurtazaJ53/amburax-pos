@@ -634,14 +634,15 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
               <option value="recent">Recently updated</option>
             </select>
           </label>
-        </div>
 
-        {/* Category, as a row you can see rather than a menu you have to
-            open. Twenty-one categories in a dropdown means the two a
-            shopkeeper actually works in are invisible until they go looking.
-            Ordered by size, so the working set is in front. The select above
-            stays for jumping straight to a named one. */}
-        <div className="flex items-center gap-2 border-t border-[var(--border-soft)] pt-2.5">
+          {/* A divider rather than a whole band. The category label and the
+              slices each sat on a row of their own, which cost the products
+              two lines of screen for controls that fit beside the others. */}
+          <span
+            aria-hidden="true"
+            className="hidden h-6 w-px shrink-0 bg-[var(--border-soft)] lg:block"
+          />
+
           <button
             type="button"
             onClick={() => setShowCategories((open) => !open)}
@@ -655,11 +656,11 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
               }`}
             />
           </button>
-          <div
-            className={`no-scrollbar min-w-0 flex-1 items-center gap-2 overflow-x-auto ${
-              showCategories ? "flex" : "hidden"
-            }`}
-          >
+        </div>
+
+        {/* Only this expands, and only while a category is being chosen. */}
+        {showCategories && (
+          <div className="no-scrollbar mt-2.5 flex items-center gap-2 overflow-x-auto border-t border-[var(--border-soft)] pt-2.5">
             <button
               type="button"
               onClick={() => setCategoryFilter("all")}
@@ -691,9 +692,9 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
               );
             })}
           </div>
-        </div>
+        )}
 
-        <div className="flex items-center gap-2 border-t border-[var(--border-soft)] pt-2.5">
+        <div className="mt-2.5 flex items-center gap-2 border-t border-[var(--border-soft)] pt-2.5">
           <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
             {stockChips.map((chip) => {
               const active = stockFilter === chip.key;
@@ -752,7 +753,7 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
                 No products match these filters.
               </p>
             ) : (
-              <ul className="m-0 grid list-none gap-2.5 p-0 [grid-template-columns:repeat(auto-fill,minmax(190px,1fr))]">
+              <ul className="m-0 grid list-none gap-2 p-0 [grid-template-columns:repeat(auto-fill,minmax(168px,1fr))]">
                 {filteredItems.map((item, index) => {
                   const margin = marginPercent(item);
                   return (
