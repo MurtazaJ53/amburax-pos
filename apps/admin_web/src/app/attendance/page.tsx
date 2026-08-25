@@ -57,6 +57,7 @@ export default async function AttendancePage() {
       activeShop={activeShop}
       activeRoute="attendance"
       title="Attendance"
+      fitViewport
       subtitle="Who worked, when they clocked in and out, and the hours behind the pay"
     >
       {!shopId ? (

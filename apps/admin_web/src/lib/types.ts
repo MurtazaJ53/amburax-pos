@@ -140,6 +140,10 @@ export type WorkspaceTeamMemberPayload = {
   role_label: string;
   role_summary: string;
   role_profile: "owner_control" | "store_admin" | "daily_operator" | "read_only";
+  /** Whether a counter PIN is set. The PIN itself is hashed and never sent -
+   *  the API has always included this and the client never declared it, so
+   *  nothing on screen could say who can unlock a till. */
+  has_pos_pin: boolean;
   status: "active" | "invited" | "disabled";
   permissions_version: number;
   permissions_json: Record<string, unknown>;

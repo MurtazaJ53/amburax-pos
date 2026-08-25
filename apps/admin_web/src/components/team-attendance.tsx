@@ -3,7 +3,6 @@
 import { useT } from "@/lib/i18n";
 
 import React, { useState, useMemo } from "react";
-import { StatTile } from "@/components/ui/stat-tile";
 import { formatCurrency, formatRole } from "@/lib/formatters";
 import { summariseWeek, weekStart } from "@/lib/attendance-week";
 import { monthLabel, monthsIn, paySheet, payTotals } from "@/lib/pay-sheet";
@@ -11,7 +10,6 @@ import { shopDateKey } from "@/lib/dashboard-metrics";
 import {
   Plus,
   Shield,
-  Calendar,
   LogIn,
   LogOut,
   X,
@@ -266,111 +264,99 @@ export function TeamAttendance({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-text-primary tracking-tight">
-            Team Members & Staff Attendance
-          </h2>
-          <p className="text-xs text-[var(--text-tertiary)]">
-            Manage store employees, assign POS/admin role permissions, and track shift clock-ins
-          </p>
-        </div>
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      {/* One row: the figures, then the two things you actually do here. A
+          title card repeating the navbar and four tall tiles pushed the
+          people themselves below the fold. */}
+      <div className="flex flex-wrap items-center gap-4 rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-2.5 shadow-sm animate-fade-in-up">
+        <dl className="no-scrollbar m-0 flex min-w-0 flex-1 items-stretch gap-4 overflow-x-auto">
+          {[
+            {
+              label: "on the team",
+              value: String(staff.length),
+              detail: `${staff.filter((m) => m.status === "active").length} active`,
+              tone: "text-[var(--text-primary)]",
+            },
+            {
+              label: "on shift now",
+              value: String(openShifts.length),
+              detail:
+                openShifts.length === 0
+                  ? "nobody clocked in"
+                  : openShifts.map((sh) => sh.member_name).join(", "),
+              tone:
+                openShifts.length > 0
+                  ? "text-[var(--success-strong)]"
+                  : "text-[var(--text-primary)]",
+            },
+            {
+              label: "present today",
+              value: String(summary.active_workers_today),
+              detail: `of ${staff.length}`,
+              tone: "text-[var(--text-primary)]",
+            },
+            {
+              label: "counter pins",
+              value: String(staff.filter((m) => m.has_pos_pin).length),
+              detail: "set for a shift change",
+              tone: "text-[var(--text-primary)]",
+            },
+          ].map((stat, index) => (
+            <div
+              key={stat.label}
+              className={`flex shrink-0 flex-col justify-center ${
+                index > 0 ? "border-l border-[var(--border-soft)] pl-4" : ""
+              }`}
+            >
+              <dt className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                {stat.label}
+              </dt>
+              <dd className="m-0 flex items-baseline gap-1.5">
+                <span
+                  className={`tnum max-w-[200px] truncate font-mono text-[17px] font-bold leading-tight ${stat.tone}`}
+                >
+                  {stat.value}
+                </span>
+                <span className="max-w-[190px] truncate whitespace-nowrap text-[11px] font-semibold text-[var(--text-tertiary)]">
+                  {stat.detail}
+                </span>
+              </dd>
+            </div>
+          ))}
+        </dl>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             onClick={handleToggleClock}
-            // Disabled rather than silently doing nothing when the signed-in
-            // user has no membership on this shop (a platform admin looking at
-            // someone else's shop, for instance). The handler already returned
-            // early in that case, which made the button look live and do
-            // nothing at all.
             disabled={isSubmitting || !myMember}
             title={
               myMember
                 ? undefined
                 : "You are viewing this shop without a staff membership, so there is no shift to clock."
             }
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+            className={`focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border px-3.5 py-2 text-[12px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               myActiveSession
-                ? "bg-[var(--warning)]/10 border-[var(--warning)]/30 text-[var(--warning)] hover:bg-[var(--warning)]/20"
-                : "bg-[var(--success-dark)] hover:bg-[var(--success)] text-white"
-            } disabled:opacity-50`}
+                ? "border-[var(--error)]/30 bg-[var(--error)]/10 text-[var(--error-strong)] hover:bg-[var(--error)]/16"
+                : "border-[var(--success)]/30 bg-[var(--success)]/10 text-[var(--success-dark)] hover:bg-[var(--success)]/16"
+            }`}
           >
-            {isSubmitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : myActiveSession ? (
-              <>
-                <LogOut className="w-4 h-4 text-[var(--warning)]" />
-                <span>Clock Out of Shift</span>
-              </>
-            ) : (
-              <>
-                <LogIn className="w-4 h-4" />
-                <span>Clock In to Shift</span>
-              </>
-            )}
-          </button>
-
-          <button
-            onClick={() => {
-              if (staff.length > 0) setSelectedMemberId(staff[0].id);
-              setIsManualAttendanceOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-bg-soft hover:bg-bg-base border border-[var(--border-soft)] text-text-primary text-xs font-semibold rounded-xl"
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Mark Attendance</span>
+            {myActiveSession ? <LogOut className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+            {myActiveSession ? "Clock out" : "Clock in"}
           </button>
 
           <button
             onClick={() => setIsInviteOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 text-xs font-semibold rounded-xl"
+            className="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-3.5 py-2 text-[12px] font-extrabold text-[var(--primary-dark)] transition-colors hover:bg-[var(--primary)]/20"
           >
-            <Plus className="w-4 h-4" />
-            <span>Invite Team Member</span>
+            <Plus className="h-4 w-4" />
+            Invite
           </button>
         </div>
       </div>
 
-      {/* Four figures about the roster */}
-      <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-        <StatTile
-          label="Roster"
-          value={String(staff.length)}
-          note={`${staff.filter((m) => m.status === "active").length} active`}
-          className="animate-fade-in-up delay-1"
-        />
-        <StatTile
-          label="On shift now"
-          value={String(openShifts.length)}
-          note={
-            openShifts.length === 0
-              ? "Nobody is clocked in"
-              : openShifts.map((sh) => sh.member_name).join(", ")
-          }
-          tone={openShifts.length > 0 ? "good" : "neutral"}
-          noteToneOverride="neutral"
-          className="animate-fade-in-up delay-2"
-        />
-        <StatTile
-          label="Present today"
-          value={String(summary.active_workers_today)}
-          note={`of ${staff.length} on the roster`}
-          className="animate-fade-in-up delay-3"
-        />
-        <StatTile
-          label="Attendance logs"
-          value={String(summary.total_sessions)}
-          note="Recorded all time"
-          className="animate-fade-in-up delay-4"
-        />
-      </div>
-
       {/* Who is actually on the counter. The page has always promised shift
           monitoring; until now it showed a roster and left you to guess. */}
-      {openShifts.length > 0 && (
+      {openShifts.length > 0 && (activeTab === "team" || activeTab === "attendance") && (
         <div className="rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm animate-fade-in-up delay-3">
           <div className="mb-3 flex items-center gap-2.5">
             <h3 className="text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
@@ -411,7 +397,7 @@ export function TeamAttendance({
 
       {/* The week behind wages. Days present, hours and overtime are what a
           shopkeeper actually pays on; the session log alone does not answer it. */}
-      {weekRows.length > 0 && (
+      {weekRows.length > 0 && activeTab === "attendance" && (
         <div className="overflow-hidden rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm animate-fade-in-up delay-4">
           <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--border-soft)] px-4 py-3">
             <h3 className="text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
@@ -521,13 +507,13 @@ export function TeamAttendance({
 
       {/* Tab Panels */}
       {activeTab === "team" && (
-        <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-xl relative">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm">
           {isLoading && (
             <div className="absolute inset-0 bg-surface/50 backdrop-blur-[1px] flex items-center justify-center z-10">
               <Loader2 className="w-6 h-6 text-primary animate-spin" />
             </div>
           )}
-          <div className="overflow-x-auto">
+          <div className="min-h-0 flex-1 overflow-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-bg-soft border-b border-[var(--border-soft)] text-[var(--text-tertiary)] font-semibold uppercase tracking-wider text-[10px]">
@@ -535,8 +521,9 @@ export function TeamAttendance({
                   <th className="py-3 px-4">{t("webEmail", "Email")}</th>
                   <th className="py-3 px-4">Role</th>
                   <th className="py-3 px-4">Phone</th>
+                  <th className="py-3 px-4">Counter PIN</th>
                   <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Joined Date</th>
+                  <th className="py-3 px-4">Joined</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-soft)]">
@@ -573,6 +560,20 @@ export function TeamAttendance({
                         {member.phone || "—"}
                       </td>
                       <td className="py-3 px-4">
+                        {member.has_pos_pin ? (
+                          <span
+                            className="rounded-full bg-[var(--success)]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--success-strong)]"
+                            title="A four-digit PIN unlocks the till at a shift change. It is hashed, and it cannot sign anyone in on its own."
+                          >
+                            Set
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-semibold text-[var(--text-tertiary)]">
+                            Not set
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                           member.status === "active"
                             ? "bg-[var(--success)]/10 text-[var(--success)]"
@@ -594,13 +595,13 @@ export function TeamAttendance({
       )}
 
       {activeTab === "attendance" && (
-        <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-xl relative">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm">
           {isLoading && (
             <div className="absolute inset-0 bg-surface/50 backdrop-blur-[1px] flex items-center justify-center z-10">
               <Loader2 className="w-6 h-6 text-primary animate-spin" />
             </div>
           )}
-          <div className="overflow-x-auto">
+          <div className="min-h-0 flex-1 overflow-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-bg-soft border-b border-[var(--border-soft)] text-[var(--text-tertiary)] font-semibold uppercase tracking-wider text-[10px]">

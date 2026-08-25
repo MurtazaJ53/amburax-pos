@@ -57,6 +57,7 @@ export default async function TeamPage() {
       activeShop={activeShop}
       activeRoute="team"
       title="Staff"
+      fitViewport
       subtitle="Who may open the shop, what they may do, and the counter PIN that unlocks the till"
     >
       {!shopId ? (
