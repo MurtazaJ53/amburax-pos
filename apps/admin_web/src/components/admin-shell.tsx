@@ -343,7 +343,7 @@ export function AdminShell({
       >
         
         {/* Left Sidebar Navigation matching APK tabs */}
-        <aside className="hidden h-full lg:flex lg:min-h-0 lg:flex-col lg:gap-4">
+        <aside className="hidden h-full lg:flex lg:min-h-0 lg:flex-col lg:gap-5">
           {/* Core Workflows and the everyday screens - eleven links, which
               fit. No scrollbar appears at a normal window height.
 
@@ -359,8 +359,8 @@ export function AdminShell({
               about eighty pixels of chrome for a divider that a hairline does
               in one. With eleven links that was the difference between
               fitting a laptop screen and not. */}
-          <nav className="flex flex-col rounded-[16px] border border-border-soft bg-surface p-2.5 shadow-sm transition-colors duration-200">
-            <div className="px-3 pb-2 pt-1.5 text-[9.5px] font-extrabold uppercase tracking-[0.14em] text-text-tertiary">
+          <nav className="flex flex-col rounded-[16px] border border-border-soft bg-surface p-3 shadow-sm transition-colors duration-200">
+            <div className="px-3 pb-2.5 pt-2 text-[9.5px] font-extrabold uppercase tracking-[0.14em] text-text-tertiary">
               Core Workflows
             </div>
             {mainNav.map((item) => {
@@ -370,7 +370,7 @@ export function AdminShell({
                 <Link
                   key={item.key}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-[10px] px-3 py-[9px] text-xs font-bold transition-colors ${
+                  className={`flex items-center gap-3 rounded-[10px] px-3 py-[11px] text-xs font-bold transition-colors ${
                     isActive
                       ? "relative bg-[var(--primary)]/12 text-[var(--primary-hover)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--primary)]"
                       : item.highlight
@@ -385,9 +385,9 @@ export function AdminShell({
             })}
 
             {/* The hairline that replaced the second panel. */}
-            <div className="mx-2 my-3 border-t border-border-soft" />
+            <div className="mx-2 my-4 border-t border-border-soft" />
 
-            <div className="px-3 pb-2 text-[9.5px] font-extrabold uppercase tracking-[0.14em] text-text-tertiary">
+            <div className="px-3 pb-2.5 text-[9.5px] font-extrabold uppercase tracking-[0.14em] text-text-tertiary">
               {t("settingsManage")}
             </div>
             {adminNav.map((item) => {
@@ -397,7 +397,7 @@ export function AdminShell({
                 <Link
                   key={item.key}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-[10px] px-3 py-[9px] text-xs font-bold transition-colors ${
+                  className={`flex items-center gap-3 rounded-[10px] px-3 py-[11px] text-xs font-bold transition-colors ${
                     isActive
                       ? "relative bg-[var(--primary)]/12 text-[var(--primary-hover)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--primary)]"
                       : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
