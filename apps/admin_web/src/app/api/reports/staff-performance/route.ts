@@ -22,8 +22,12 @@ export async function GET(req: NextRequest) {
     }
 
     const backendUrl = new URL(`${API_BASE_URL}/shops/${shopId}/sales/staff-performance/`);
-    const from = searchParams.get("date_from");
-    if (from) backendUrl.searchParams.set("date_from", from);
+    // The far end of the window matters too: without date_to, "last month"
+    // silently ran to today.
+    for (const key of ["date_from", "date_to"]) {
+      const value = searchParams.get(key);
+      if (value) backendUrl.searchParams.set(key, value);
+    }
 
     const res = await fetch(backendUrl.toString(), {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },

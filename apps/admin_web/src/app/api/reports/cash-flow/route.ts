@@ -12,7 +12,6 @@ const API_BASE_URL = process.env.BUSINESS_HUB_API_BASE_URL || "http://127.0.0.1:
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const days = searchParams.get("days") || "30";
 
     const cookieStore = await cookies();
     const token = cookieStore.get("bh_access_token")?.value;
@@ -23,7 +22,15 @@ export async function GET(req: NextRequest) {
     }
 
     const backendUrl = new URL(`${API_BASE_URL}/shops/${shopId}/reports/cash-flow/`);
-    backendUrl.searchParams.set("days", days);
+    // date_from/date_to/all where the screen asked for a window; `days`
+    // otherwise. Pinning `days` here meant a chosen window never arrived.
+    for (const key of ["date_from", "date_to", "all", "days", "limit"]) {
+      const value = searchParams.get(key);
+      if (value) backendUrl.searchParams.set(key, value);
+    }
+    if (!backendUrl.searchParams.toString()) {
+      backendUrl.searchParams.set("days", "30");
+    }
 
     const res = await fetch(backendUrl.toString(), {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },

@@ -178,3 +178,30 @@ export function isValidRange(range: Partial<DateRange>): boolean {
   if (!pattern.test(range.from) || !pattern.test(range.to)) return false;
   return Number.isFinite(Date.parse(`${range.from}T00:00:00Z`));
 }
+
+/** A resolved window as the report APIs want it.
+ *
+ *  Built once by whichever screen owns the picker and handed down, so every
+ *  panel on that screen is answering about the same period.
+ */
+export type ReportWindow = {
+  /** Query string for the API: a bounded window, or all of history. */
+  query: string;
+  /** The equally-long window before it, for comparisons. Empty when there is
+   *  nothing before - there is no period before all of history. */
+  previousQuery: string;
+  label: string;
+};
+
+/** Turn a resolved range into the query the report APIs understand. */
+export function toReportWindow(range: ResolvedRange): ReportWindow {
+  if (range.unbounded) {
+    return { query: "all=1", previousQuery: "", label: range.label };
+  }
+  const previous = previousPeriod(range);
+  return {
+    query: `date_from=${range.from}&date_to=${range.to}`,
+    previousQuery: `date_from=${previous.from}&date_to=${previous.to}`,
+    label: range.label,
+  };
+}

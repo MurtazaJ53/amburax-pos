@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReportWindow } from "@/lib/date-ranges";
+
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw, Users } from "lucide-react";
 
@@ -20,7 +22,6 @@ type StaffRow = {
   average_ticket: string;
 };
 
-const WINDOWS = [7, 30, 90] as const;
 
 function num(value: string | number | null | undefined): number {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
@@ -34,17 +35,12 @@ function unwrap(body: unknown): StaffRow[] {
   return Array.isArray(results) ? (results as StaffRow[]) : [];
 }
 
-function isoDaysAgo(days: number): string {
-  const then = new Date(Date.now() - days * 86_400_000);
-  return then.toISOString().slice(0, 10);
-}
 
 /**
  * Who is selling, and how. Useful for targets and for spotting a till that
  * gives away far more discount than anyone else.
  */
-export function StaffPerformance() {
-  const [days, setDays] = useState<number>(30);
+export function StaffPerformance({ range }: { range: ReportWindow }) {
   const [rows, setRows] = useState<StaffRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,9 +49,7 @@ export function StaffPerformance() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/reports/staff-performance?date_from=${isoDaysAgo(days)}`
-      );
+      const res = await fetch(`/api/reports/staff-performance?${range.query}`);
       if (res.status === 403) {
         throw new Error(
           "Comparing team members needs a manager, admin or owner role."
@@ -69,7 +63,7 @@ export function StaffPerformance() {
     } finally {
       setLoading(false);
     }
-  }, [days]);
+  }, [range.query]);
 
   useEffect(() => {
     void load();
@@ -80,22 +74,9 @@ export function StaffPerformance() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-2xl border border-border-soft bg-surface p-1">
-          {WINDOWS.map((w) => (
-            <button
-              key={w}
-              type="button"
-              onClick={() => setDays(w)}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-colors ${
-                days === w
-                  ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 shadow-sm"
-                  : "text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              {w} days
-            </button>
-          ))}
-        </div>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-text-tertiary">
+          {range.label}
+        </span>
         <button
           type="button"
           onClick={() => void load()}

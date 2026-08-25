@@ -146,7 +146,7 @@ export function AdminShell({
   // money.
   const everydayNav = [
     { key: "day-book", label: "Day book (Roj Mel)", href: "/day-book", icon: BookOpen },
-    { key: "insights", label: "Business pulse", href: "/insights", icon: TrendingUp },
+    { key: "insights", label: "Report", href: "/insights", icon: TrendingUp },
     { key: "expenses", label: t("settingsExpenses"), href: "/expenses", icon: TrendingDown, feature: "expenses" as const },
     { key: "attendance", label: t("settingsAttendance"), href: "/attendance", icon: Clock, feature: "attendance" as const },
     { key: "team", label: t("settingsStaff"), href: "/team", icon: Users },

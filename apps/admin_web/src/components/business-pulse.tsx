@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReportWindow } from "@/lib/date-ranges";
+
 import { useCallback, useEffect, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Package, RefreshCw, TrendingUp } from "lucide-react";
 
@@ -28,7 +30,6 @@ type BestSeller = {
   profit: string | null;
 };
 
-const WINDOWS = [7, 30, 90] as const;
 
 /** DRF serialises money as JSON strings; parse defensively. */
 function num(value: string | number | null | undefined): number {
@@ -42,8 +43,7 @@ function formatQty(value: string | number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
-export function BusinessPulse() {
-  const [days, setDays] = useState<number>(30);
+export function BusinessPulse({ range }: { range: ReportWindow }) {
   const [cashFlow, setCashFlow] = useState<CashFlow | null>(null);
   const [sellers, setSellers] = useState<BestSeller[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +53,11 @@ export function BusinessPulse() {
   const [cashDenied, setCashDenied] = useState(false);
   /** Net across twice the chosen window, used only to work out the previous
    *  period. Null when that second call did not succeed. */
-  const [doubleWindowNet, setDoubleWindowNet] = useState<number | null>(null);
+  /** Net over the window BEFORE this one. It used to be the net over double
+   *  the window, with the previous period derived by subtraction - an
+   *  approximation that could not express a window which did not end today.
+   *  It is now the real preceding window, fetched as its own question. */
+  const [previousNet, setPreviousNet] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,15 +68,22 @@ export function BusinessPulse() {
       // derived: net over twice the window, minus net over this one. Without
       // it the headline figure has nothing to be judged against.
       const [cashRes, sellersRes, priorRes] = await Promise.all([
-        fetch(`/api/reports/cash-flow?days=${days}`),
-        fetch(`/api/reports/best-sellers?days=${days}`),
-        fetch(`/api/reports/cash-flow?days=${days * 2}`),
+        fetch(`/api/reports/cash-flow?${range.query}`),
+        fetch(`/api/reports/best-sellers?${range.query}`),
+        // The window BEFORE this one, equally long. Asking for double the
+        // days and subtracting was only ever an approximation, and it could
+        // not express a window that did not end today at all.
+        range.previousQuery
+          ? fetch(`/api/reports/cash-flow?${range.previousQuery}`)
+          : Promise.resolve(null),
       ]);
 
-      if (priorRes.ok) {
-        setDoubleWindowNet(num((await priorRes.json())?.net));
+      // Null when there is no previous window - nothing precedes all of
+      // history, so no comparison is offered rather than one invented.
+      if (priorRes && priorRes.ok) {
+        setPreviousNet(num((await priorRes.json())?.net));
       } else {
-        setDoubleWindowNet(null);
+        setPreviousNet(null);
       }
 
       if (cashRes.ok) {
@@ -96,7 +107,7 @@ export function BusinessPulse() {
     } finally {
       setLoading(false);
     }
-  }, [days]);
+  }, [range.query, range.previousQuery]);
 
   useEffect(() => {
     void load();
@@ -107,34 +118,19 @@ export function BusinessPulse() {
   /** Change against the period before this one, or null when there is no
    *  usable baseline. A rise measured against zero is noise, not insight. */
   const changeVsPrevious = (() => {
-    if (doubleWindowNet === null || cashFlow === null) return null;
-    const previous = doubleWindowNet - net;
-    if (previous <= 0) return null;
-    return Math.round(((net - previous) / previous) * 100);
+    if (previousNet === null || cashFlow === null) return null;
+    if (previousNet <= 0) return null;
+    return Math.round(((net - previousNet) / previousNet) * 100);
   })();
   const topQty = sellers.length ? num(sellers[0].quantity_sold) : 0;
   const anyProfitHidden = sellers.some((s) => s.profit === null);
 
   return (
     <div className="space-y-6">
-      {/* Window picker */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-2xl border border-border-soft bg-surface p-1">
-          {WINDOWS.map((w) => (
-            <button
-              key={w}
-              type="button"
-              onClick={() => setDays(w)}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-colors ${
-                days === w
-                  ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 shadow-sm"
-                  : "text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              {w} days
-            </button>
-          ))}
-        </div>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-text-tertiary">
+          {range.label}
+        </span>
         <button
           type="button"
           onClick={() => void load()}
@@ -168,7 +164,7 @@ export function BusinessPulse() {
         >
           <div className="flex flex-wrap items-center gap-2.5">
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-text-tertiary">
-              Money kept in the last {cashFlow?.days ?? days} days
+              Money kept &middot; {range.label}
             </p>
             {changeVsPrevious !== null && (
               <span
@@ -183,7 +179,7 @@ export function BusinessPulse() {
                 ) : (
                   <ArrowDownRight className="h-3 w-3" />
                 )}
-                {Math.abs(changeVsPrevious)}% vs previous {cashFlow?.days ?? days} days
+                {Math.abs(changeVsPrevious)}% vs the period before
               </span>
             )}
           </div>

@@ -22,7 +22,15 @@ export async function GET(req: NextRequest) {
     }
 
     const backendUrl = new URL(`${API_BASE_URL}/shops/${shopId}/reports/dead-stock/`);
-    backendUrl.searchParams.set("days", searchParams.get("days") || "90");
+    // date_from/date_to/all where the screen asked for a window; `days`
+    // otherwise. Pinning `days` here meant a chosen window never arrived.
+    for (const key of ["date_from", "date_to", "all", "days", "limit"]) {
+      const value = searchParams.get(key);
+      if (value) backendUrl.searchParams.set(key, value);
+    }
+    if (!backendUrl.searchParams.toString()) {
+      backendUrl.searchParams.set("days", "30");
+    }
 
     const res = await fetch(backendUrl.toString(), {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },

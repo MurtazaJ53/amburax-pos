@@ -5,13 +5,13 @@ that question, and the two an owner actually asks day to day.
 """
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date as date_cls, timedelta
 from decimal import Decimal
 
 from django.db.models import Count, DecimalField, F, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
-from rest_framework import permissions
+from rest_framework import exceptions, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -24,7 +24,48 @@ from platform_apps.shops.permissions import get_membership_or_403
 _ZERO = Decimal("0.00")
 
 
-def _window_start(request, default_days: int = 30):
+def _window(request, shop=None, default_days: int = 30):
+    """The window a report covers, as (start, end, days).
+
+    `days` alone could only ever mean "the last N days ending today". That
+    cannot express yesterday, a custom window that ended last month, or all
+    of history - so a screen offering those presets would have been showing a
+    filter that quietly did something else.
+
+    date_from/date_to win where given; `days` remains for existing callers,
+    and `all=1` asks for everything.
+    """
+    today = timezone.localdate()
+
+    if str(request.query_params.get("all") or "").lower() in {"1", "true", "yes"}:
+        # A real start date rather than year zero, so the window a report
+        # prints matches the data behind it.
+        earliest = (
+            Sale.objects.filter(shop=shop, tombstone=False)
+            .exclude(status=Sale.Status.VOID)
+            .order_by("sale_date")
+            .values_list("sale_date", flat=True)
+            .first()
+            if shop is not None
+            else None
+        )
+        start = earliest or today
+        return start, today, max(1, (today - start).days)
+
+    raw_from = str(request.query_params.get("date_from") or "").strip()
+    raw_to = str(request.query_params.get("date_to") or "").strip()
+    if raw_from or raw_to:
+        try:
+            start = date_cls.fromisoformat(raw_from) if raw_from else today
+            end = date_cls.fromisoformat(raw_to) if raw_to else today
+        except ValueError:
+            raise exceptions.ValidationError(
+                {"date_from": "Expected YYYY-MM-DD."}
+            )
+        if start > end:
+            start, end = end, start
+        return start, end, max(1, (end - start).days + 1)
+
     try:
         days = int(request.query_params.get("days", default_days))
     except (TypeError, ValueError):
@@ -32,7 +73,7 @@ def _window_start(request, default_days: int = 30):
     # Keep the window sane: a huge value would scan the whole table for a
     # dashboard card.
     days = max(1, min(days, 365))
-    return timezone.localdate() - timedelta(days=days), days
+    return today - timedelta(days=days), today, days
 
 
 class BestSellersView(APIView):
@@ -44,7 +85,7 @@ class BestSellersView(APIView):
         membership = get_membership_or_403(
             request.user, shop_id, ShopMembership.Role.VIEWER
         )
-        since, days = _window_start(request)
+        since, until, days = _window(request, membership.shop)
         try:
             limit = int(request.query_params.get("limit", 20))
         except (TypeError, ValueError):
@@ -56,6 +97,7 @@ class BestSellersView(APIView):
                 sale__shop=membership.shop,
                 sale__tombstone=False,
                 sale__sale_date__gte=since,
+                sale__sale_date__lte=until,
             )
             # A refunded bill must not keep a product in the best-seller list.
             .exclude(sale__status=Sale.Status.VOID)
@@ -104,11 +146,14 @@ class CashFlowView(APIView):
         membership = get_membership_or_403(
             request.user, shop_id, ShopMembership.Role.MANAGER
         )
-        since, days = _window_start(request)
+        since, until, days = _window(request, membership.shop)
 
         collected = (
             Sale.objects.filter(
-                shop=membership.shop, tombstone=False, sale_date__gte=since
+                shop=membership.shop,
+                tombstone=False,
+                sale_date__gte=since,
+                sale_date__lte=until,
             )
             .exclude(status=Sale.Status.VOID)
             .aggregate(total=Coalesce(Sum("amount_received"), _ZERO))["total"]
@@ -116,11 +161,17 @@ class CashFlowView(APIView):
         # Only what was actually PAID to suppliers — an unpaid invoice hasn't
         # left the till yet.
         purchases = Purchase.objects.filter(
-            shop=membership.shop, tombstone=False, purchase_date__gte=since
+            shop=membership.shop,
+            tombstone=False,
+            purchase_date__gte=since,
+            purchase_date__lte=until,
         ).aggregate(total=Coalesce(Sum("amount_paid"), _ZERO))["total"]
 
         expenses = Expense.objects.filter(
-            shop=membership.shop, tombstone=False, expense_date__gte=since
+            shop=membership.shop,
+            tombstone=False,
+            expense_date__gte=since,
+            expense_date__lte=until,
         ).aggregate(total=Coalesce(Sum("amount"), _ZERO))["total"]
 
         money_out = purchases + expenses

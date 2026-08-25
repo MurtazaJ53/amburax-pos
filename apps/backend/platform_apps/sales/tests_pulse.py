@@ -180,3 +180,93 @@ class PulseReportTests(TestCase):
         client.force_authenticate(user=staff)
         response = client.get(f"/api/v1/shops/{self.shop.id}/reports/cash-flow/")
         self.assertEqual(response.status_code, 403, response.content)
+
+
+class ReportWindowTests(TestCase):
+    """The window a report covers.
+
+    `days` alone can only mean "the last N days ending today", which cannot
+    express yesterday, a window that ended last month, or all of history. A
+    screen offering those presets on top of `days` would have been showing a
+    filter that quietly did something else.
+    """
+
+    def setUp(self):
+        self.user = PlatformUser.objects.create_user(
+            email="window@example.com", password="secret", full_name="Owner"
+        )
+        self.shop = Shop.objects.create(
+            name="Window Shop", slug="window-shop", settings_json={"plan_tier": "pro"}
+        )
+        ShopMembership.objects.create(
+            user=self.user,
+            shop=self.shop,
+            role=ShopMembership.Role.OWNER,
+            status=ShopMembership.Status.ACTIVE,
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.today = timezone.localdate()
+        self.url = f"/api/v1/shops/{self.shop.id}/reports/cash-flow/"
+
+    def _sale(self, amount, days_ago):
+        day = self.today - timedelta(days=days_ago)
+        return Sale.objects.create(
+            shop=self.shop,
+            total_amount=Decimal(amount),
+            amount_received=Decimal(amount),
+            sale_date=day,
+            occurred_at=timezone.now() - timedelta(days=days_ago),
+        )
+
+    def test_an_explicit_window_excludes_what_falls_outside_BOTH_ends(self):
+        self._sale("100", 1)
+        self._sale("500", 40)
+        response = self.client.get(
+            self.url,
+            {
+                "date_from": (self.today - timedelta(days=3)).isoformat(),
+                "date_to": (self.today - timedelta(days=1)).isoformat(),
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(Decimal(str(response.json()["sales_collected"])), Decimal("100"))
+
+    def test_a_window_that_ended_in_the_past_excludes_today(self):
+        """The case `days` could never express."""
+        self._sale("777", 0)
+        response = self.client.get(
+            self.url,
+            {
+                "date_from": (self.today - timedelta(days=5)).isoformat(),
+                "date_to": (self.today - timedelta(days=1)).isoformat(),
+            },
+        )
+        self.assertEqual(Decimal(str(response.json()["sales_collected"])), Decimal("0"))
+
+    def test_dates_the_wrong_way_round_are_swapped(self):
+        self._sale("100", 2)
+        response = self.client.get(
+            self.url,
+            {
+                "date_from": self.today.isoformat(),
+                "date_to": (self.today - timedelta(days=5)).isoformat(),
+            },
+        )
+        self.assertEqual(Decimal(str(response.json()["sales_collected"])), Decimal("100"))
+
+    def test_all_time_reaches_past_the_365_day_cap(self):
+        self._sale("900", 500)
+        response = self.client.get(self.url, {"all": "1"})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(Decimal(str(response.json()["sales_collected"])), Decimal("900"))
+
+    def test_days_still_works_for_callers_that_send_it(self):
+        self._sale("100", 3)
+        self._sale("500", 40)
+        response = self.client.get(self.url, {"days": "7"})
+        self.assertEqual(Decimal(str(response.json()["sales_collected"])), Decimal("100"))
+
+    def test_a_malformed_date_is_refused_rather_than_silently_meaning_today(self):
+        response = self.client.get(self.url, {"date_from": "22-08-2026"})
+        self.assertEqual(response.status_code, 400, response.content)
