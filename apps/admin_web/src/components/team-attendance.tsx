@@ -2,10 +2,12 @@
 
 import { useT } from "@/lib/i18n";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { formatCurrency, formatRole } from "@/lib/formatters";
 import { summariseWeek, weekStart } from "@/lib/attendance-week";
 import { monthLabel, monthsIn, paySheet, payTotals } from "@/lib/pay-sheet";
+import { EMPTY_HISTORY, discountRate, readMemberHistory } from "@/lib/member-history";
+import type { MemberHistory } from "@/lib/member-history";
 import { shopDateKey } from "@/lib/dashboard-metrics";
 import {
   Plus,
@@ -63,6 +65,12 @@ export function TeamAttendance({
    *  wants last month, which is the one they are paying for. */
   const [payMonth, setPayMonth] = useState<string>("");
 
+  /** The person whose history is open, or null. */
+  const [openMember, setOpenMember] = useState<WorkspaceTeamMemberPayload | null>(null);
+  const [history, setHistory] = useState<MemberHistory>(EMPTY_HISTORY);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+
   const t = useT();
   const [staff, setStaff] = useState<WorkspaceTeamMemberPayload[]>(initialTeam ?? []);
   const [attendance, setAttendance] = useState<AttendanceSession[]>(initialSessions ?? []);
@@ -85,6 +93,42 @@ export function TeamAttendance({
    *  and 8 does not become 8.00. */
   const formatHours = (value: number): string =>
     Number.isInteger(value) ? String(value) : value.toFixed(1);
+
+  const rate = discountRate(history);
+
+  useEffect(() => {
+    if (!openMember) return;
+    let active = true;
+    const load = async () => {
+      setHistoryLoading(true);
+      setHistoryError("");
+      try {
+        const res = await fetch(`/api/team/${openMember.id}/history`);
+        const body = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(
+            (body as { detail?: string })?.detail || "Could not read their history.",
+          );
+        }
+        if (active) setHistory(readMemberHistory(body));
+      } catch (err) {
+        // Empty figures, not stale ones. Somebody else's month under this
+        // person's name is the worst outcome here.
+        if (active) {
+          setHistory(EMPTY_HISTORY);
+          setHistoryError(
+            err instanceof Error ? err.message : "Could not read their history.",
+          );
+        }
+      } finally {
+        if (active) setHistoryLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [openMember]);
 
   // Invite modal
   const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -524,6 +568,7 @@ export function TeamAttendance({
                   <th className="py-3 px-4">Counter PIN</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Joined</th>
+                  <th className="py-3 px-4 text-right">History</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-soft)]">
@@ -584,6 +629,18 @@ export function TeamAttendance({
                       </td>
                       <td className="py-3 px-4 text-[var(--text-tertiary)]">
                         {formatDate(member.created_at)}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        {/* The question is always about somebody you are
+                            already looking at, so it opens from the row. */}
+                        <button
+                          type="button"
+                          onClick={() => setOpenMember(member)}
+                          aria-label={`See how ${member.member_name} is doing`}
+                          className="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--border-soft)] bg-[var(--surface)] px-2.5 py-1.5 text-[11px] font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary-dark)]"
+                        >
+                          How they are doing
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -873,6 +930,175 @@ export function TeamAttendance({
             stored anywhere in the app, so no pay figure is calculated - this
             is what the person working out the pay should start from.
           </p>
+        </div>
+      )}
+
+
+      {/* One person, across the three tables that know about them. Opened
+          from a row rather than living on a screen of its own: the question
+          is always about somebody you are already looking at. */}
+      {openMember && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setOpenMember(null)}
+        >
+          <div
+            className="animate-fade-in-up flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border-soft)] px-5 py-4">
+              <div className="min-w-0">
+                <p className="m-0 truncate text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
+                  {history.name || openMember.member_name}
+                </p>
+                <p className="m-0 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+                  {formatRole(openMember.role)} &middot; last 30 days
+                </p>
+              </div>
+              <button
+                onClick={() => setOpenMember(null)}
+                aria-label="Close"
+                className="focus-ring ml-auto cursor-pointer rounded-lg p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              {historyLoading ? (
+                <p className="py-12 text-center text-xs font-bold text-[var(--text-tertiary)]">
+                  Reading their month...
+                </p>
+              ) : historyError ? (
+                <p
+                  role="alert"
+                  className="rounded-xl border border-[var(--error)]/40 bg-[var(--error)]/10 px-4 py-3 text-xs font-bold text-[var(--error-strong)]"
+                >
+                  {historyError}
+                </p>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                    {[
+                      {
+                        label: "days worked",
+                        value: formatHours(history.daysWorked),
+                        detail: `${history.present} full, ${history.halfDays} half`,
+                      },
+                      {
+                        label: "hours",
+                        value: formatHours(history.hours),
+                        detail: `${formatHours(history.overtime)} overtime`,
+                      },
+                      {
+                        label: "bills rung up",
+                        value: String(history.bills),
+                        detail:
+                          history.averageBill === null
+                            ? "none yet"
+                            : `avg ${formatCurrency(history.averageBill)}`,
+                      },
+                      {
+                        label: "sold",
+                        value: formatCurrency(history.gross),
+                        detail:
+                          history.perDayWorked === null
+                            ? "no day worked"
+                            : `${formatCurrency(history.perDayWorked)} a day`,
+                      },
+                    ].map((stat) => (
+                      <div
+                        key={stat.label}
+                        className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-3"
+                      >
+                        <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                          {stat.label}
+                        </p>
+                        <p className="tnum m-0 mt-1 font-mono text-[17px] font-bold leading-tight text-[var(--text-primary)]">
+                          {stat.value}
+                        </p>
+                        <p className="m-0 mt-0.5 truncate text-[10.5px] font-semibold text-[var(--text-tertiary)]">
+                          {stat.detail}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5 rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-3">
+                    <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                      Discount given
+                    </span>
+                    <span className="tnum font-mono text-[15px] font-bold text-[var(--warning-strong)]">
+                      {formatCurrency(history.discountGiven)}
+                    </span>
+                    {/* The rupee total alone compares nobody: a busy cashier
+                        always gives away more than a quiet one. */}
+                    <span className="text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+                      {rate === null
+                        ? "nothing sold to compare against"
+                        : `${rate.toFixed(1)}% of what they sold`}
+                    </span>
+                    {history.bonus > 0 && (
+                      <span className="ml-auto text-[11.5px] font-bold text-[var(--text-secondary)]">
+                        Bonus {formatCurrency(history.bonus)}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="overflow-hidden rounded-[12px] border border-[var(--border-soft)]">
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-[var(--border-soft)] bg-bg-soft text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                          <th className="px-3 py-2">Day</th>
+                          <th className="px-3 py-2">Marked</th>
+                          <th className="px-3 py-2 text-right">Hours</th>
+                          <th className="px-3 py-2 text-right">Overtime</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--border-soft)]">
+                        {history.sessions.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              className="px-3 py-8 text-center text-[var(--text-tertiary)]"
+                            >
+                              No attendance recorded in this window.
+                            </td>
+                          </tr>
+                        ) : (
+                          history.sessions.map((session) => (
+                            <tr key={session.id}>
+                              <td className="px-3 py-2 font-semibold text-[var(--text-primary)]">
+                                {formatDate(session.date)}
+                              </td>
+                              <td className="px-3 py-2 capitalize text-[var(--text-secondary)]">
+                                {session.status.replace(/_/g, " ").toLowerCase()}
+                              </td>
+                              <td className="tnum px-3 py-2 text-right font-mono text-[var(--text-primary)]">
+                                {session.hours ?? "--"}
+                              </td>
+                              <td className="tnum px-3 py-2 text-right font-mono text-[var(--warning-strong)]">
+                                {session.overtime}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <p className="m-0 text-[11px] font-medium text-[var(--text-tertiary)]">
+                    Sales are credited to whoever was signed in when the bill
+                    was rung up. Where a shop shares one login they all land on
+                    that one person, which is the honest answer rather than a
+                    split invented to look fair.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

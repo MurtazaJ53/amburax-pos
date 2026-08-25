@@ -88,6 +88,7 @@ from platform_apps.sales.return_views import (
     SaleReturnableView,
 )
 from platform_apps.sales.pulse_views import BestSellersView, CashFlowView
+from platform_apps.attendance.person_views import TeamMemberHistoryView
 from platform_apps.sales.takings_views import SaleTakingsView
 from platform_apps.sales.register_views import (
     RegisterSessionHistoryView,
@@ -134,6 +135,11 @@ urlpatterns = [
     ),
     path("<uuid:shop_id>/team/", WorkspaceTeamListCreateView.as_view(), name="workspace-team"),
     path("<uuid:shop_id>/team/<uuid:membership_id>/", WorkspaceTeamDetailView.as_view(), name="workspace-team-detail"),
+    path(
+        "<uuid:shop_id>/team/<uuid:membership_id>/history/",
+        TeamMemberHistoryView.as_view(),
+        name="workspace-team-history",
+    ),
     path("<uuid:shop_id>/settings/", ShopSettingsView.as_view(), name="shop-settings"),
     path("<uuid:shop_id>/pos-pin/verify/", PosPinVerifyView.as_view(), name="pos-pin-verify"),
     path("<uuid:shop_id>/export/", ShopDataExportView.as_view(), name="shop-data-export"),
