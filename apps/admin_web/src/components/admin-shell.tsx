@@ -387,7 +387,7 @@ export function AdminShell({
             {/* The hairline that replaced the second panel. */}
             <div className="mx-2 my-4 border-t border-border-soft" />
 
-            <div className="px-3 pb-2.5 text-[9.5px] font-extrabold uppercase tracking-[0.14em] text-text-tertiary">
+            <div className="px-3 pb-[9px] text-[9.5px] font-extrabold uppercase tracking-[0.14em] text-text-tertiary">
               {t("settingsManage")}
             </div>
             {adminNav.map((item) => {
@@ -397,7 +397,7 @@ export function AdminShell({
                 <Link
                   key={item.key}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-[10px] px-3 py-[11px] text-xs font-bold transition-colors ${
+                  className={`flex items-center gap-3 rounded-[10px] px-3 py-[10px] text-xs font-bold transition-colors ${
                     isActive
                       ? "relative bg-[var(--primary)]/12 text-[var(--primary-hover)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--primary)]"
                       : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
