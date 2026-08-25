@@ -114,3 +114,78 @@ Right now, the most trustworthy operational truth sources are:
 2. Never assume web and Flutter are identical yet.
 
 3. Keep old app path available until Flutter cutover is fully signed off.
+
+## Setting up a counter to print receipts
+
+### What the browser will and will not do
+
+`window.print()` always opens the print dialogue. There is no JavaScript, CSS
+or browser setting that makes a normal web page print silently — it is a
+deliberate security rule, because a page that could print without asking
+could empty a paper tray. Anyone who tells you otherwise is describing kiosk
+mode, which is below.
+
+So a counter has two possible setups, and they are mutually exclusive:
+
+| Setup | Tap to paper | Can also save a PDF |
+| --- | --- | --- |
+| Normal browser | dialogue, then Print | yes, "Save as PDF" in the dialogue |
+| Chrome kiosk printing | prints immediately | no — it always goes to the default printer |
+
+Pick per machine. A till that only ever prints receipts wants kiosk. A back
+office that emails invoices wants the normal browser.
+
+### Kiosk printing on a till
+
+1. Set the thermal printer as the **Windows default printer**. Kiosk mode
+   sends to the default and offers no choice, so this is the whole
+   configuration.
+2. Create a desktop shortcut with the flag:
+
+   ```
+   "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk-printing --app=https://YOUR-HOST
+   ```
+
+   `--app=` opens it without tabs or an address bar, which is what you want on
+   a counter. Use the shop's real host, not localhost, unless the till is the
+   machine running the app.
+3. Open the shortcut, complete a sale, press **Print or save PDF**. It should
+   print with no dialogue at all.
+
+If a dialogue still appears, the flag did not apply — check the shortcut is
+being used rather than a pinned taskbar Chrome, and that no other Chrome
+window was already open when it launched (Chrome reuses a running process and
+ignores the flag).
+
+### Paper
+
+The receipt sets its own page size at print time: **76mm** for an Indian shop
+and **80mm** for a UK one, taken from the shop's region, with automatic
+height so a long bill runs down the roll instead of being cut into pages.
+
+Nothing needs configuring for this. If a receipt prints on A4 with a strip of
+content at the top, the page rule did not apply — that is a bug in the app,
+not a printer setting, and it is worth reporting rather than working around
+by changing the driver's paper size.
+
+### Colour or plain
+
+The receipt has a **Plain / Colour** switch beside the print button.
+
+- **Plain** forces one ink. A thermal roll has one, and a grey heading on
+  76mm paper is a heading nobody can read. This is the default and the right
+  choice for a counter.
+- **Colour** uses the shop's logo and brand colour. It is for the A4 or PDF
+  copy a customer is emailed, and it is wasted on a thermal printer.
+
+A shop's logo and brand colour are set in shop settings. A shop that has set
+neither prints exactly what it printed before.
+
+### What appears on the receipt
+
+Only what a customer or a tax officer would want: the shop, the bill, the tax
+breakdown, and — where the law requires it — the composition-dealer wording.
+
+The closing line comes from the shop's own footer note. If a shop wants
+"Exchange within 7 days with the bill", they set it; nothing is printed on a
+shop's paper that the shop did not agree to.
