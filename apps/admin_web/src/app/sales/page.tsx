@@ -45,6 +45,11 @@ export default async function SalesPage() {
         shopId={shopId}
         refundedBySale={refundedBySale}
         timeZone={activeShop?.shop.timezone || "Asia/Kolkata"}
+        shopName={activeShop?.shop.name || ""}
+        shopGstin={activeShop?.shop.gstin || ""}
+        regionCode={activeShop?.shop.region_code || "IN"}
+        shopLogo={activeShop?.shop.logo_data || ""}
+        brandColor={activeShop?.shop.brand_color || ""}
       />
     </AdminShell>
   );

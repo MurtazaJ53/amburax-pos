@@ -33,6 +33,17 @@ class Shop(SourceTrackedModel):
     # 2-digit GST state code used to decide intra-state (CGST+SGST) vs inter-state
     # (IGST) on each sale. region_code selects the localisation profile (IN/UK).
     region_code = models.CharField(max_length=8, default="IN")
+    # What a receipt should carry beyond the words. Both optional: a shop with
+    # neither prints exactly what it printed before.
+    #
+    # The logo is a data URI, like a product photo, and for the same reason -
+    # a receipt is rendered and printed in the browser, so a URL would mean a
+    # network fetch inside a print dialog that may not be online. It is
+    # resized and re-encoded client-side before it ever reaches here.
+    logo_data = models.TextField(blank=True)
+    # One hex colour, used for the shop name, the document title and the
+    # total on a colour receipt. Stored as typed, validated on write.
+    brand_color = models.CharField(max_length=9, blank=True)
     gstin = models.CharField(max_length=15, blank=True)
     state_code = models.CharField(max_length=2, blank=True)
     is_active = models.BooleanField(default=True)

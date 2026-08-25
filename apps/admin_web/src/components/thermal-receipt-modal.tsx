@@ -3,6 +3,12 @@
 import React, { useRef, useState } from "react";
 import { Printer, X, CheckCircle2 } from "lucide-react";
 import { formatDate, formatQuantity } from "@/lib/utils";
+import {
+  needsCompositionNotice,
+  receiptFormat,
+  safeBrandColor,
+  safeLogo,
+} from "@/lib/receipt-format";
 import type { CartItem, SplitPaymentTender } from "@/lib/types";
 
 type ThermalReceiptModalProps = {
@@ -11,6 +17,16 @@ type ThermalReceiptModalProps = {
   shopName: string;
   shopAddress?: string;
   shopGstin?: string;
+  /** IN or UK. Decides the paper width, what the tax is called, and what the
+   *  document calls itself. */
+  regionCode?: string;
+  /** Inline image, resized before it ever reached the server. */
+  shopLogo?: string;
+  /** One hex colour, used only in colour mode. */
+  brandColor?: string;
+  /** The shop's own closing line. Replaces an exchange policy that used to be
+   *  hardcoded to seven days on every receipt in the product. */
+  footerNote?: string;
   shopPhone?: string;
   receiptNumber: string;
   cashierName: string;
@@ -48,6 +64,10 @@ export function ThermalReceiptModal({
   shopName,
   shopAddress = "123 Commercial High Street, Market Complex",
   shopGstin = "27AABCU9603R1ZM",
+  regionCode = "IN",
+  shopLogo = "",
+  brandColor = "",
+  footerNote = "",
   shopPhone = "+91 98765 43210",
   receiptNumber,
   cashierName,
@@ -69,6 +89,13 @@ export function ThermalReceiptModal({
   /** Colour or one-ink. A thermal roll prints one colour, so plain is the
    *  default; colour is for the A4/PDF copy a customer is emailed. */
   const [mode, setMode] = useState<"plain" | "colour">("plain");
+
+  const format = receiptFormat(regionCode, gstRegistrationType);
+  const logo = safeLogo(shopLogo);
+  /** Only in colour mode, and only if it really is a colour. Plain has one
+   *  ink by definition. */
+  const ink = mode === "colour" ? safeBrandColor(brandColor) : null;
+  const inkStyle = ink ? { color: ink } : undefined;
 
   if (!isOpen) return null;
 
@@ -123,14 +150,25 @@ export function ThermalReceiptModal({
             // reads unless they are checking something. Tabular figures
             // throughout, because a receipt is a column of numbers and
             // proportional digits make them stagger.
-            className="tnum w-[76mm] min-h-[120mm] rounded-lg border border-[var(--border-soft)] bg-white p-5 font-mono text-[11px] leading-[1.45] text-black shadow-md"
+            style={{ width: format.paperWidth }}
+            className="tnum min-h-[120mm] rounded-lg border border-[var(--border-soft)] bg-white p-5 font-mono text-[11px] leading-[1.45] text-black shadow-md"
           >
             {/* Store Header */}
             <div className="text-center pb-3 border-b border-dashed border-neutral-400">
+              {logo && (
+                // Height-capped, not width-capped: a wide logo and a tall one
+                // must take the same amount of a 76mm roll, and paper is the
+                // scarce thing here.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logo}
+                  alt=""
+                  className="mx-auto mb-1.5 max-h-[14mm] w-auto max-w-full object-contain"
+                />
+              )}
               <div
-                className={`text-[12px] font-bold tracking-[0.06em] ${
-                  mode === "colour" ? "text-[#0C4A6E]" : ""
-                }`}
+                className="text-[12px] font-bold tracking-[0.06em]"
+                style={inkStyle}
               >
                 {shopName.toUpperCase()}
               </div>
@@ -141,22 +179,19 @@ export function ThermalReceiptModal({
               {/* An unregistered shop has no GSTIN to print, and printing an
                   empty one looks like a fault. */}
               {gstRegistrationType !== "unregistered" && shopGstin && (
-                <div className="mt-1 text-[9.5px] font-semibold">GSTIN {shopGstin}</div>
+                <div className="mt-1 text-[9.5px] font-semibold">
+                  {format.taxIdLabel} {shopGstin}
+                </div>
               )}
               {/* What this document is, stated. Rule 46 wants a Tax Invoice
                   titled as one; a composition dealer must issue a Bill of
                   Supply instead, and there was no title on this receipt at
                   all. */}
               <div
-                className={`mt-1.5 text-[10px] font-bold tracking-[0.14em] ${
-                  mode === "colour" ? "text-[#0369A1]" : ""
-                }`}
+                className="mt-1.5 text-[10px] font-bold tracking-[0.14em]"
+                style={inkStyle}
               >
-                {gstRegistrationType === "composition"
-                  ? "BILL OF SUPPLY"
-                  : gstRegistrationType === "unregistered"
-                    ? "CASH MEMO"
-                    : "TAX INVOICE"}
+                {format.title}
               </div>
             </div>
 
@@ -183,7 +218,7 @@ export function ThermalReceiptModal({
                   credit. It was collected at checkout and never printed. */}
               {buyerGstin && (
                 <div className="flex justify-between">
-                  <span>Buyer GSTIN</span>
+                  <span>{format.buyerTaxIdLabel}</span>
                   <span className="font-semibold">{buyerGstin}</span>
                 </div>
               )}
@@ -215,7 +250,7 @@ export function ThermalReceiptModal({
                         number and the name still wrapped. */}
                     <span className="text-[8.5px] text-neutral-500">
                       {formatQuantity(item.quantity)} &times; {item.unit_price.toFixed(2)}
-                      {item.tax_rate ? ` · GST ${item.tax_rate}%` : ""}
+                      {item.tax_rate ? ` · ${format.taxLabel} ${item.tax_rate}%` : ""}
                     </span>
                     <span className="text-right text-[9.5px] text-neutral-500">
                       {formatQuantity(item.quantity)}
@@ -274,9 +309,8 @@ export function ThermalReceiptModal({
                 </>
               )}
               <div
-                className={`mt-1 flex items-baseline justify-between border-t border-neutral-400 pt-1.5 text-[12px] font-bold ${
-                  mode === "colour" ? "text-[#0C4A6E]" : ""
-                }`}
+                className="mt-1 flex items-baseline justify-between border-t border-neutral-400 pt-1.5 text-[12px] font-bold"
+                style={inkStyle}
               >
                 <span className="tracking-[0.06em]">TOTAL</span>
                 <span>&#8377;{totalAmount.toFixed(2)}</span>
@@ -325,7 +359,7 @@ export function ThermalReceiptModal({
               {/* Rule 5(1)(f) requires this wording on every Bill of Supply a
                   composition dealer issues. Not advisory — its absence is a
                   defect in the document. */}
-              {gstRegistrationType === "composition" && (
+              {needsCompositionNotice(regionCode, gstRegistrationType) && (
                 <div className="font-bold text-[9px] uppercase border border-neutral-500 rounded px-1 py-1 mb-1">
                   Composition taxable person, not eligible to collect tax on
                   supplies
@@ -336,6 +370,14 @@ export function ThermalReceiptModal({
                   hardcoded to seven days that no shop had ever set, and a
                   line advertising the software on the shopkeeper's paper. */}
               <div className="font-semibold">Thank you</div>
+              {/* The shop's own line, if it set one. What used to sit here was
+                  an exchange policy hardcoded to seven days that no shop had
+                  ever agreed to. */}
+              {footerNote.trim() && (
+                <div className="whitespace-pre-line text-[9px] text-neutral-600">
+                  {footerNote.trim()}
+                </div>
+              )}
             </div>
           </div>
         </div>

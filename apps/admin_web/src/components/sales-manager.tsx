@@ -79,6 +79,13 @@ interface SalesManagerProps {
   refundedBySale?: Record<string, number>;
   /** The shop's clock, for deciding which day is being closed. */
   timeZone?: string;
+  /** The shop a reprint belongs to. It was hardcoded to "Business Hub
+   *  Superstore", so every reprinted bill carried a name no shop has. */
+  shopName?: string;
+  shopGstin?: string;
+  regionCode?: string;
+  shopLogo?: string;
+  brandColor?: string;
 }
 
 /** A sale row as the API returns it. Only the fields this screen reads. */
@@ -185,6 +192,11 @@ export function SalesManager({
   shopId,
   refundedBySale = {},
   timeZone = "Asia/Kolkata",
+  shopName = "",
+  shopGstin = "",
+  regionCode = "IN",
+  shopLogo = "",
+  brandColor = "",
 }: SalesManagerProps) {
   const t = useT();
   const mappedInitial = React.useMemo(() => {
@@ -1015,7 +1027,11 @@ export function SalesManager({
         <ThermalReceiptModal
           isOpen={true}
           onClose={() => setViewingReceipt(null)}
-          shopName="Business Hub Superstore"
+          shopName={shopName}
+          shopGstin={shopGstin}
+          regionCode={regionCode}
+          shopLogo={shopLogo}
+          brandColor={brandColor}
           receiptNumber={viewingReceipt.receipt_number}
           cashierName={viewingReceipt.cashier_name}
           customerName={viewingReceipt.customer_name}

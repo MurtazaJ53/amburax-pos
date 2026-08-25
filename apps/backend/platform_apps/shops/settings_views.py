@@ -49,7 +49,15 @@ COLUMN_FIELDS = (
     "region_code",
     "gstin",
     "state_code",
+    "logo_data",
+    "brand_color",
 )
+
+#: A logo is a data URI held in a row and re-sent on every settings read, so
+#: it is capped. The client resizes to a receipt-sized image long before this,
+#: which makes anything larger a sign the cap is being probed rather than a
+#: shopkeeper with a big picture.
+MAX_LOGO_BYTES = 120_000
 
 
 #: The only feature flags a shopkeeper may set on themselves.
@@ -164,6 +172,26 @@ class ShopSettingsView(APIView):
                 errors["gst_registration_type"] = (
                     f"'{gst_registration_type}' is not a GST registration type "
                     "we recognise."
+                )
+
+        brand_color = data.get("brand_color")
+        if brand_color:
+            candidate = str(brand_color).strip()
+            # A hex colour or nothing. Anything else reaches a style attribute
+            # on a printed document, and "red; background:url(...)" is not a
+            # colour.
+            if not re.fullmatch(r"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})", candidate):
+                errors["brand_color"] = "Expected a hex colour such as #0369A1."
+
+        logo_data = data.get("logo_data")
+        if logo_data:
+            candidate = str(logo_data).strip()
+            if not candidate.startswith("data:image/"):
+                errors["logo_data"] = "Expected an image."
+            elif len(candidate.encode("utf-8")) > MAX_LOGO_BYTES:
+                errors["logo_data"] = (
+                    "That image is too large. It is resized before upload, so this "
+                    "usually means it did not go through the picker."
                 )
 
         features = data.get("features")

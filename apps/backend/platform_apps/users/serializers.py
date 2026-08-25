@@ -79,6 +79,13 @@ class MembershipShopSerializer(serializers.Serializer):
     enabled_features = serializers.DictField(
         child=serializers.BooleanField(),
     )
+    # Everything a receipt needs to identify the shop it came from. Without
+    # these the POS fell back to a placeholder GSTIN baked into the component,
+    # so a real bill could carry somebody else's tax number.
+    region_code = serializers.CharField()
+    gstin = serializers.CharField()
+    logo_data = serializers.CharField()
+    brand_color = serializers.CharField()
     business_phone = serializers.SerializerMethodField()
     # Needed so the web can put a one-tap UPI pay link in khata reminders, the
     # same as the phone does. Public payee id, not a secret.

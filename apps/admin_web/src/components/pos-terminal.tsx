@@ -61,6 +61,9 @@ type PosTerminalProps = {
   shopName?: string;
   shopAddress?: string;
   shopGstin?: string;
+  regionCode?: string;
+  shopLogo?: string;
+  brandColor?: string;
   shopPhone?: string;
   cashierName?: string;
   initialInventory: ApiInventoryRow[];
@@ -71,7 +74,12 @@ type PosTerminalProps = {
 export function PosTerminal({
   shopName = "Business Hub Superstore",
   shopAddress = "Shop 12-14, Commercial Complex, Sector 18",
-  shopGstin = "27AABCU9603R1ZM",
+  // No placeholder. A receipt printing a GSTIN the shop does not own is a
+  // tax document carrying somebody else's number.
+  shopGstin = "",
+  regionCode = "IN",
+  shopLogo = "",
+  brandColor = "",
   shopPhone = "+91 98765 43210",
   cashierName = "Rashi (Cashier #1)",
   initialInventory,
@@ -1159,6 +1167,9 @@ Press Pay again to retry — ` +
           shopName={shopName}
           shopAddress={shopAddress}
           shopGstin={shopGstin}
+          regionCode={regionCode}
+          shopLogo={shopLogo}
+          brandColor={brandColor}
           shopPhone={shopPhone}
           receiptNumber={lastSaleReceipt.receiptNumber}
           cashierName={cashierName}

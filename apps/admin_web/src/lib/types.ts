@@ -116,6 +116,11 @@ export type ShopMembership = {
     enabled_features: Record<string, boolean>;
     business_phone?: string;
     upi_vpa?: string;
+    /** Everything a receipt needs to identify the shop it came from. */
+    region_code?: string;
+    gstin?: string;
+    logo_data?: string;
+    brand_color?: string;
   };
 };
 

@@ -64,6 +64,10 @@ export default async function PosPage() {
       ) : (
         <PosTerminal
           shopName={activeShop?.shop.name || "Business Hub Store"}
+          shopGstin={activeShop?.shop.gstin || ""}
+          regionCode={activeShop?.shop.region_code || "IN"}
+          shopLogo={activeShop?.shop.logo_data || ""}
+          brandColor={activeShop?.shop.brand_color || ""}
           cashierName={session.user.full_name || "Cashier #1"}
           initialInventory={inventory}
           initialCustomers={customers}
