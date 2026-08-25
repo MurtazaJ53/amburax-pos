@@ -106,13 +106,15 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
 
   // New PO form
   const [poSupplierId, setPoSupplierId] = useState(suppliers[0]?.id || "");
+  const [supplierQuery, setSupplierQuery] = useState("");
+  const [supplierListOpen, setSupplierListOpen] = useState(false);
   const [poInvoiceNo, setPoInvoiceNo] = useState("");
   const [poTotalAmount, setPoTotalAmount] = useState("");
   const [poPaidAmount, setPoPaidAmount] = useState("");
 
   // New Supplier form
   const [supName, setSupName] = useState("");
-  const [supContact, setSupContact] = useState("");
+  const [supEmail, setSupEmail] = useState("");
   const [supPhone, setSupPhone] = useState("");
   const [supGstin, setSupGstin] = useState("");
   const [supAddress, setSupAddress] = useState("");
@@ -152,6 +154,32 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
     if (outstandingPayable !== null) return outstandingPayable;
     return suppliers.reduce((sum, s) => sum + (s.balance_due || 0), 0);
   }, [suppliers, outstandingPayable]);
+
+  useEffect(() => {
+    if (!supplierListOpen) return;
+    const close = () => setSupplierListOpen(false);
+    // Captured on the document, and the picker stops its own clicks below,
+    // so choosing from the list does not close it before the click lands.
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [supplierListOpen]);
+
+  const chosenSupplier = suppliers.find((s) => s.id === poSupplierId) ?? null;
+  /** Matched on name, phone or GSTIN - a shopkeeper reaches for whichever of
+   *  the three they remember. Capped, because this is a picker and not a
+   *  directory. */
+  const supplierMatches = (() => {
+    const q = supplierQuery.trim().toLowerCase();
+    const pool = q
+      ? suppliers.filter(
+          (s) =>
+            s.name.toLowerCase().includes(q) ||
+            (s.phone ?? "").toLowerCase().includes(q) ||
+            (s.gstin ?? "").toLowerCase().includes(q),
+        )
+      : suppliers;
+    return pool.slice(0, 8);
+  })();
 
   const handleCreatePo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,9 +246,13 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
       const res = await fetch("/api/suppliers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // email was never sent, and "Contact Person" was collected into a
+        // field with nowhere to go - typed at the counter and dropped on
+        // save. The model has always had email; it simply was not asked for.
         body: JSON.stringify({
           name: supName.trim(),
           phone: supPhone.trim(),
+          email: supEmail.trim(),
           gstin: supGstin.trim(),
           address: supAddress.trim(),
         }),
@@ -229,9 +261,18 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
         const body = await res.json().catch(() => null);
         throw new Error(body?.error || `Could not save the supplier (${res.status})`);
       }
+      // If this was opened from the invoice form, go back to it with the
+      // new supplier already selected.
+      const created = await res.json().catch(() => null);
       setIsNewSupplierOpen(false);
+      if (created?.id) {
+        setPoSupplierId(String(created.id));
+        setSupplierQuery("");
+        setSupplierListOpen(false);
+        setIsNewPoOpen(true);
+      }
       setSupName("");
-      setSupContact("");
+      setSupEmail("");
       setSupPhone("");
       setSupGstin("");
       setSupAddress("");
@@ -437,24 +478,101 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
                   Supplier *
                 </label>
-                <select
-                  value={poSupplierId}
-                  onChange={(e) => setPoSupplierId(e.target.value)}
-                  className="w-full px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none"
+
+                {/* Type to find, rather than scroll a list. A shop with forty
+                    vendors could only reach one by scrolling a native select,
+                    and there was no way to add a new one without abandoning
+                    the invoice being entered. */}
+                <div
+                  className="relative"
+                  onMouseDown={(e) => e.stopPropagation()}
                 >
-                  {/* Without this the browser renders the FIRST supplier as
-                      selected while React's value is still "", because the
-                      state was initialised before suppliers finished loading.
-                      The shopkeeper saw a vendor highlighted, saved, and the
-                      purchase was recorded against nobody — quietly wrong in
-                      the payables ledger. */}
-                  <option value="">Choose a supplier…</option>
-                  {suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                  <input
+                    type="text"
+                    value={chosenSupplier ? chosenSupplier.name : supplierQuery}
+                    onChange={(e) => {
+                      setSupplierQuery(e.target.value);
+                      setPoSupplierId("");
+                    }}
+                    onFocus={() => setSupplierListOpen(true)}
+                    placeholder="Type a supplier name"
+                    className="w-full rounded-xl border border-[var(--border-soft)] bg-bg-soft px-3 py-2 text-xs text-text-primary outline-none focus:border-[var(--primary)]"
+                  />
+                  {chosenSupplier && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPoSupplierId("");
+                        setSupplierQuery("");
+                        setSupplierListOpen(true);
+                      }}
+                      aria-label="Choose a different supplier"
+                      className="focus-ring absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 cursor-pointer place-items-center rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+
+                  {supplierListOpen && !chosenSupplier && (
+                    <div className="animate-fade-in-up absolute left-0 right-0 top-full z-30 mt-1 max-h-[220px] overflow-y-auto rounded-xl border border-[var(--border-soft)] bg-[var(--surface)] p-1 shadow-lg">
+                      {supplierMatches.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            setPoSupplierId(s.id);
+                            setSupplierListOpen(false);
+                          }}
+                          className="focus-ring flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-base)]"
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[12px] font-bold text-text-primary">
+                              {s.name}
+                            </span>
+                            <span className="block truncate font-mono text-[10px] text-[var(--text-tertiary)]">
+                              {s.phone || "no phone"}
+                              {s.gstin ? ` · ${s.gstin}` : ""}
+                            </span>
+                          </span>
+                          {s.balance_due > 0 && (
+                            <span className="tnum shrink-0 font-mono text-[10.5px] font-bold text-[var(--warning-strong)]">
+                              {formatCurrency(s.balance_due)} due
+                            </span>
+                          )}
+                        </button>
+                      ))}
+
+                      {/* A vendor you have never bought from before should not
+                          mean abandoning the invoice you are entering. */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSupName(supplierQuery.trim());
+                          setIsNewPoOpen(false);
+                          setIsNewSupplierOpen(true);
+                        }}
+                        className="focus-ring mt-1 flex w-full cursor-pointer items-center gap-2 rounded-lg border-t border-[var(--border-soft)] px-2.5 py-2 text-[11.5px] font-bold text-[var(--primary-hover)] hover:bg-[var(--bg-base)]"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        {supplierQuery.trim()
+                          ? `Add "${supplierQuery.trim()}" as a new supplier`
+                          : "Add a new supplier"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Who you actually picked, so a near-identical name is
+                    caught before the invoice is filed against it. */}
+                {chosenSupplier && (
+                  <p className="m-0 mt-1.5 text-[11px] font-medium text-[var(--text-tertiary)]">
+                    {chosenSupplier.phone || "no phone"}
+                    {chosenSupplier.gstin ? ` · ${chosenSupplier.gstin}` : ""}
+                    {chosenSupplier.balance_due > 0
+                      ? ` · ${formatCurrency(chosenSupplier.balance_due)} already owed`
+                      : ""}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -565,12 +683,13 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
-                    Contact Person
+                    Email
                   </label>
                   <input
-                    type="text"
-                    value={supContact}
-                    onChange={(e) => setSupContact(e.target.value)}
+                    type="email"
+                    inputMode="email"
+                    value={supEmail}
+                    onChange={(e) => setSupEmail(e.target.value)}
                     placeholder="Manoj"
                     className="w-full px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none"
                   />

@@ -16,8 +16,8 @@ export default async function SuppliersPage() {
       session={session}
       activeShop={activeShop}
       activeRoute="suppliers"
-      title="Suppliers & Vendor Directory"
-      subtitle="Supplier catalog, pending payables, contact details, and inward stock logs"
+      title="Suppliers"
+      subtitle="Who you buy from, what you owe them, and the bills that made it up"
     >
       <SuppliersPurchases initialTab="suppliers" />
     </AdminShell>

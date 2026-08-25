@@ -159,7 +159,7 @@ export function AdminShell({
   // lives in Purchase orders, and hiding it outright would break their day.
   const occasionalNav = [
     { key: "stocktake", label: "Stocktake", href: "/stocktake", icon: ClipboardCheck },
-    { key: "suppliers", label: t("settingsPurchases"), href: "/suppliers", icon: Truck, feature: "supplier_directory" as const },
+    { key: "suppliers", label: "Suppliers", href: "/suppliers", icon: Truck, feature: "supplier_directory" as const },
     { key: "purchase-orders", label: "Purchase orders", href: "/purchase-orders", icon: ClipboardList, feature: "purchase_workflow" as const },
     { key: "price-history", label: "Supplier prices", href: "/price-history", icon: LineChart, feature: "supplier_directory" as const },
     { key: "transfers", label: "Stock transfers", href: "/transfers", icon: ArrowLeftRight, feature: "multi_branch" as const },
