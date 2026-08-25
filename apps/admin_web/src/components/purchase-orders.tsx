@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
+import { formatQuantity } from "@/lib/utils";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -48,7 +49,15 @@ type OrdersPayload = {
 };
 
 type Supplier = { id: string; name: string };
-type StockItem = { id: string; name: string; sku: string; size: string };
+type StockItem = {
+  id: string;
+  name: string;
+  sku: string;
+  size: string;
+  /** Null when no cost was ever recorded, or when this role cannot see one. */
+  costPrice: number | null;
+  stock: number;
+};
 
 type DraftLine = { itemId: string; quantity: string; unitCost: string };
 
@@ -83,6 +92,7 @@ function qty(value: string): string {
 export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
   const [data, setData] = useState<OrdersPayload | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [pickerError, setPickerError] = useState<string | null>(null);
   const [items, setItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -127,28 +137,56 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
       ]);
       if (supplierRes.ok) {
         const payload = await supplierRes.json();
+        // The proxy returns { items, summary }. This looked for .suppliers,
+        // then .results, then the payload itself - and the payload is an
+        // OBJECT, so .map threw and the catch below ate it. The dropdown was
+        // empty every time, with no error, so no order could be created.
+        const rows = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.items)
+            ? payload.items
+            : Array.isArray(payload?.results)
+              ? payload.results
+              : [];
         setSuppliers(
-          (payload.suppliers ?? payload.results ?? payload ?? []).map(
-            (raw: Record<string, unknown>) => ({
-              id: String(raw.id),
-              name: String(raw.name ?? ""),
-            }),
-          ),
+          rows.map((raw: Record<string, unknown>) => ({
+            id: String(raw.id),
+            name: String(raw.name ?? ""),
+            phone: String(raw.phone ?? ""),
+          })),
         );
       }
       if (itemRes.ok) {
         const payload = await itemRes.json();
+        const rows = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.items)
+            ? payload.items
+            : [];
         setItems(
-          (payload.items ?? payload ?? []).map((raw: Record<string, unknown>) => ({
+          rows.map((raw: Record<string, unknown>) => ({
             id: String(raw.id),
             name: String(raw.name ?? ""),
             sku: String(raw.sku ?? ""),
             size: String(raw.size ?? ""),
+            // What the shop last paid, so the line does not ask for a cost
+            // the app already knows. Null when it was never recorded, or when
+            // this role may not see costs - and null must stay null, because
+            // a zero here becomes the cost price of everything received.
+            costPrice:
+              raw.cost_price === null || raw.cost_price === undefined
+                ? null
+                : Number(raw.cost_price),
+            stock: Number(raw.stock_on_hand ?? 0),
           })),
         );
       }
-    } catch {
-      // Pickers degrade to empty; the list still works.
+    } catch (err) {
+      // Said out loud. An empty dropdown with no explanation is why this
+      // screen looked broken rather than merely unloaded.
+      setPickerError(
+        errorMessage(err, "Could not load your suppliers and stock for this order."),
+      );
     }
   }, []);
 
@@ -420,6 +458,24 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
             New purchase order
           </h3>
 
+          {pickerError && (
+            <p
+              role="alert"
+              className="m-0 rounded-[10px] border border-[var(--error)]/40 bg-[var(--error)]/10 px-3 py-2 text-[12px] font-bold text-[var(--error-strong)]"
+            >
+              {pickerError}
+            </p>
+          )}
+
+          {/* An empty list with no reason is indistinguishable from a broken
+              screen, which is exactly how this one read. */}
+          {!pickerError && suppliers.length === 0 && (
+            <p className="m-0 rounded-[10px] border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2 text-[12px] font-bold text-[var(--warning-strong)]">
+              No suppliers yet. Add one on the Suppliers screen first - an
+              order has to be addressed to somebody.
+            </p>
+          )}
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label
@@ -468,11 +524,26 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
                 <select
                   aria-label="Item"
                   value={line.itemId}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const picked = items.find((it) => it.id === e.target.value);
                     setDraftLines((prev) =>
-                      prev.map((l, i) => (i === index ? { ...l, itemId: e.target.value } : l)),
-                    )
-                  }
+                      prev.map((l, i) =>
+                        i === index
+                          ? {
+                              ...l,
+                              itemId: e.target.value,
+                              // Only when the line is still blank: a cost
+                              // typed by hand is a decision, and overwriting
+                              // it with an old one would undo a negotiation.
+                              unitCost:
+                                l.unitCost.trim() === "" && picked?.costPrice != null
+                                  ? String(picked.costPrice)
+                                  : l.unitCost,
+                            }
+                          : l,
+                      ),
+                    );
+                  }}
                   className="flex-1 min-w-[180px] rounded-2xl border border-[var(--border)] bg-[var(--bg-base)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)]"
                 >
                   <option value="">Choose an item…</option>
@@ -480,6 +551,7 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
                     <option key={item.id} value={item.id}>
                       {item.name}
                       {item.size ? ` (${item.size})` : ""}
+                      {` - ${formatQuantity(item.stock)} in stock`}
                     </option>
                   ))}
                 </select>
