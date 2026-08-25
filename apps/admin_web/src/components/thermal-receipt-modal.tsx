@@ -110,6 +110,25 @@ export function ThermalReceiptModal({
       // The copied markup is the receipt's CHILDREN, so the width set on its
       // root does not come with it. The stylesheet reads this.
       printArea.style.setProperty("--receipt-width", format.paperWidth);
+
+      // The page itself. Without an @page rule the browser assumes A4, so a
+      // 76mm receipt printed as a narrow strip at the top of a big sheet -
+      // and on a thermal printer, which has no A4 to give, the driver either
+      // scaled it or refused. `auto` height lets the roll run as long as the
+      // bill needs rather than being cut to a page.
+      //
+      // Injected rather than written in the stylesheet because @page cannot
+      // read a custom property or be scoped by a class, and the width depends
+      // on the shop's region.
+      const pageRuleId = "receipt-page-size";
+      let pageRule = document.getElementById(pageRuleId) as HTMLStyleElement | null;
+      if (!pageRule) {
+        pageRule = document.createElement("style");
+        pageRule.id = pageRuleId;
+        document.head.appendChild(pageRule);
+      }
+      pageRule.textContent = `@page { size: ${format.paperWidth} auto; margin: 0; }`;
+
       window.print();
     }
   };

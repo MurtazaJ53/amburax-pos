@@ -554,7 +554,9 @@ a {
        strip wasted down the side. */
     width: var(--receipt-width, 76mm) !important;
     margin: 0 !important;
-    padding: 4mm !important;
+    /* 3mm, not 4: a thermal roll's printable area is narrower than the paper
+       and a wider inset pushed the amount column toward the edge. */
+    padding: 3mm !important;
     background: white !important;
     font-family: var(--font-mono) !important;
     font-size: 11px !important;
