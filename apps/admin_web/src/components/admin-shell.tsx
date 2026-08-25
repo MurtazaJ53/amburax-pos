@@ -193,11 +193,24 @@ export function AdminShell({
    *  put back after the expansion renders. */
   const navRef = useRef<HTMLElement>(null);
   const navScroll = useRef(0);
+  /** The PAGE scroll, held across the same toggle.
+   *
+   *  The sidebar is sticky and sits in the page's own scroll flow, so
+   *  expanding it changes the document height. Chrome's scroll anchoring then
+   *  re-resolves where the viewport should sit and moves the whole page -
+   *  which is why the screen jumped to the top rather than only the nav. */
+  const pageScroll = useRef(0);
 
   useLayoutEffect(() => {
     const nav = navRef.current;
     if (nav && navScroll.current > 0) {
       nav.scrollTop = navScroll.current;
+    }
+    // Same frame as the expansion paints. Restoring later would draw the
+    // jumped position first and then correct it, which is a flinch rather
+    // than a fix.
+    if (pageScroll.current > 0 && window.scrollY !== pageScroll.current) {
+      window.scrollTo({ top: pageScroll.current, behavior: "instant" as ScrollBehavior });
     }
   }, [moreOpen]);
   useEffect(() => {
@@ -339,6 +352,7 @@ export function AdminShell({
         {/* Left Sidebar Navigation matching APK tabs */}
         <aside
           ref={navRef}
+          style={{ overflowAnchor: "none" }}
           className={`hidden lg:flex flex-col gap-6 no-scrollbar ${
             fitViewport
               ? "lg:min-h-0 lg:overflow-y-auto"
@@ -410,6 +424,7 @@ export function AdminShell({
                   // Read BEFORE the state change: after it, the list has
                   // already grown and the number is the new one.
                   navScroll.current = navRef.current?.scrollTop ?? 0;
+                  pageScroll.current = window.scrollY;
                   const next = !moreOpen;
                   setMoreOpen(next);
                   try {
