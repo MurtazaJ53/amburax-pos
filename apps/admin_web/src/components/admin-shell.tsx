@@ -180,7 +180,20 @@ export function AdminShell({
     items.filter((item) => !item.feature || hasShopFeature(activeShop, item.feature));
 
   const adminNav = [...allowed(everydayNav), ...accountNav];
-  const moreNav = allowed(occasionalNav);
+  const advancedNav = [
+    ...(isPlatformAdmin
+      ? [
+          { key: "migration", label: "Import & migration", href: "/migration", icon: Layers },
+          { key: "platform", label: "Admin tools", href: "/platform/shops", icon: Shield },
+        ]
+      : []),
+  ];
+
+  // Everything that is not an everyday screen, behind one menu. The advanced
+  // items were a panel of their own that only a platform admin ever saw, so
+  // for every shopkeeper it was a heading with nothing under it taking up the
+  // sidebar.
+  const moreNav = [...allowed(occasionalNav), ...advancedNav];
 
   /** The label of the nav item you are on. Taken from the nav config rather
    *  than a per-page string, so the word you clicked is the word you land on. */
@@ -215,14 +228,6 @@ export function AdminShell({
   // active highlight instead, so a page inside the menu is still findable
   // without the menu being open.
 
-  const advancedNav = [
-    ...(isPlatformAdmin
-      ? [
-          { key: "migration", label: "Import & migration", href: "/migration", icon: Layers },
-          { key: "platform", label: "Admin tools", href: "/platform/shops", icon: Shield },
-        ]
-      : []),
-  ];
 
   return (
     <div
@@ -339,10 +344,14 @@ export function AdminShell({
         
         {/* Left Sidebar Navigation matching APK tabs */}
         <aside className="hidden h-full lg:flex lg:min-h-0 lg:flex-col lg:gap-3">
-          {/* The panels. They fit on a normal screen and scroll only on a
-              short one - which is better than the alternative, which is what
-              just happened: a fixed sidebar taller than its box silently
-              clipped More tools off the bottom where nobody could reach it. */}
+          {/* Core Workflows and the everyday screens - eleven links, which
+              fit. No scrollbar appears at a normal window height.
+
+              overflow-y-auto is kept as a floor, not as a feature: a fixed
+              column taller than its box does not scroll, it CLIPS, and that
+              is how More tools vanished off the bottom a moment ago. On a
+              laptop nothing here ever scrolls; on a genuinely short window
+              the links give way rather than becoming unreachable. */}
           <div className="slim-scrollbar flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pr-0.5">
           
           {/* Main App Navigation Panel (Core Workflows) */}
@@ -398,43 +407,7 @@ export function AdminShell({
           </div>
 
 
-          {/* Advanced Panel (Pulse, devices, operations) */}
-          {advancedNav.length > 0 && (
-            <div className="bg-surface border border-border-soft rounded-[24px] p-3.5 shadow-sm space-y-1 transition-colors duration-200">
-              <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-text-tertiary">
-                Advanced
-              </div>
-              {advancedNav.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeRoute === item.key;
-                return (
-                  <Link
-                    key={item.key}
-                    href={item.href}
-                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                      isActive
-                        ? "relative bg-[var(--primary)]/12 text-[var(--primary-hover)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--primary)]"
-                        : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
 
-          {/* Connected Server Card */}
-          <div className="bg-gradient-to-br from-surface to-bg-soft border border-primary/20 rounded-[24px] p-4 text-xs transition-colors duration-200">
-            <div className="flex items-center gap-2 text-primary font-extrabold mb-1">
-              <span className="w-2 h-2 rounded-full bg-[var(--primary)] animate-pulse" />
-              <span>Backend Connected</span>
-            </div>
-            <p className="text-[11px] text-text-secondary leading-relaxed">
-              Real-time POS sync active. Currency: <b>{activeShop?.shop.currency_code || "INR"}</b>
-            </p>
-          </div>
           </div>
 
           {/* Everything else. Not removed: a wholesaler lives in Purchase
