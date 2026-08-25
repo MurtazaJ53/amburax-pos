@@ -19,6 +19,21 @@ function getRequiredField(formData: FormData, key: string, label: string) {
   return value;
 }
 
+/** A message a person can act on, rather than a wall of server text.
+ *
+ *  The raw error was being pasted onto the screen 220 characters at a time,
+ *  which is how a stack trace ends up in front of a shopkeeper.
+ */
+function failureMessage(error: unknown, fallback: string): string {
+  if (!(error instanceof Error) || !error.message) return fallback;
+  const text = error.message.replace(/\s+/g, " ").trim();
+  // Anything that looks like a payload or a trace is not for the reader.
+  if (text.length > 140 || text.startsWith("{") || text.includes("Traceback")) {
+    return fallback;
+  }
+  return text;
+}
+
 function buildRedirectUrl(params: Record<string, string>) {
   const searchParams = new URLSearchParams(params);
   return `/security?${searchParams.toString()}`;
@@ -26,28 +41,31 @@ function buildRedirectUrl(params: Record<string, string>) {
 
 export async function beginMfaEnrollmentAction(formData: FormData) {
   const returnTo = getOptionalField(formData, "returnTo");
+  let target: string;
+
   try {
     await apiMutation<UserMfaStatusPayload>("/session/mfa/enroll/", {
       method: "POST",
       body: {},
     });
-    revalidatePath("/security");
-    redirect(
-      buildRedirectUrl({
-        status: "pending",
-        returnTo,
-      }),
-    );
+    target = buildRedirectUrl({ status: "pending", returnTo });
   } catch (error) {
-    const message = error instanceof Error ? error.message.replace(/\s+/g, " ").slice(0, 220) : "MFA setup failed.";
-    redirect(buildRedirectUrl({ status: "error", message, returnTo }));
+    target = buildRedirectUrl({ status: "error", message: failureMessage(error, "Could not start setup."), returnTo });
   }
+
+  revalidatePath("/security");
+  // OUTSIDE the try. redirect() signals by throwing NEXT_REDIRECT, so calling
+  // it inside one means the catch swallows its own success and reports the
+  // redirect as a failure - every completed action said it had gone wrong.
+  redirect(target);
 }
 
 export async function verifyMfaCodeAction(formData: FormData) {
   const purpose = getRequiredField(formData, "purpose", "purpose");
   const code = getRequiredField(formData, "code", "authentication code");
   const returnTo = getOptionalField(formData, "returnTo");
+
+  let target: string;
 
   try {
     const result = await apiMutation<UserMfaVerifyPayload>("/session/mfa/verify/", {
@@ -56,32 +74,32 @@ export async function verifyMfaCodeAction(formData: FormData) {
     });
     const session = await getSession();
     if (!result.status.security_stamp) {
-      throw new Error("MFA verification completed without a security stamp.");
+      throw new Error("The server confirmed the code but sent no security stamp.");
     }
     await setAdminWebMfaCookie({
       userId: session.user.id,
       securityStamp: result.status.security_stamp,
       verifiedUntil: result.verified_until,
     });
-    revalidatePath("/security");
-    redirect(
-      returnTo || buildRedirectUrl({ status: purpose === "enroll" ? "enabled" : "verified" }),
-    );
+    target =
+      returnTo || buildRedirectUrl({ status: purpose === "enroll" ? "enabled" : "verified" });
   } catch (error) {
-    const message = error instanceof Error ? error.message.replace(/\s+/g, " ").slice(0, 220) : "MFA verification failed.";
-    redirect(
-      buildRedirectUrl({
-        status: "error",
-        purpose,
-        message,
-        returnTo,
-      }),
-    );
+    target = buildRedirectUrl({
+      status: "error",
+      purpose,
+      message: failureMessage(error, "That code was not accepted."),
+      returnTo,
+    });
   }
+
+  revalidatePath("/security");
+  redirect(target);
 }
 
 export async function disableMfaAction(formData: FormData) {
   const code = getRequiredField(formData, "code", "authentication code");
+
+  let target: string;
 
   try {
     await apiMutation<UserMfaStatusPayload>("/session/mfa/disable/", {
@@ -89,10 +107,14 @@ export async function disableMfaAction(formData: FormData) {
       body: { code },
     });
     await clearAdminWebMfaCookie();
-    revalidatePath("/security");
-    redirect(buildRedirectUrl({ status: "disabled" }));
+    target = buildRedirectUrl({ status: "disabled" });
   } catch (error) {
-    const message = error instanceof Error ? error.message.replace(/\s+/g, " ").slice(0, 220) : "MFA disable failed.";
-    redirect(buildRedirectUrl({ status: "error", message }));
+    target = buildRedirectUrl({
+      status: "error",
+      message: failureMessage(error, "That code was not accepted."),
+    });
   }
+
+  revalidatePath("/security");
+  redirect(target);
 }
