@@ -101,7 +101,7 @@ export default async function SecurityPage({ searchParams }: SecurityPageProps) 
           body="Two-step sign-in protects the screens that hold money, staff and plan settings. Ask the shop owner if you need it changed."
         />
       ) : (
-        <div className="space-y-8">
+        <div className="flex flex-col gap-4">
           {banner ? (
             <section className={`animate-fade-in-up rounded-[16px] border px-5 py-4 ${banner.accent}`}>
               <h2 className="m-0 text-base font-extrabold tracking-tight">{banner.title}</h2>
@@ -216,8 +216,8 @@ export default async function SecurityPage({ searchParams }: SecurityPageProps) 
             </dl>
           </section>
 
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)]">
-            <div className="space-y-6">
+          <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <div className="flex flex-col gap-4">
               {!mfaStatus.totp_enabled ? (
                 <section className="animate-fade-in-up rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm">
                   <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Step 1</p>
@@ -227,7 +227,7 @@ export default async function SecurityPage({ searchParams }: SecurityPageProps) 
                     the six digits it shows you. It takes about a minute.
                   </p>
                   {!mfaStatus.totp_pending_enrollment ? (
-                    <form action={beginMfaEnrollmentAction} className="mt-6">
+                    <form action={beginMfaEnrollmentAction} className="mt-4">
                       <input type="hidden" name="returnTo" value={returnTo} />
                       <button
                         type="submit"
@@ -237,16 +237,16 @@ export default async function SecurityPage({ searchParams }: SecurityPageProps) 
                       </button>
                     </form>
                   ) : (
-                    <div className="mt-6 space-y-4">
+                    <div className="mt-4 flex flex-col gap-3">
                       <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
                         <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Manual secret</p>
-                        <p className="mt-3 break-all font-mono text-sm text-[var(--text-primary)]">
+                        <p className="m-0 mt-2 break-all font-mono text-[12.5px] font-semibold text-[var(--text-primary)]">
                           {mfaStatus.pending_manual_secret}
                         </p>
                       </div>
                       <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
                         <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Authenticator link</p>
-                        <p className="mt-3 break-all text-sm text-[var(--text-secondary)]">
+                        <p className="m-0 mt-2 break-all text-[12px] font-medium text-[var(--text-secondary)]">
                           {mfaStatus.pending_otpauth_uri}
                         </p>
                       </div>
@@ -340,7 +340,7 @@ export default async function SecurityPage({ searchParams }: SecurityPageProps) 
               />
             </div>
 
-            <div className="space-y-6">
+            <div className="flex flex-col gap-4">
               <section className="animate-fade-in-up rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm">
                 <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
                   What it guards
@@ -374,32 +374,42 @@ export default async function SecurityPage({ searchParams }: SecurityPageProps) 
                 <h2 className="mt-2 text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
                   Where things stand
                 </h2>
-                <div className="mt-5 space-y-4 text-sm text-[var(--text-secondary)]">
-                  <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
-                    <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Enabled at</p>
-                    <p className="mt-2 text-base font-semibold text-[var(--text-primary)]">
-                      {mfaStatus.enabled_at || "Not enabled"}
-                    </p>
-                  </div>
-                  <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
-                    <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Last verified</p>
-                    <p className="mt-2 text-base font-semibold text-[var(--text-primary)]">
-                      {mfaStatus.last_verified_at || "No successful challenge yet"}
-                    </p>
-                  </div>
-                  <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
-                    <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Secure window</p>
-                    <p className="mt-2 text-base font-semibold text-[var(--text-primary)]">
-                      {mfaPosture.verified ? "Open right now" : "Needs verification"}
-                    </p>
-                  </div>
-                  <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
-                    <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Last passkey verification</p>
-                    <p className="mt-2 text-base font-semibold text-[var(--text-primary)]">
-                      {mfaStatus.passkey_last_verified_at || "No passkey verification yet"}
-                    </p>
-                  </div>
-                </div>
+                {/* Label left, value right, on one baseline with a hairline
+                    between. Four bordered boxes stacked down a narrow column
+                    left every value starting at a different place and the
+                    panel bottom ragged against the one beside it. */}
+                <dl className="m-0 mt-3 flex flex-col">
+                  {[
+                    {
+                      label: "Turned on",
+                      value: mfaStatus.enabled_at || "Not yet",
+                    },
+                    {
+                      label: "Code last entered",
+                      value: mfaStatus.last_verified_at || "Never",
+                    },
+                    {
+                      label: "Owner screens",
+                      value: mfaPosture.verified ? "Open right now" : "Need a code",
+                    },
+                    {
+                      label: "Phone last used",
+                      value: mfaStatus.passkey_last_verified_at || "Never",
+                    },
+                  ].map((row) => (
+                    <div
+                      key={row.label}
+                      className="flex items-baseline justify-between gap-4 border-b border-[var(--border-soft)] py-2.5 last:border-b-0"
+                    >
+                      <dt className="shrink-0 text-[12px] font-semibold text-[var(--text-tertiary)]">
+                        {row.label}
+                      </dt>
+                      <dd className="tnum m-0 min-w-0 truncate text-right text-[12.5px] font-bold text-[var(--text-primary)]">
+                        {row.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
               </section>
             </div>
           </section>
