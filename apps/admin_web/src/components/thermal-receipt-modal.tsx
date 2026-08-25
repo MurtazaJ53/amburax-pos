@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Printer, X, CheckCircle2 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatQuantity } from "@/lib/utils";
 import type { CartItem, SplitPaymentTender } from "@/lib/types";
 
 type ThermalReceiptModalProps = {
@@ -66,6 +66,9 @@ export function ThermalReceiptModal({
   createdDate = new Date().toISOString(),
 }: ThermalReceiptModalProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
+  /** Colour or one-ink. A thermal roll prints one colour, so plain is the
+   *  default; colour is for the A4/PDF copy a customer is emailed. */
+  const [mode, setMode] = useState<"plain" | "colour">("plain");
 
   if (!isOpen) return null;
 
@@ -73,6 +76,10 @@ export function ThermalReceiptModal({
     const printArea = document.getElementById("thermal-receipt-print-area");
     if (printArea && receiptRef.current) {
       printArea.innerHTML = receiptRef.current.innerHTML;
+      // The stylesheet keys off this: plain forces every colour to black,
+      // colour asks the browser not to drop backgrounds. Without it a colour
+      // receipt saved as PDF came out as the plain one with the ink missing.
+      printArea.setAttribute("data-receipt-mode", mode);
       window.print();
     }
   };
@@ -110,24 +117,41 @@ export function ThermalReceiptModal({
         <div className="flex-1 overflow-y-auto p-6 bg-[var(--bg-soft)] flex justify-center border-b border-[var(--bg-soft)]">
           <div
             ref={receiptRef}
-            className="w-[76mm] min-h-[120mm] bg-white text-black p-5 font-mono text-[11px] leading-tight shadow-md border border-[var(--border-soft)] rounded-lg"
-            style={{ fontFamily: "'Courier New', Courier, monospace" }}
+            data-receipt-mode={mode}
+            // Three sizes, not five: 12px for the shop and the total, 11px for
+            // everything read line by line, 9.5px for the metadata nobody
+            // reads unless they are checking something. Tabular figures
+            // throughout, because a receipt is a column of numbers and
+            // proportional digits make them stagger.
+            className="tnum w-[76mm] min-h-[120mm] rounded-lg border border-[var(--border-soft)] bg-white p-5 font-mono text-[11px] leading-[1.45] text-black shadow-md"
           >
             {/* Store Header */}
             <div className="text-center pb-3 border-b border-dashed border-neutral-400">
-              <div className="font-bold text-xs tracking-wide">{shopName.toUpperCase()}</div>
-              <div className="text-[10px] text-neutral-600 mt-0.5">{shopAddress}</div>
-              <div className="text-[10px] text-neutral-600">Phone: {shopPhone}</div>
+              <div
+                className={`text-[12px] font-bold tracking-[0.06em] ${
+                  mode === "colour" ? "text-[#0C4A6E]" : ""
+                }`}
+              >
+                {shopName.toUpperCase()}
+              </div>
+              {shopAddress && (
+                <div className="mt-0.5 text-[9.5px] text-neutral-600">{shopAddress}</div>
+              )}
+              {shopPhone && <div className="text-[9.5px] text-neutral-600">{shopPhone}</div>}
               {/* An unregistered shop has no GSTIN to print, and printing an
                   empty one looks like a fault. */}
               {gstRegistrationType !== "unregistered" && shopGstin && (
-                <div className="text-[10px] font-semibold mt-1">GSTIN: {shopGstin}</div>
+                <div className="mt-1 text-[9.5px] font-semibold">GSTIN {shopGstin}</div>
               )}
               {/* What this document is, stated. Rule 46 wants a Tax Invoice
                   titled as one; a composition dealer must issue a Bill of
                   Supply instead, and there was no title on this receipt at
                   all. */}
-              <div className="text-[10px] font-bold mt-1 tracking-wider">
+              <div
+                className={`mt-1.5 text-[10px] font-bold tracking-[0.14em] ${
+                  mode === "colour" ? "text-[#0369A1]" : ""
+                }`}
+              >
                 {gstRegistrationType === "composition"
                   ? "BILL OF SUPPLY"
                   : gstRegistrationType === "unregistered"
@@ -137,19 +161,21 @@ export function ThermalReceiptModal({
             </div>
 
             {/* Receipt Metadata */}
-            <div className="py-2 border-b border-dashed border-neutral-400 text-[9px] space-y-0.5">
+            <div className="space-y-0.5 border-b border-dashed border-neutral-400 py-2 text-[9.5px]">
               <div className="flex justify-between">
-                <span>Receipt: #{receiptNumber}</span>
+                <span>Bill #{receiptNumber}</span>
                 <span>{formatDate(createdDate, true)}</span>
               </div>
+              {/* "Type: Retail POS" told the customer nothing they could
+                  use and cost a line on a 76mm roll. */}
               <div className="flex justify-between">
-                <span>Cashier: {cashierName}</span>
-                <span>Type: Retail POS</span>
+                <span>Cashier</span>
+                <span className="font-semibold">{cashierName}</span>
               </div>
               {customerName && (
                 <div className="flex justify-between">
-                  <span>Customer: {customerName}</span>
-                  {customerPhone && <span>{customerPhone}</span>}
+                  <span>{customerName}</span>
+                  {customerPhone && <span className="font-semibold">{customerPhone}</span>}
                 </div>
               )}
               {/* Mandatory on a B2B invoice — it is the whole reason the buyer
@@ -157,41 +183,53 @@ export function ThermalReceiptModal({
                   credit. It was collected at checkout and never printed. */}
               {buyerGstin && (
                 <div className="flex justify-between">
-                  <span>Buyer GSTIN:</span>
-                  <span>{buyerGstin}</span>
+                  <span>Buyer GSTIN</span>
+                  <span className="font-semibold">{buyerGstin}</span>
                 </div>
               )}
             </div>
 
             {/* Items Table */}
             <div className="py-2 border-b border-dashed border-neutral-400">
-              <div className="flex justify-between font-bold pb-1 text-[9px] border-b border-neutral-300">
-                <span className="w-1/2">ITEM</span>
-                <span className="w-1/6 text-center">QTY</span>
-                <span className="w-1/6 text-right">RATE</span>
-                <span className="w-1/6 text-right">TOTAL</span>
+              {/* A real grid, not four flex children on fractional widths.
+                  w-1/6 measures the BOX, so the digits inside it landed
+                  wherever the text happened to end and the rupee column
+                  staggered down the page. Fixed tracks with the amounts
+                  right-aligned in their own put every figure on one edge. */}
+              <div className="grid grid-cols-[1fr_2.6rem_3.6rem] gap-x-1.5 border-b border-neutral-300 pb-1 text-[9.5px] font-bold tracking-[0.08em]">
+                <span>ITEM</span>
+                <span className="text-right">QTY</span>
+                <span className="text-right">AMOUNT</span>
               </div>
               <div className="space-y-1.5 pt-1.5">
                 {items.map((item) => (
-                  <div key={item.id}>
-                    <div className="font-semibold text-[10px]">{item.name}</div>
-                    <div className="flex justify-between text-[9px] text-neutral-600">
-                      <span className="w-1/2 text-[8px] text-neutral-500 truncate">
-                        SKU: {item.sku || "—"} | GST {item.tax_rate}%
-                      </span>
-                      <span className="w-1/6 text-center">{item.quantity}</span>
-                      <span className="w-1/6 text-right">₹{item.unit_price.toFixed(2)}</span>
-                      <span className="w-1/6 text-right font-medium">
-                        ₹{item.total_price.toFixed(2)}
-                      </span>
-                    </div>
+                  <div
+                    key={item.id}
+                    className="grid grid-cols-[1fr_2.6rem_3.6rem] gap-x-1.5"
+                  >
+                    <span className="col-span-3 font-semibold leading-snug">
+                      {item.name}
+                    </span>
+                    {/* The rate belongs under the name, not in a column of
+                        its own: on 76mm a fourth column squeezed every
+                        number and the name still wrapped. */}
+                    <span className="text-[8.5px] text-neutral-500">
+                      {formatQuantity(item.quantity)} &times; {item.unit_price.toFixed(2)}
+                      {item.tax_rate ? ` · GST ${item.tax_rate}%` : ""}
+                    </span>
+                    <span className="text-right text-[9.5px] text-neutral-500">
+                      {formatQuantity(item.quantity)}
+                    </span>
+                    <span className="text-right font-semibold">
+                      {item.total_price.toFixed(2)}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Totals & Tax Breakup */}
-            <div className="py-2 border-b border-dashed border-neutral-400 space-y-1 text-[9px]">
+            <div className="py-2 border-b border-dashed border-neutral-400 space-y-1 text-[9.5px]">
               {/* Line count, not summed quantity. A grocer selling 0.75 kg
                   would otherwise read "0.75 items", and floats made it worse. */}
               <div className="flex justify-between">
@@ -235,15 +273,19 @@ export function ThermalReceiptModal({
                   ) : null}
                 </>
               )}
-              <div className="flex justify-between font-bold text-xs pt-1 border-t border-neutral-300">
-                <span>TOTAL AMOUNT:</span>
-                <span>₹{totalAmount.toFixed(2)}</span>
+              <div
+                className={`mt-1 flex items-baseline justify-between border-t border-neutral-400 pt-1.5 text-[12px] font-bold ${
+                  mode === "colour" ? "text-[#0C4A6E]" : ""
+                }`}
+              >
+                <span className="tracking-[0.06em]">TOTAL</span>
+                <span>&#8377;{totalAmount.toFixed(2)}</span>
               </div>
             </div>
 
             {/* Tender & Payment Mode Breakup */}
-            <div className="py-2 border-b border-dashed border-neutral-400 space-y-0.5 text-[9px]">
-              <div className="font-bold text-[8px] uppercase tracking-wider text-neutral-500 mb-0.5">
+            <div className="py-2 border-b border-dashed border-neutral-400 space-y-0.5 text-[9.5px]">
+              <div className="font-bold text-[9px] uppercase tracking-wider text-neutral-500 mb-0.5">
                 Payment Breakdown:
               </div>
               {payments.cash > 0 && (
@@ -279,39 +321,62 @@ export function ThermalReceiptModal({
             </div>
 
             {/* Footer */}
-            <div className="pt-3 text-center text-[9px] space-y-1">
+            <div className="space-y-1 pt-3 text-center text-[9.5px]">
               {/* Rule 5(1)(f) requires this wording on every Bill of Supply a
                   composition dealer issues. Not advisory — its absence is a
                   defect in the document. */}
               {gstRegistrationType === "composition" && (
-                <div className="font-bold text-[8px] uppercase border border-neutral-400 rounded px-1 py-1 mb-1">
+                <div className="font-bold text-[9px] uppercase border border-neutral-500 rounded px-1 py-1 mb-1">
                   Composition taxable person, not eligible to collect tax on
                   supplies
                 </div>
               )}
-              <div className="font-semibold">*** THANK YOU FOR YOUR VISIT! ***</div>
-              <div className="text-[8px] text-neutral-500">
-                Items once sold can be exchanged within 7 days with original invoice.
-              </div>
-              <div className="pt-1 text-[8px] text-neutral-400">
-                Powered by Business Hub Cloud POS
-              </div>
+              {/* What is left is what the customer or a tax officer would
+                  actually want. Gone: the asterisk banner, an exchange policy
+                  hardcoded to seven days that no shop had ever set, and a
+                  line advertising the software on the shopkeeper's paper. */}
+              <div className="font-semibold">Thank you</div>
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="p-5 bg-[var(--bg-base)] flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 bg-[var(--bg-base)] p-5">
+          {/* One switch, not two buttons that print. A thermal roll has one
+              ink, so plain is the default; colour is for the A4 or PDF copy a
+              customer gets by email. Both go through the same print dialog,
+              which is also where "Save as PDF" lives. */}
+          <div className="flex shrink-0 items-center gap-1 rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] p-1">
+            {[
+              { key: "plain" as const, label: "Plain" },
+              { key: "colour" as const, label: "Colour" },
+            ].map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => setMode(option.key)}
+                aria-pressed={mode === option.key}
+                className={`focus-ring cursor-pointer rounded-[7px] px-3 py-1.5 text-[11.5px] font-bold transition-colors ${
+                  mode === option.key
+                    ? "bg-[var(--primary)]/12 text-[var(--primary-dark)]"
+                    : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-2 py-3 px-5 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 rounded-2xl font-extrabold text-xs shadow-[0_8px_20px_rgba(14,165,233,0.35)] transition-all cursor-pointer"
+            className="focus-ring flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-[12px] border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-5 py-3 text-xs font-extrabold text-[var(--primary-dark)] transition-colors hover:bg-[var(--primary)]/20"
           >
-            <Printer className="w-4 h-4" />
-            <span>Print Receipt</span>
+            <Printer className="h-4 w-4" />
+            <span>Print or save PDF</span>
           </button>
           <button
             onClick={onClose}
-            className="py-3 px-5 bg-[var(--surface)] hover:bg-[var(--bg-soft)] border border-[var(--border-soft)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-2xl font-bold text-xs transition-colors"
+            className="focus-ring cursor-pointer rounded-[12px] border border-[var(--border-soft)] bg-[var(--surface)] px-5 py-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--text-primary)]"
           >
             Done
           </button>

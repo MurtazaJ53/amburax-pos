@@ -552,10 +552,27 @@ a {
     margin: 0 !important;
     padding: 4mm !important;
     background: white !important;
-    color: black !important;
     font-family: var(--font-mono) !important;
     font-size: 11px !important;
-    line-height: 1.3 !important;
+    line-height: 1.35 !important;
+  }
+
+  /* Plain: everything to black. A thermal roll has one colour of ink, and a
+     grey heading on 58mm paper is a heading nobody can read. */
+  #thermal-receipt-print-area[data-receipt-mode="plain"],
+  #thermal-receipt-print-area[data-receipt-mode="plain"] * {
+    color: black !important;
+    background: transparent !important;
+    border-color: black !important;
+  }
+
+  /* Colour: browsers drop backgrounds when printing unless told not to, so a
+     colour receipt saved to PDF came out as the plain one with the ink
+     missing. This is what makes "save a colour PDF" actually mean something. */
+  #thermal-receipt-print-area[data-receipt-mode="colour"],
+  #thermal-receipt-print-area[data-receipt-mode="colour"] * {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
   }
 }
 
