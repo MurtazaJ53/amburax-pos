@@ -107,11 +107,15 @@ export function ThermalReceiptModal({
       // colour asks the browser not to drop backgrounds. Without it a colour
       // receipt saved as PDF came out as the plain one with the ink missing.
       printArea.setAttribute("data-receipt-mode", mode);
+      // The copied markup is the receipt's CHILDREN, so the width set on its
+      // root does not come with it. The stylesheet reads this.
+      printArea.style.setProperty("--receipt-width", format.paperWidth);
       window.print();
     }
   };
 
   return (
+    <>
     <div
       role="dialog"
       aria-modal="true"
@@ -425,5 +429,22 @@ export function ThermalReceiptModal({
         </div>
       </div>
     </div>
+
+    {/* The element the print handler copies into, and the one the print
+        stylesheet keeps visible while it hides everything else.
+
+        It never existed. handlePrint looked it up by id, got null, and
+        returned without printing - so the button had never done anything.
+        The label printer renders its own equivalent, which is why that one
+        worked and this one did not.
+
+        Hidden on screen and shown only to the printer, so a receipt is not
+        sitting invisibly in the layout the rest of the time. */}
+    <div
+      id="thermal-receipt-print-area"
+      aria-hidden="true"
+      className="hidden print:block"
+    />
+    </>
   );
 }

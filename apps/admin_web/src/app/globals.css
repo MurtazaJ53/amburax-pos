@@ -548,7 +548,11 @@ a {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;
-    width: 76mm !important;
+    /* The region sets this on the element; 76mm is the Indian roll and the
+       fallback. Without the variable the !important here pinned every
+       receipt to Indian width, so a UK shop's 80mm paper printed with a
+       strip wasted down the side. */
+    width: var(--receipt-width, 76mm) !important;
     margin: 0 !important;
     padding: 4mm !important;
     background: white !important;
