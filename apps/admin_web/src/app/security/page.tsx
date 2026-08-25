@@ -219,10 +219,10 @@ export default async function SecurityPage({ searchParams }: SecurityPageProps) 
           <section className="grid gap-6 xl:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)]">
             <div className="space-y-6">
               {!mfaStatus.totp_enabled ? (
-                <section className="panel-soft rounded-[28px] px-6 py-6">
-                  <p className="eyebrow">Step 1</p>
-                  <h2 className="mt-3 text-2xl font-bold">Turn on two-step sign-in</h2>
-                  <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                <section className="animate-fade-in-up rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm">
+                  <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Step 1</p>
+                  <h2 className="mt-2 text-sm font-extrabold tracking-tight text-[var(--text-primary)]">Turn on two-step sign-in</h2>
+                  <p className="m-0 mt-1.5 max-w-[70ch] text-[13px] font-medium leading-[1.55] text-[var(--text-secondary)]">
                     Open your authenticator app, scan the code below, then type
                     the six digits it shows you. It takes about a minute.
                   </p>
@@ -231,103 +231,104 @@ export default async function SecurityPage({ searchParams }: SecurityPageProps) 
                       <input type="hidden" name="returnTo" value={returnTo} />
                       <button
                         type="submit"
-                        className="inline-flex rounded-full border border-[rgba(92,174,254,0.22)] bg-[rgba(10,36,68,0.82)] px-5 py-2.5 text-sm font-semibold text-[var(--accent)] transition-transform duration-150 hover:-translate-y-0.5"
+                        className="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-4 py-2.5 text-[12.5px] font-extrabold text-[var(--primary-dark)] transition-colors hover:bg-[var(--primary)]/20"
                       >
                         Start MFA setup
                       </button>
                     </form>
                   ) : (
                     <div className="mt-6 space-y-4">
-                      <div className="surface-muted rounded-[22px] px-5 py-5">
-                        <p className="eyebrow">Manual secret</p>
+                      <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
+                        <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Manual secret</p>
                         <p className="mt-3 break-all font-mono text-sm text-[var(--text-primary)]">
                           {mfaStatus.pending_manual_secret}
                         </p>
                       </div>
-                      <div className="surface-muted rounded-[22px] px-5 py-5">
-                        <p className="eyebrow">Authenticator link</p>
+                      <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
+                        <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Authenticator link</p>
                         <p className="mt-3 break-all text-sm text-[var(--text-secondary)]">
                           {mfaStatus.pending_otpauth_uri}
                         </p>
                       </div>
-                      <form action={verifyMfaCodeAction} className="surface-muted rounded-[22px] px-5 py-5">
+                      <form action={verifyMfaCodeAction} className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
                         <input type="hidden" name="purpose" value="enroll" />
                         <input type="hidden" name="returnTo" value={returnTo} />
                         <label className="block">
-                          <span className="eyebrow">Verification code</span>
+                          <span className="block font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Code from your phone</span>
                           <input
                             name="code"
                             inputMode="numeric"
                             maxLength={6}
                             placeholder="123456"
-                            className="mt-3 w-full rounded-[18px] border border-[rgba(152,164,189,0.14)] bg-[rgba(8,14,24,0.72)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+                            className="tnum mt-2 w-full max-w-[220px] rounded-[10px] border border-[var(--border-soft)] bg-[var(--bg-soft)] px-4 py-2.5 font-mono text-[19px] font-bold tracking-[0.22em] text-[var(--text-primary)] outline-none transition-colors placeholder:tracking-[0.22em] placeholder:text-[var(--text-tertiary)] focus:border-[var(--primary)]"
                           />
                         </label>
                         <button
                           type="submit"
-                          className="mt-4 inline-flex rounded-full border border-[rgba(58,215,162,0.18)] bg-[rgba(9,42,31,0.64)] px-5 py-2.5 text-sm font-semibold text-[var(--success)] transition-transform duration-150 hover:-translate-y-0.5"
+                          className="focus-ring mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-[var(--success)]/30 bg-[var(--success)]/12 px-4 py-2.5 text-[12.5px] font-extrabold text-[var(--success-dark)] transition-colors hover:bg-[var(--success)]/20"
                         >
-                          Verify and enable MFA
+                          Finish setup
                         </button>
                       </form>
                     </div>
                   )}
                 </section>
               ) : (
-                <section className="panel-soft rounded-[28px] px-6 py-6">
-                  <p className="eyebrow">Step 1</p>
-                  <h2 className="mt-3 text-2xl font-bold">Refresh your secure access window</h2>
-                  <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                    Verify one current MFA code before opening protected owner/admin surfaces like Workspace plan, Team,
-                    Sessions, Audit, Migration, and ERPNext control.
+                <section className="animate-fade-in-up rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm">
+                  <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Step 1</p>
+                  <h2 className="mt-2 text-sm font-extrabold tracking-tight text-[var(--text-primary)]">Enter a code to open the owner screens</h2>
+                  <p className="m-0 mt-1.5 max-w-[70ch] text-[13px] font-medium leading-[1.55] text-[var(--text-secondary)]">
+                    Open your authenticator app and type the six digits it is
+                    showing right now. They change every minute.
                   </p>
-                  <form action={verifyMfaCodeAction} className="mt-6 surface-muted rounded-[22px] px-5 py-5">
+                  <form action={verifyMfaCodeAction} className="mt-4 rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
                     <input type="hidden" name="purpose" value="challenge" />
                     <input type="hidden" name="returnTo" value={returnTo} />
                     <label className="block">
-                      <span className="eyebrow">Verification code</span>
+                      <span className="block font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Code from your phone</span>
                       <input
                         name="code"
                         inputMode="numeric"
                         maxLength={6}
                         placeholder="123456"
-                        className="mt-3 w-full rounded-[18px] border border-[rgba(152,164,189,0.14)] bg-[rgba(8,14,24,0.72)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+                        className="tnum mt-2 w-full max-w-[220px] rounded-[10px] border border-[var(--border-soft)] bg-[var(--bg-soft)] px-4 py-2.5 font-mono text-[19px] font-bold tracking-[0.22em] text-[var(--text-primary)] outline-none transition-colors placeholder:tracking-[0.22em] placeholder:text-[var(--text-tertiary)] focus:border-[var(--primary)]"
                       />
                     </label>
                     <button
                       type="submit"
-                      className="mt-4 inline-flex rounded-full border border-[rgba(58,215,162,0.18)] bg-[rgba(9,42,31,0.64)] px-5 py-2.5 text-sm font-semibold text-[var(--success)] transition-transform duration-150 hover:-translate-y-0.5"
+                      className="focus-ring mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-[var(--success)]/30 bg-[var(--success)]/12 px-4 py-2.5 text-[12.5px] font-extrabold text-[var(--success-dark)] transition-colors hover:bg-[var(--success)]/20"
                     >
-                      Verify now
+                      Open the owner screens
                     </button>
                   </form>
                 </section>
               )}
 
               {mfaStatus.totp_enabled ? (
-                <section className="panel-soft rounded-[28px] px-6 py-6">
-                  <p className="eyebrow">Step 2</p>
-                  <h2 className="mt-3 text-2xl font-bold">Disable MFA only if you are replacing the authenticator</h2>
-                  <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                    Disabling MFA immediately closes the current secure-access window and forces a new setup before
-                    protected owner/admin surfaces can reopen.
+                <section className="animate-fade-in-up rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm">
+                  <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Step 2</p>
+                  <h2 className="mt-2 text-sm font-extrabold tracking-tight text-[var(--text-primary)]">Turn it off</h2>
+                  <p className="m-0 mt-1.5 max-w-[70ch] text-[13px] font-medium leading-[1.55] text-[var(--text-secondary)]">
+                    Only do this if you are moving to a new phone. Your
+                    password becomes the only lock on the shop again, and you
+                    will have to set this up from scratch to turn it back on.
                   </p>
-                  <form action={disableMfaAction} className="mt-6 surface-muted rounded-[22px] px-5 py-5">
+                  <form action={disableMfaAction} className="mt-4 rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
                     <label className="block">
-                      <span className="eyebrow">Current code</span>
+                      <span className="block font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Code from your phone</span>
                       <input
                         name="code"
                         inputMode="numeric"
                         maxLength={6}
                         placeholder="123456"
-                        className="mt-3 w-full rounded-[18px] border border-[rgba(152,164,189,0.14)] bg-[rgba(8,14,24,0.72)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+                        className="tnum mt-2 w-full max-w-[220px] rounded-[10px] border border-[var(--border-soft)] bg-[var(--bg-soft)] px-4 py-2.5 font-mono text-[19px] font-bold tracking-[0.22em] text-[var(--text-primary)] outline-none transition-colors placeholder:tracking-[0.22em] placeholder:text-[var(--text-tertiary)] focus:border-[var(--primary)]"
                       />
                     </label>
                     <button
                       type="submit"
-                      className="mt-4 inline-flex rounded-full border border-[rgba(251,113,133,0.18)] bg-[rgba(40,12,19,0.76)] px-5 py-2.5 text-sm font-semibold text-[var(--warning)] transition-transform duration-150 hover:-translate-y-0.5"
+                      className="focus-ring mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-[var(--error)]/35 bg-[var(--error)]/10 px-4 py-2.5 text-[12.5px] font-extrabold text-[var(--error-strong)] transition-colors hover:bg-[var(--error)]/18"
                     >
-                      Disable MFA
+                      Turn off two-step sign-in
                     </button>
                   </form>
                 </section>
@@ -340,44 +341,60 @@ export default async function SecurityPage({ searchParams }: SecurityPageProps) 
             </div>
 
             <div className="space-y-6">
-              <section className="panel-soft rounded-[28px] px-6 py-6">
-                <p className="eyebrow">Protection map</p>
-                <h2 className="mt-3 text-2xl font-bold">What MFA protects now</h2>
-                <ul className="mt-4 space-y-3 text-sm leading-7 text-[var(--text-secondary)]">
-                  <li>Workspace plan and upgrade controls</li>
-                  <li>Team management and ownership transfer</li>
-                  <li>Workspace session revoke / remote wipe</li>
-                  <li>Audit trail review</li>
-                  <li>Owner/admin payments review</li>
-                  <li>Migration and ERPNext internal control pages</li>
-                  <li>Matching owner/admin mobile security gates</li>
+              <section className="animate-fade-in-up rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm">
+                <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                  What it guards
+                </p>
+                <h2 className="mt-2 text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
+                  The screens a code is asked for
+                </h2>
+                <ul className="m-0 mt-3 flex list-none flex-col gap-2 p-0 text-[12.5px] font-medium text-[var(--text-secondary)]">
+                  {[
+                    "Your plan and anything that charges money",
+                    "Adding staff, changing roles, handing over the shop",
+                    "Signing a lost phone out, or wiping it",
+                    "The audit trail of who did what",
+                    "Payments the owner can see",
+                    "The internal migration and ERPNext tools",
+                  ].map((line) => (
+                    <li key={line} className="flex gap-2">
+                      <span aria-hidden="true" className="text-[var(--text-tertiary)]">
+                        &middot;
+                      </span>
+                      {line}
+                    </li>
+                  ))}
                 </ul>
               </section>
 
-              <section className="panel-soft rounded-[28px] px-6 py-6">
-                <p className="eyebrow">Current status</p>
-                <h2 className="mt-3 text-2xl font-bold">How your account looks right now</h2>
+              <section className="animate-fade-in-up rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm">
+                <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                  Your account
+                </p>
+                <h2 className="mt-2 text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
+                  Where things stand
+                </h2>
                 <div className="mt-5 space-y-4 text-sm text-[var(--text-secondary)]">
-                  <div className="surface-muted rounded-[20px] px-4 py-4">
-                    <p className="eyebrow">Enabled at</p>
+                  <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
+                    <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Enabled at</p>
                     <p className="mt-2 text-base font-semibold text-[var(--text-primary)]">
                       {mfaStatus.enabled_at || "Not enabled"}
                     </p>
                   </div>
-                  <div className="surface-muted rounded-[20px] px-4 py-4">
-                    <p className="eyebrow">Last verified</p>
+                  <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
+                    <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Last verified</p>
                     <p className="mt-2 text-base font-semibold text-[var(--text-primary)]">
                       {mfaStatus.last_verified_at || "No successful challenge yet"}
                     </p>
                   </div>
-                  <div className="surface-muted rounded-[20px] px-4 py-4">
-                    <p className="eyebrow">Secure window</p>
+                  <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
+                    <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Secure window</p>
                     <p className="mt-2 text-base font-semibold text-[var(--text-primary)]">
                       {mfaPosture.verified ? "Open right now" : "Needs verification"}
                     </p>
                   </div>
-                  <div className="surface-muted rounded-[20px] px-4 py-4">
-                    <p className="eyebrow">Last passkey verification</p>
+                  <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
+                    <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Last passkey verification</p>
                     <p className="mt-2 text-base font-semibold text-[var(--text-primary)]">
                       {mfaStatus.passkey_last_verified_at || "No passkey verification yet"}
                     </p>

@@ -34,11 +34,11 @@ function formatDateTime(value: string | null) {
 function bannerClasses(tone: NonNullable<BannerState>["tone"]) {
   switch (tone) {
     case "success":
-      return "border-[rgba(52,211,153,0.18)] bg-[rgba(7,33,25,0.76)] text-[var(--success)]";
+      return "border-[var(--success)]/35 bg-[var(--success)]/10 text-[var(--success-dark)]";
     case "error":
-      return "border-[rgba(251,113,133,0.18)] bg-[rgba(40,12,19,0.76)] text-[var(--warning)]";
+      return "border-[var(--error)]/35 bg-[var(--error)]/10 text-[var(--warning)]";
     default:
-      return "border-[rgba(71,176,255,0.18)] bg-[rgba(11,24,41,0.72)] text-[var(--accent)]";
+      return "border-[var(--primary)]/25 bg-[var(--primary)]/10 text-[var(--primary-dark)]";
   }
 }
 
@@ -263,37 +263,37 @@ export function PasskeyControlPanel({
         </section>
       ) : null}
 
-      <section className="panel-soft rounded-[28px] px-6 py-6">
+      <section className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm px-6 py-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <p className="eyebrow">Passkeys</p>
-            <h2 className="mt-3 text-2xl font-bold">Use this device as a second factor</h2>
+            <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Passkeys</p>
+            <h2 className="mt-2 text-sm font-extrabold tracking-tight text-[var(--text-primary)]">Use this device as a second factor</h2>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
               Register a passkey so owner/admin surfaces can be unlocked with the device itself instead of only typing TOTP codes.
             </p>
           </div>
-          <span className="rounded-full border border-[rgba(71,176,255,0.16)] bg-[rgba(71,176,255,0.08)] px-3 py-1 text-xs font-medium text-[var(--accent)]">
+          <span className="rounded-[10px] border border-[var(--primary)]/25 bg-[var(--primary)]/10 px-3 py-1 text-xs font-medium text-[var(--primary-dark)]">
             {passkeys.length} registered
           </span>
         </div>
 
         <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-          <div className="surface-muted rounded-[22px] px-5 py-5">
-            <p className="eyebrow">Register this device</p>
+          <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
+            <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Register this device</p>
             <label className="mt-4 block">
               <span className="text-sm font-medium text-[var(--text-secondary)]">Optional label</span>
               <input
                 value={label}
                 onChange={(event) => setLabel(event.target.value)}
                 placeholder="Office laptop"
-                className="mt-3 w-full rounded-[18px] border border-[rgba(152,164,189,0.14)] bg-[rgba(8,14,24,0.72)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+                className="mt-3 w-full rounded-[18px] border border-[var(--border-soft)] bg-[var(--bg-soft)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
               />
             </label>
             <button
               type="button"
               onClick={handleRegisterPasskey}
               disabled={busyAction !== null}
-              className="mt-4 inline-flex rounded-full border border-[rgba(71,176,255,0.18)] bg-[rgba(10,36,68,0.82)] px-5 py-2.5 text-sm font-semibold text-[var(--accent)] transition-transform duration-150 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-4 focus-ring inline-flex cursor-pointer rounded-[10px] border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-5 py-2.5 text-sm font-semibold text-[var(--primary-dark)] transition-colors hover:bg-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busyAction === "register" ? "Registering..." : "Register passkey"}
             </button>
@@ -302,8 +302,8 @@ export function PasskeyControlPanel({
             </p>
           </div>
 
-          <div className="surface-muted rounded-[22px] px-5 py-5">
-            <p className="eyebrow">Verify protected surfaces</p>
+          <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
+            <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Verify protected surfaces</p>
             <h3 className="mt-3 text-lg font-bold text-[var(--text-primary)]">
               Open the secure owner/admin window with a passkey
             </h3>
@@ -314,7 +314,7 @@ export function PasskeyControlPanel({
               type="button"
               onClick={handleVerifyPasskey}
               disabled={busyAction !== null || passkeys.length === 0}
-              className="mt-4 inline-flex rounded-full border border-[rgba(58,215,162,0.18)] bg-[rgba(9,42,31,0.64)] px-5 py-2.5 text-sm font-semibold text-[var(--success)] transition-transform duration-150 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-4 focus-ring inline-flex cursor-pointer rounded-[10px] border border-[var(--success)]/30 bg-[var(--success)]/12 px-5 py-2.5 text-sm font-semibold text-[var(--success-dark)] transition-colors duration-150 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busyAction === "verify" ? "Verifying..." : "Verify with passkey"}
             </button>
@@ -322,20 +322,20 @@ export function PasskeyControlPanel({
         </div>
       </section>
 
-      <section className="panel-soft rounded-[28px] px-6 py-6">
-        <p className="eyebrow">Registered devices</p>
-        <h2 className="mt-3 text-2xl font-bold">Passkey inventory</h2>
+      <section className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm px-6 py-6">
+        <p className="m-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Registered devices</p>
+        <h2 className="mt-2 text-sm font-extrabold tracking-tight text-[var(--text-primary)]">Passkey inventory</h2>
         <div className="mt-6 space-y-4">
           {passkeys.length ? (
             passkeys.map((passkey) => (
-              <article key={passkey.id} className="surface-muted rounded-[22px] px-5 py-5">
+              <article key={passkey.id} className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-lg font-semibold text-[var(--text-primary)]">
                         {passkey.label || "Unnamed passkey"}
                       </p>
-                      <span className="rounded-full border border-[rgba(152,164,189,0.12)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-secondary)]">
+                      <span className="rounded-[10px] border border-[var(--border-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-secondary)]">
                         {passkey.transports_json.join(", ") || "local device"}
                       </span>
                     </div>
@@ -350,7 +350,7 @@ export function PasskeyControlPanel({
                     type="button"
                     onClick={() => handleRemovePasskey(passkey.id)}
                     disabled={busyAction !== null}
-                    className="inline-flex items-center justify-center rounded-full border border-[rgba(251,113,133,0.18)] bg-[rgba(40,12,19,0.76)] px-4 py-2 text-sm font-semibold text-[var(--warning)] transition hover:bg-[rgba(57,15,26,0.84)] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center justify-center rounded-[10px] border border-[var(--error)]/35 bg-[var(--error)]/10 px-4 py-2 text-sm font-semibold text-[var(--error-strong)] transition-colors hover:bg-[var(--error)]/18 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {busyAction === `delete:${passkey.id}` ? "Removing..." : "Remove"}
                   </button>
