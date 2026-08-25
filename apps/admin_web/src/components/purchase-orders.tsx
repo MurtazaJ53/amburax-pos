@@ -11,6 +11,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { formatCurrency } from "@/lib/formatters";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -291,34 +292,110 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-3">
-          <Stat label="On order" value={String(data?.open_count ?? 0)} />
-          <Stat
-            label="Overdue"
-            value={String(data?.overdue_count ?? 0)}
-            alarming={(data?.overdue_count ?? 0) > 0}
-          />
-          <Stat label="Value awaited" value={`₹${openValue.toFixed(2)}`} />
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-4">
+      {/* What this screen is for. A purchase order is the one thing in the
+          app that moves no stock and no money, which makes it the hardest to
+          guess at from the outside. */}
+      <section className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm animate-fade-in-up">
+        <h2 className="m-0 text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
+          What a purchase order is
+        </h2>
+        <p className="m-0 mt-2 max-w-[72ch] text-[13px] font-medium leading-[1.6] text-[var(--text-secondary)]">
+          It is what you have <b>asked a supplier to send</b>, before it turns
+          up. Recording a purchase is the moment goods arrive — it adds stock
+          and it adds to what you owe. An order does neither. It is the gap in
+          between, and without it an order that never arrived looks exactly
+          like an order never placed.
+        </p>
+        <ol className="m-0 mt-3 flex list-none flex-col gap-1.5 p-0 text-[12.5px] font-medium text-[var(--text-secondary)]">
+          {[
+            "Write the order and send it to the supplier.",
+            "When the delivery comes, enter how much of each item actually arrived - part of it is fine, the order stays open for the rest.",
+            "Booking it in records the purchase for you: stock, cost price and what you owe all move then, and not before.",
+          ].map((line, index) => (
+            <li key={line} className="flex gap-2">
+              <span aria-hidden="true" className="font-mono text-[var(--text-tertiary)]">
+                {index + 1}.
+              </span>
+              {line}
+            </li>
+          ))}
+        </ol>
+        <p className="m-0 mt-3 rounded-[10px] border border-[var(--primary)]/20 bg-[var(--primary)]/8 px-3 py-2 text-[12px] font-semibold text-[var(--primary-dark)]">
+          The buying list already knows about these. An item on its way stops
+          being suggested for reorder, so you are not asked to buy the same
+          crate twice while it is on a van.
+        </p>
+      </section>
+
+      {/* One row, matching every other screen. Three loose Stat blocks beside
+          two buttons wrapped into a second line on a narrow window. */}
+      <div className="flex flex-wrap items-center gap-4 rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-2.5 shadow-sm animate-fade-in-up">
+        <dl className="no-scrollbar m-0 flex min-w-0 flex-1 items-stretch gap-4 overflow-x-auto">
+          {[
+            {
+              label: "on order",
+              value: String(data?.open_count ?? 0),
+              detail: "not arrived yet",
+              tone: "text-[var(--text-primary)]",
+            },
+            {
+              label: "overdue",
+              value: String(data?.overdue_count ?? 0),
+              detail:
+                (data?.overdue_count ?? 0) > 0 ? "past the date promised" : "none late",
+              tone:
+                (data?.overdue_count ?? 0) > 0
+                  ? "text-[var(--error-strong)]"
+                  : "text-[var(--success-strong)]",
+            },
+            {
+              label: "value awaited",
+              value: formatCurrency(openValue),
+              detail: "not yet owed",
+              tone: "text-[var(--text-primary)]",
+            },
+          ].map((stat, index) => (
+            <div
+              key={stat.label}
+              className={`flex shrink-0 flex-col justify-center ${
+                index > 0 ? "border-l border-[var(--border-soft)] pl-4" : ""
+              }`}
+            >
+              <dt className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                {stat.label}
+              </dt>
+              <dd className="m-0 flex items-baseline gap-1.5">
+                <span
+                  className={`tnum font-mono text-[17px] font-bold leading-tight ${stat.tone}`}
+                >
+                  {stat.value}
+                </span>
+                <span className="whitespace-nowrap text-[11px] font-semibold text-[var(--text-tertiary)]">
+                  {stat.detail}
+                </span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={() => void load()}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-2 text-xs font-extrabold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50"
+            aria-label="Refresh"
+            className="focus-ring grid h-9 w-9 cursor-pointer place-items-center rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            Refresh
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </button>
           {canOrder && (
             <button
               type="button"
               onClick={() => setComposing((v) => !v)}
-              className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)]/12 px-4 py-2 text-xs font-extrabold text-[var(--primary-dark)] hover:bg-[var(--primary-hover)] border border-[var(--primary)]/25"
+              className="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-3.5 py-2 text-[12px] font-extrabold text-[var(--primary-dark)] transition-colors hover:bg-[var(--primary)]/20"
             >
-              {composing ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+              {composing ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
               {composing ? "Cancel" : "New order"}
             </button>
           )}
@@ -338,7 +415,7 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
       )}
 
       {composing && (
-        <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 sm:p-6 shadow-sm space-y-4">
           <h3 className="text-base font-extrabold text-[var(--text-primary)]">
             New purchase order
           </h3>
@@ -498,7 +575,7 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
             return (
               <div
                 key={order.id}
-                className="rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface)] p-4 sm:p-5 shadow-sm"
+                className="rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface)] p-4 shadow-sm"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -614,25 +691,3 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
   );
 }
 
-function Stat({
-  label,
-  value,
-  alarming = false,
-}: {
-  label: string;
-  value: string;
-  alarming?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-2xl border px-4 py-2.5 ${
-        alarming
-          ? "border-[var(--error)]/30 bg-[var(--error)]/10 text-[var(--error-strong)]"
-          : "border-[var(--border-soft)] bg-[var(--surface)] text-[var(--text-secondary)]"
-      }`}
-    >
-      <span className="text-lg font-black">{value}</span>
-      <span className="ml-2 text-[11px] font-extrabold uppercase tracking-wide">{label}</span>
-    </div>
-  );
-}
