@@ -4,8 +4,9 @@ import { useT } from "@/lib/i18n";
 
 import React, { useState, useMemo } from "react";
 import { StatTile } from "@/components/ui/stat-tile";
-import { formatRole } from "@/lib/formatters";
+import { formatCurrency, formatRole } from "@/lib/formatters";
 import { summariseWeek, weekStart } from "@/lib/attendance-week";
+import { monthLabel, monthsIn, paySheet, payTotals } from "@/lib/pay-sheet";
 import { shopDateKey } from "@/lib/dashboard-metrics";
 import {
   Plus,
@@ -17,7 +18,12 @@ import {
   Loader2,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import type { AttendanceSession, AttendanceSummaryPayload, WorkspaceTeamMemberPayload } from "@/lib/types";
+import type {
+  AttendanceSession,
+  AttendanceSummaryPayload,
+  WorkspaceAccessSessionPayload,
+  WorkspaceTeamMemberPayload,
+} from "@/lib/types";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -32,7 +38,16 @@ interface TeamAttendanceProps {
   shopId: string;
   /** The shop's IANA timezone, for deciding which week is the current one. */
   timeZone?: string;
+  /** Which half this route is. /staff and /attendance rendered the same
+   *  component with identical props and always opened on the roster, so a
+   *  link called Attendance landed you a click away from attendance. */
+  defaultTab?: TabKey;
+  /** Signed-in devices, fetched by the page. Read-only here - revoking sits
+   *  behind the MFA gate on /sessions and must stay there. */
+  initialDevices?: WorkspaceAccessSessionPayload[];
 }
+
+export type TabKey = "team" | "attendance" | "pay" | "devices";
 
 export function TeamAttendance({
   initialTeam,
@@ -41,13 +56,37 @@ export function TeamAttendance({
   // The week has to be the shop's week. A UTC clock rolls over five and a
   // half hours early for an Indian shop, which would move Monday.
   timeZone = "Asia/Kolkata",
+  defaultTab = "team",
+  initialDevices = [],
 }: TeamAttendanceProps) {
+  const devices = initialDevices;
+  /** The month the pay sheet is showing. Defaults to the most recent month
+   *  that has any records, not to today - a shop opening the sheet on the 1st
+   *  wants last month, which is the one they are paying for. */
+  const [payMonth, setPayMonth] = useState<string>("");
+
   const t = useT();
   const [staff, setStaff] = useState<WorkspaceTeamMemberPayload[]>(initialTeam ?? []);
   const [attendance, setAttendance] = useState<AttendanceSession[]>(initialSessions ?? []);
   const [summary, setSummary] = useState<AttendanceSummaryPayload>(initialSummary ?? { total_sessions: 0, present_count: 0, leave_count: 0, active_workers_today: 0 });
-  const [activeTab, setActiveTab] = useState<"team" | "attendance">("team");
+  const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
   const [isLoading, setIsLoading] = useState(false);
+
+  const availableMonths = useMemo(() => monthsIn(attendance), [attendance]);
+  /** A month is only chosen once: whatever the picker holds, or the newest
+   *  month that has records. Defaulting to today would show an empty sheet on
+   *  the 1st, which is exactly when the pay is being worked out. */
+  const activeMonth = payMonth || availableMonths[0] || "";
+  const payRows = useMemo(
+    () => paySheet(attendance, activeMonth),
+    [attendance, activeMonth],
+  );
+  const payTotalsRow = useMemo(() => payTotals(payRows), [payRows]);
+
+  /** Hours and day counts read as figures, not as float noise: 7.5 stays 7.5
+   *  and 8 does not become 8.00. */
+  const formatHours = (value: number): string =>
+    Number.isInteger(value) ? String(value) : value.toFixed(1);
 
   // Invite modal
   const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -449,32 +488,39 @@ export function TeamAttendance({
         </div>
       )}
 
-      {/* Tabs */}
+      {/* Three questions, kept apart: who may open the shop, who actually
+          worked, and which devices are still signed in. They share a table
+          but answer opposite things - a PIN is access, attendance is pay. */}
       <div className="flex items-center gap-2 border-b border-[var(--border-soft)]">
-        <button
-          onClick={() => setActiveTab("team")}
-          className={`pb-3 px-3 text-xs font-semibold border-b-2 transition-colors ${
-            activeTab === "team"
-              ? "border-[var(--primary)] text-text-primary"
-              : "border-transparent text-[var(--text-tertiary)] hover:text-text-primary"
-          }`}
-        >
-          Team Roster ({staff.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("attendance")}
-          className={`pb-3 px-3 text-xs font-semibold border-b-2 transition-colors ${
-            activeTab === "attendance"
-              ? "border-[var(--primary)] text-text-primary"
-              : "border-transparent text-[var(--text-tertiary)] hover:text-text-primary"
-          }`}
-        >
-          Attendance Sessions ({attendance.length})
-        </button>
+        {[
+          { key: "team" as TabKey, label: "Staff", count: staff.length },
+          { key: "attendance" as TabKey, label: "Attendance", count: attendance.length },
+          { key: "pay" as TabKey, label: "Pay sheet", count: null },
+          { key: "devices" as TabKey, label: "Devices", count: null },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            aria-pressed={activeTab === tab.key}
+            className={`focus-ring cursor-pointer border-b-2 px-3 pb-3 text-xs font-bold transition-colors ${
+              activeTab === tab.key
+                ? "border-[var(--primary)] text-text-primary"
+                : "border-transparent text-[var(--text-tertiary)] hover:text-text-primary"
+            }`}
+          >
+            {tab.label}
+            {tab.count !== null && (
+              <span className="tnum ml-1.5 font-mono text-[11px] text-[var(--text-tertiary)]">
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
       {/* Tab Panels */}
-      {activeTab === "team" ? (
+      {activeTab === "team" && (
         <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-xl relative">
           {isLoading && (
             <div className="absolute inset-0 bg-surface/50 backdrop-blur-[1px] flex items-center justify-center z-10">
@@ -545,7 +591,9 @@ export function TeamAttendance({
             </table>
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === "attendance" && (
         <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-xl relative">
           {isLoading && (
             <div className="absolute inset-0 bg-surface/50 backdrop-blur-[1px] flex items-center justify-center z-10">
@@ -610,6 +658,220 @@ export function TeamAttendance({
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+
+      {activeTab === "devices" && (
+        <div className="overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm">
+          <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border-soft)] px-4 py-3">
+            <h3 className="text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
+              Devices signed in
+            </h3>
+            {/* Revoking is a security action and lives behind the MFA gate on
+                its own screen. Seeing WHICH devices belong to which person
+                belongs here, next to the person. */}
+            <a
+              href="/sessions"
+              className="focus-ring ml-auto text-[11.5px] font-bold text-[var(--primary-hover)] hover:underline"
+            >
+              Revoke or wipe a device
+            </a>
+          </div>
+
+          {devices.length === 0 ? (
+            <p className="px-4 py-10 text-center text-xs font-bold text-[var(--text-tertiary)]">
+              No devices are signed in to this shop.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead className="sticky top-0 z-10">
+                  <tr className="border-b border-[var(--border-soft)] bg-bg-soft text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                    <th className="px-4 py-3">Person</th>
+                    <th className="px-4 py-3">Device</th>
+                    <th className="px-4 py-3">Last seen</th>
+                    <th className="px-4 py-3">Trust</th>
+                    <th className="px-4 py-3 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-soft)]">
+                  {devices.map((device) => (
+                    <tr key={device.id} className="hover:bg-[var(--bg-base)]">
+                      <td className="px-4 py-3">
+                        <span className="block font-bold text-[var(--text-primary)]">
+                          {device.member_name || "Unknown"}
+                        </span>
+                        <span className="block text-[10.5px] text-[var(--text-tertiary)]">
+                          {device.role_label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="block font-semibold text-[var(--text-primary)]">
+                          {device.device_label || "Unnamed device"}
+                        </span>
+                        <span className="block font-mono text-[10.5px] text-[var(--text-tertiary)]">
+                          {device.platform_name || "unknown"}
+                          {device.app_version ? ` · v${device.app_version}` : ""}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-[var(--text-tertiary)]">
+                        {device.last_seen_at ? formatDate(device.last_seen_at) : "never"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                            device.trust_level === "trusted"
+                              ? "bg-[var(--success)]/10 text-[var(--success-strong)]"
+                              : device.trust_level === "review"
+                                ? "bg-[var(--warning)]/10 text-[var(--warning-strong)]"
+                                : "bg-[var(--error)]/10 text-[var(--error-strong)]"
+                          }`}
+                        >
+                          {device.trust_level}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span
+                          className={`text-[11px] font-bold ${
+                            device.status === "active"
+                              ? "text-[var(--success-strong)]"
+                              : "text-[var(--text-tertiary)]"
+                          }`}
+                        >
+                          {device.status === "active" ? "Signed in" : "Revoked"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+
+      {activeTab === "pay" && (
+        <div className="flex flex-col gap-3.5">
+          <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-2.5 shadow-sm">
+            <label className="flex items-center gap-2">
+              <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                Month
+              </span>
+              <select
+                value={activeMonth}
+                onChange={(e) => setPayMonth(e.target.value)}
+                className="focus-ring cursor-pointer rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-2 text-[12.5px] font-bold text-[var(--text-secondary)] outline-none"
+              >
+                {availableMonths.length === 0 && <option value="">No records yet</option>}
+                {availableMonths.map((month) => (
+                  <option key={month} value={month}>
+                    {monthLabel(month)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <dl className="no-scrollbar m-0 flex min-w-0 flex-1 items-stretch gap-4 overflow-x-auto">
+              {[
+                { label: "people", value: String(payTotalsRow.people), detail: "with records" },
+                { label: "days worked", value: formatHours(payTotalsRow.daysWorked), detail: "half days counted as half" },
+                { label: "hours", value: formatHours(payTotalsRow.hours), detail: `${formatHours(payTotalsRow.overtime)} overtime` },
+                { label: "bonus", value: formatCurrency(payTotalsRow.bonus), detail: "recorded this month" },
+              ].map((stat, index) => (
+                <div
+                  key={stat.label}
+                  className={`flex shrink-0 flex-col justify-center ${
+                    index > 0 ? "border-l border-[var(--border-soft)] pl-4" : ""
+                  }`}
+                >
+                  <dt className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                    {stat.label}
+                  </dt>
+                  <dd className="m-0 flex items-baseline gap-1.5">
+                    <span className="tnum font-mono text-[17px] font-bold leading-tight text-[var(--text-primary)]">
+                      {stat.value}
+                    </span>
+                    <span className="whitespace-nowrap text-[11px] font-semibold text-[var(--text-tertiary)]">
+                      {stat.detail}
+                    </span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm">
+            {payRows.length === 0 ? (
+              <p className="px-4 py-12 text-center text-xs font-bold text-[var(--text-tertiary)]">
+                No attendance recorded for this month.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-[var(--border-soft)] bg-bg-soft text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                      <th className="px-4 py-3">Person</th>
+                      <th className="px-4 py-3 text-right">Days worked</th>
+                      <th className="px-4 py-3 text-right">Present</th>
+                      <th className="px-4 py-3 text-right">Half</th>
+                      <th className="px-4 py-3 text-right">Leave</th>
+                      <th className="px-4 py-3 text-right">Absent</th>
+                      <th className="px-4 py-3 text-right">Hours</th>
+                      <th className="px-4 py-3 text-right">Overtime</th>
+                      <th className="px-4 py-3 text-right">Bonus</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-soft)]">
+                    {payRows.map((line) => (
+                      <tr key={line.membershipId} className="hover:bg-[var(--bg-base)]">
+                        <td className="px-4 py-3">
+                          <span className="block font-bold text-[var(--text-primary)]">
+                            {line.name}
+                          </span>
+                          <span className="block text-[10.5px] capitalize text-[var(--text-tertiary)]">
+                            {line.role.replace(/_/g, " ")}
+                          </span>
+                        </td>
+                        <td className="tnum px-4 py-3 text-right font-mono font-bold text-[var(--text-primary)]">
+                          {formatHours(line.daysWorked)}
+                        </td>
+                        <td className="tnum px-4 py-3 text-right font-mono text-[var(--text-secondary)]">
+                          {line.present}
+                        </td>
+                        <td className="tnum px-4 py-3 text-right font-mono text-[var(--text-secondary)]">
+                          {line.halfDays}
+                        </td>
+                        <td className="tnum px-4 py-3 text-right font-mono text-[var(--text-secondary)]">
+                          {line.leave}
+                        </td>
+                        <td className="tnum px-4 py-3 text-right font-mono text-[var(--text-tertiary)]">
+                          {line.absent}
+                        </td>
+                        <td className="tnum px-4 py-3 text-right font-mono text-[var(--text-primary)]">
+                          {formatHours(line.hours)}
+                        </td>
+                        <td className="tnum px-4 py-3 text-right font-mono text-[var(--warning-strong)]">
+                          {formatHours(line.overtime)}
+                        </td>
+                        <td className="tnum px-4 py-3 text-right font-mono font-bold text-[var(--text-primary)]">
+                          {formatCurrency(line.bonus)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Said plainly, because the number people want is not here. */}
+          <p className="m-0 text-[11px] font-medium text-[var(--text-tertiary)]">
+            These are the hours and bonuses actually recorded. No wage rate is
+            stored anywhere in the app, so no pay figure is calculated - this
+            is what the person working out the pay should start from.
+          </p>
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import { TeamAttendance } from "@/components/team-attendance";
 import { AdminShell } from "@/components/admin-shell";
-import { getSession, resolveActiveShop, getWorkspaceTeamMembers, getAttendanceSessions, getAttendanceSummary } from "@/lib/admin-api";
-import type { WorkspaceTeamMemberPayload, AttendanceSession, AttendanceSummaryPayload } from "@/lib/types";
+import { getSession, resolveActiveShop, getWorkspaceTeamMembers, getAttendanceSessions, getAttendanceSummary, getWorkspaceAccessSessions } from "@/lib/admin-api";
+import type { WorkspaceTeamMemberPayload, AttendanceSession, AttendanceSummaryPayload, WorkspaceAccessSessionPayload } from "@/lib/types";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -10,7 +10,7 @@ function errorMessage(error: unknown, fallback: string): string {
 
 
 export const metadata = {
-  title: "Staff Attendance & Timesheet | Business Hub",
+  title: "Attendance | Business Hub",
   description: "Track staff shifts, check-in timestamps, working hours, and leave records",
 };
 
@@ -27,18 +27,24 @@ export default async function AttendancePage() {
     leave_count: 0,
     active_workers_today: 0,
   };
+  let devices: WorkspaceAccessSessionPayload[] = [];
   let errorMsg = "";
 
   if (shopId) {
     try {
-      const [resTeam, resSessions, resSummary] = await Promise.all([
+      const [resTeam, resSessions, resSummary, resDevices] = await Promise.all([
         getWorkspaceTeamMembers(shopId),
         getAttendanceSessions(shopId),
         getAttendanceSummary(shopId),
+        // Read-only here. Revoking is MFA-gated and stays on /sessions;
+        // seeing which device belongs to which person belongs beside the
+        // person.
+        getWorkspaceAccessSessions(shopId).catch(() => []),
       ]);
       team = resTeam;
       sessions = resSessions;
       summary = resSummary;
+      devices = resDevices;
     } catch (err) {
       errorMsg = errorMessage(err, "Failed to load attendance data from backend");
       console.error("AttendancePage fetch error:", err);
@@ -50,8 +56,8 @@ export default async function AttendancePage() {
       session={session}
       activeShop={activeShop}
       activeRoute="attendance"
-      title="Shift Attendance & Punch Logs"
-      subtitle="Daily staff check-in, overtime logs, attendance calendar, and timesheet reports"
+      title="Attendance"
+      subtitle="Who worked, when they clocked in and out, and the hours behind the pay"
     >
       {!shopId ? (
         <div className="panel p-8 text-center text-[var(--text-secondary)]">
@@ -70,7 +76,14 @@ export default async function AttendancePage() {
         </div>
       ) : (
         <TeamAttendance
-          timeZone={activeShop?.shop.timezone || "Asia/Kolkata"} initialTeam={team} initialSessions={sessions} initialSummary={summary} shopId={shopId} />
+          timeZone={activeShop?.shop.timezone || "Asia/Kolkata"}
+          initialTeam={team}
+          initialSessions={sessions}
+          initialSummary={summary}
+          initialDevices={devices}
+          defaultTab="attendance"
+          shopId={shopId}
+        />
       )}
     </AdminShell>
   );
