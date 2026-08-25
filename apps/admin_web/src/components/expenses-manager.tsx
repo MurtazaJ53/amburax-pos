@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  ALL_EXPENSE_CATEGORIES,
+  EXPENSE_CATEGORIES,
+  QUICK_EXPENSE_CATEGORIES,
+} from "@/lib/expense-categories";
+
 import { useT } from "@/lib/i18n";
 
 import React, { useState, useEffect } from "react";
@@ -9,8 +15,9 @@ import {
   Search,
   X,
   Loader2,
+  Pencil,
+  CalendarDays,
 } from "lucide-react";
-import { StatTile } from "@/components/ui/stat-tile";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Expense, ExpenseSummaryPayload } from "@/lib/types";
 
@@ -39,21 +46,15 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Tea & Refreshments");
   const [amount, setAmount] = useState("");
-  const [paymentMode, setPaymentMode] = useState<"CASH" | "BANK" | "UPI">("CASH");
+  const [paymentMode, setPaymentMode] = useState<string>("CASH");
   const [refNum, setRefNum] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  /** The expense being corrected, or null when recording a new one. The same
+   *  form does both: a correction asks exactly the same questions. */
+  const [editing, setEditing] = useState<Expense | null>(null);
+  const [expenseDate, setExpenseDate] = useState<string>("");
   const [submitError, setSubmitError] = useState("");
 
-  const categories = [
-    "Rent",
-    "Utilities",
-    "Staff Salaries",
-    "Tea & Refreshments",
-    "Packaging",
-    "Maintenance",
-    "Logistics & Freight",
-    "Municipal & Taxes",
-  ];
 
   // Debounced search and filter effect
   useEffect(() => {
@@ -119,18 +120,48 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
       .sort((a, b) => b.value - a.value);
   }, [expenses]);
 
-  const categoryPeak = byCategory[0]?.value ?? 0;
 
   /** The four almost every Indian shop pays. Tapping one opens the form with
    *  the category already chosen — the category field is free text, so these
    *  are a shortcut rather than a restriction. */
-  const QUICK_CATEGORIES = ["Rent", "Electricity", "Staff wages", "Transport"];
+  const QUICK_CATEGORIES: readonly string[] = QUICK_EXPENSE_CATEGORIES;
+
+  const today = () => new Date().toISOString().split("T")[0];
+
+  /** Everything selectable in the filter: the standard list plus whatever
+   *  this shop has actually recorded, so a category typed by hand can still
+   *  be filtered on rather than disappearing from the control. */
+  const filterCategories = React.useMemo(() => {
+    const seen = new Set<string>(ALL_EXPENSE_CATEGORIES);
+    for (const expense of expenses) {
+      if (expense.category?.trim()) seen.add(expense.category.trim());
+    }
+    return [...seen].sort((a, b) => a.localeCompare(b));
+  }, [expenses]);
 
   const openWithCategory = (preset: string) => {
+    setEditing(null);
     setCategory(preset);
     setTitle("");
     setAmount("");
     setRefNum("");
+    setExpenseDate(today());
+    setSubmitError("");
+    setIsAddOpen(true);
+  };
+
+  /** Load an existing row back into the form so it can be corrected.
+   *
+   *  Correcting beats deleting and retyping: a delete loses who recorded it
+   *  and when, which is the trail the register exists to keep. */
+  const openForEdit = (expense: Expense) => {
+    setEditing(expense);
+    setCategory(expense.category ?? "");
+    setTitle(expense.description ?? "");
+    setAmount(String(expense.amount ?? ""));
+    setPaymentMode(expense.payment_method ?? "CASH");
+    setRefNum(expense.payment_reference ?? "");
+    setExpenseDate(expense.expense_date ?? today());
     setSubmitError("");
     setIsAddOpen(true);
   };
@@ -146,25 +177,31 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
       description: title,
       payment_method: paymentMode,
       payment_reference: refNum,
-      expense_date: new Date().toISOString().split("T")[0],
+      expense_date: expenseDate || today(),
     };
 
     try {
-      const res = await fetch("/api/expenses", {
-        method: "POST",
+      const res = await fetch(
+        editing ? `/api/expenses/${editing.id}` : "/api/expenses",
+        {
+        method: editing ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
-      });
+      },
+      );
 
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(text || "Failed to save expense record.");
+        throw new Error(
+          text || (editing ? "Could not save the correction." : "Failed to save expense record."),
+        );
       }
 
       // Close modal and reset fields
       setIsAddOpen(false);
+      setEditing(null);
       setTitle("");
       setAmount("");
       setRefNum("");
@@ -182,113 +219,93 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
   };
 
   return (
-    <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-text-primary tracking-tight">
-            Expenses & Petty Cash Register
-          </h2>
-          <p className="text-xs text-[var(--text-tertiary)]">
-            Log overhead operating expenses, utility payments, and till cash outflows
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 bg-[var(--surface)] border border-[var(--border-soft)] rounded-xl text-xs">
-            <span className="text-[var(--text-secondary)]">Total Recorded Expenses: </span>
-            <strong className="text-text-primary font-mono">{formatCurrency(metrics.total)}</strong>
-          </div>
-
-          <button
-            onClick={() => setIsAddOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Record Expense</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Three figures: what went out, and out of which pocket */}
-      <div className="grid gap-3.5 sm:grid-cols-3">
-        <StatTile
-          label="Total recorded"
-          value={formatCurrency(metrics.total)}
-          note={`${expenses.length} ${expenses.length === 1 ? "entry" : "entries"}${
-            byCategory.length > 0 ? ` across ${byCategory.length} categories` : ""
-          }`}
-          className="animate-fade-in-up delay-1"
-        />
-        <StatTile
-          label="Paid from till"
-          value={formatCurrency(metrics.cashOutflow)}
-          note="Comes straight off cash in hand"
-          tone={metrics.cashOutflow > 0 ? "warning" : "neutral"}
-          noteToneOverride="neutral"
-          className="animate-fade-in-up delay-2"
-        />
-        <StatTile
-          label="Paid by bank or UPI"
-          value={formatCurrency(metrics.digitalOutflow)}
-          note="NEFT, RTGS, UPI or card"
-          className="animate-fade-in-up delay-3"
-        />
-      </div>
-
-      {/* Where the money actually goes, and one tap to add more of it */}
-      <div className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm animate-fade-in-up delay-2">
-        <h3 className="text-sm font-extrabold tracking-tight text-[var(--text-primary)]">
-          {byCategory.length > 0 ? "Where it went" : "The four every shop pays"}
-        </h3>
-        <p className="mt-0.5 text-[12px] font-medium text-[var(--text-secondary)]">
-          {byCategory.length > 0
-            ? "Biggest first. Categories are what keep the profit figure honest."
-            : "Tap one to record it — you can still type any category you like."}
-        </p>
-
-        {byCategory.length > 0 && (
-          <ul className="m-0 mt-3.5 flex list-none flex-col gap-2 p-0">
-            {byCategory.slice(0, 5).map((row) => (
-              <li key={row.name} className="flex items-center gap-3">
-                <span className="w-28 flex-none truncate text-[12.5px] font-bold text-[var(--text-primary)]">
-                  {row.name}
-                </span>
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--bg-soft)]">
-                  <span
-                    className="block h-full rounded-full bg-[var(--primary-bright)]"
-                    style={{
-                      width: `${categoryPeak > 0 ? (row.value / categoryPeak) * 100 : 0}%`,
-                    }}
-                  />
-                </span>
-                <span className="tnum w-24 flex-none text-right font-mono text-[12.5px] font-bold text-[var(--text-primary)]">
-                  {formatCurrency(row.value)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="mt-3.5 flex flex-wrap gap-2">
-          {QUICK_CATEGORIES.map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              onClick={() => openWithCategory(preset)}
-              className="focus-ring cursor-pointer rounded-[10px] border border-transparent bg-[var(--primary)]/10 px-3.5 py-2 text-[12.5px] font-bold text-[var(--primary-hover)] transition-colors hover:border-[var(--primary)]"
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      {/* One row: the figures on the left, the action on the right. A title
+          card repeating the navbar, three tall tiles and a category panel
+          pushed the actual expenses to the bottom of the screen - which is
+          where you were finding them. */}
+      <div className="flex items-center gap-4 rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-2.5 shadow-sm animate-fade-in-up">
+        <dl className="no-scrollbar m-0 flex min-w-0 flex-1 items-stretch gap-4 overflow-x-auto">
+          {[
+            {
+              label: "spent",
+              value: formatCurrency(metrics.total),
+              detail: `${expenses.length} ${expenses.length === 1 ? "entry" : "entries"}`,
+              tone: "text-[var(--error-strong)]",
+            },
+            {
+              label: "from the till",
+              value: formatCurrency(metrics.cashOutflow),
+              detail: "off cash in hand",
+              tone:
+                metrics.cashOutflow > 0
+                  ? "text-[var(--warning-strong)]"
+                  : "text-[var(--text-primary)]",
+            },
+            {
+              label: "bank / upi / card",
+              value: formatCurrency(metrics.digitalOutflow),
+              detail: "not from the drawer",
+              tone: "text-[var(--text-primary)]",
+            },
+            {
+              label: "biggest",
+              value: byCategory.length > 0 ? byCategory[0].name : "--",
+              detail:
+                byCategory.length > 0
+                  ? formatCurrency(byCategory[0].value)
+                  : "nothing recorded yet",
+              tone: "text-[var(--text-primary)]",
+            },
+          ].map((stat, index) => (
+            <div
+              key={stat.label}
+              className={`flex shrink-0 flex-col justify-center ${
+                index > 0 ? "border-l border-[var(--border-soft)] pl-4" : ""
+              }`}
             >
-              {preset}
-            </button>
+              <dt className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                {stat.label}
+              </dt>
+              <dd className="m-0 flex items-baseline gap-1.5">
+                <span
+                  className={`tnum max-w-[180px] truncate font-mono text-[17px] font-bold leading-tight ${stat.tone}`}
+                >
+                  {stat.value}
+                </span>
+                <span className="whitespace-nowrap text-[11px] font-semibold text-[var(--text-tertiary)]">
+                  {stat.detail}
+                </span>
+              </dd>
+            </div>
           ))}
+        </dl>
+
+        <button
+          onClick={() => openWithCategory("")}
+          className="focus-ring inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-3.5 py-2 text-[12px] font-extrabold text-[var(--primary-dark)] transition-colors hover:bg-[var(--primary)]/20"
+        >
+          <Plus className="h-4 w-4" />
+          Record expense
+        </button>
+      </div>
+
+      {/* Quick picks stay - one tap to the commonest few - but as a strip
+          rather than a panel of their own. */}
+      <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
+        <span className="shrink-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+          Quick add
+        </span>
+        {QUICK_CATEGORIES.map((preset: string) => (
           <button
+            key={preset}
             type="button"
-            onClick={() => setIsAddOpen(true)}
-            className="focus-ring cursor-pointer rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3.5 py-2 text-[12.5px] font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            onClick={() => openWithCategory(preset)}
+            className="focus-ring shrink-0 cursor-pointer whitespace-nowrap rounded-full border border-[var(--border-soft)] bg-[var(--surface)] px-3.5 py-1.5 text-[11.5px] font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary-dark)]"
           >
-            Something else
+            {preset}
           </button>
-        </div>
+        ))}
       </div>
 
       {/* Filter Bar */}
@@ -309,8 +326,8 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
           onChange={(e) => setCategoryFilter(e.target.value)}
           className="px-3 py-2 bg-bg-soft border border-[var(--border-soft)] text-xs text-text-primary rounded-xl outline-none"
         >
-          <option value="all">All Expense Categories</option>
-          {categories.map((c) => (
+          <option value="all">All categories</option>
+          {filterCategories.map((c: string) => (
             <option key={c} value={c}>
               {c}
             </option>
@@ -319,15 +336,20 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
       </div>
 
       {/* Expenses Table */}
-      <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-xl relative">
+      {/* The figures, the quick picks and the filters hold still; only the
+          entries scroll. Reaching the bottom of a long month used to take the
+          totals and the search box off the top with it. */}
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm">
         {isLoading && (
           <div className="absolute inset-0 bg-surface/50 backdrop-blur-[1px] flex items-center justify-center z-10">
             <Loader2 className="w-6 h-6 text-primary animate-spin" />
           </div>
         )}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
+        <div className="min-h-0 flex-1 overflow-auto">
+          <table className="w-full border-collapse text-left text-xs">
+            {/* Pinned, so you still know which column is Amount a hundred
+                rows down. */}
+            <thead className="sticky top-0 z-10">
               <tr className="bg-bg-soft border-b border-[var(--border-soft)] text-[var(--text-tertiary)] font-semibold uppercase tracking-wider text-[10px]">
                 <th className="py-3 px-4">Expense Title</th>
                 <th className="py-3 px-4">{t("webCategory", "Category")}</th>
@@ -335,6 +357,7 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
                 <th className="py-3 px-4 text-center">Payment Mode</th>
                 <th className="py-3 px-4">Reference / Voucher</th>
                 <th className="py-3 px-4 text-right">Amount</th>
+                <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-soft)]">
@@ -374,8 +397,22 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
                     <td className="py-3 px-4 font-mono text-[var(--text-tertiary)]">
                       {exp.payment_reference || "—"}
                     </td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-[var(--error-strong)]">
+                    <td className="tnum py-3 px-4 text-right font-mono font-bold text-[var(--error-strong)]">
                       {formatCurrency(parseFloat(exp.amount || "0"))}
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      {/* Correcting beats deleting and retyping: a delete
+                          loses who recorded it and when, which is the trail
+                          this register exists to keep. */}
+                      <button
+                        type="button"
+                        onClick={() => openForEdit(exp)}
+                        aria-label={`Edit ${exp.description || exp.category}`}
+                        className="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--border-soft)] bg-[var(--surface)] px-2.5 py-1.5 text-[11px] font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary-dark)]"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -391,7 +428,10 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
           role="dialog"
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-          onClick={() => setIsAddOpen(false)}
+          onClick={() => {
+            setIsAddOpen(false);
+            setEditing(null);
+          }}
         >
           <div
             className="w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden"
@@ -400,7 +440,9 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
             <div className="p-4 border-b border-[var(--border-soft)] flex items-center justify-between bg-bg-soft">
               <div className="flex items-center gap-2">
                 <Wallet className="w-5 h-5 text-primary" />
-                <span className="font-semibold text-sm text-text-primary">Record Operating Expense</span>
+                <span className="font-semibold text-sm text-text-primary">
+                  {editing ? "Correct this expense" : "Record an expense"}
+                </span>
               </div>
               <button
                 onClick={() => setIsAddOpen(false)}
@@ -441,10 +483,20 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none"
                   >
-                    {categories.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
+                    {/* Grouped: a flat list of thirty is not read, it is
+                        scrolled past. A category the shop typed itself is
+                        kept at the top so an edit does not silently move it. */}
+                    {category && !ALL_EXPENSE_CATEGORIES.includes(category) && (
+                      <option value={category}>{category}</option>
+                    )}
+                    {EXPENSE_CATEGORIES.map((group) => (
+                      <optgroup key={group.group} label={group.group}>
+                        {group.items.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </div>
@@ -464,6 +516,22 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                  Date of expense
+                </label>
+                <div className="relative">
+                  <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
+                  <input
+                    type="date"
+                    value={expenseDate}
+                    max={today()}
+                    onChange={(e) => setExpenseDate(e.target.value)}
+                    className="tnum w-full rounded-xl border border-[var(--border-soft)] bg-bg-soft py-2 pl-9 pr-3 font-mono text-xs font-bold text-text-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
@@ -471,12 +539,17 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
                   </label>
                   <select
                     value={paymentMode}
-                    onChange={(e) => setPaymentMode(e.target.value as "CASH" | "BANK" | "UPI")}
+                    onChange={(e) => setPaymentMode(e.target.value)}
                     className="w-full px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none"
                   >
                     <option value="CASH">Cash (From Till Float)</option>
                     <option value="UPI">UPI / QR</option>
-                    <option value="BANK">Bank Transfer (NEFT/RTGS)</option>
+                    <option value="BANK">Bank transfer (NEFT / RTGS)</option>
+                    {/* The API has always accepted these two; the form simply
+                        never offered them, so a card payment had to be filed
+                        as something it was not. */}
+                    <option value="CARD">Card</option>
+                    <option value="OTHER">Other</option>
                   </select>
                 </div>
                 <div>

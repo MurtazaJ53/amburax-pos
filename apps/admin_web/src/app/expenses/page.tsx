@@ -48,6 +48,7 @@ export default async function ExpensesPage() {
       activeShop={activeShop}
       activeRoute="expenses"
       title="Shop Expenses Manager"
+      fitViewport
       subtitle="Track store expenses, utility bills, inventory costs, and miscellaneous cash outflows"
     >
       {!shopId ? (
