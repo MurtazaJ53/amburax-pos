@@ -738,6 +738,32 @@ a {
 
 /* Used on the pinned sidebar and the POS category strip: they scroll, but a
    visible track on a short list reads as clutter. */
+/* A scrollbar that belongs to this app rather than to the operating system.
+   The content column scrolls now, so the bar is on screen all day next to the
+   fixed nav - the default Windows one is 17px of grey and reads as a seam
+   between two panes. Thin, on the app's own neutrals, and only visible when
+   the pointer is near it. */
+.slim-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.slim-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.slim-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.slim-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--border-soft);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+.slim-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+}
+
 .no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;

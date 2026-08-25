@@ -226,16 +226,14 @@ export function AdminShell({
 
   return (
     <div
-      className={`bg-bg-app text-text-primary flex flex-col transition-colors duration-200 ${
-        fitViewport ? "lg:h-screen lg:overflow-hidden min-h-screen" : "min-h-screen"
-      }`}
+      className="bg-bg-app text-text-primary flex min-h-screen flex-col transition-colors duration-200 lg:h-screen lg:overflow-hidden"
     >
       {/* Above the header on purpose: this is the one message that has to
           reach a shopkeeper who never opens the billing page. */}
       <TrialBanner />
 
       {/* Top Bar matching APK Header */}
-      <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-md border-b border-border-soft px-4 lg:px-8 py-3 transition-colors duration-200">
+      <header className="z-40 shrink-0 border-b border-border-soft bg-surface/90 px-4 py-3 backdrop-blur-md transition-colors duration-200 lg:px-8">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4">
           
           {/* Logo, current screen, and store selector */}
@@ -336,16 +334,12 @@ export function AdminShell({
 
       {/* Main Layout Grid */}
       <div
-        className={`flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] gap-6 ${
-          fitViewport ? "lg:min-h-0 lg:overflow-hidden" : ""
-        }`}
+        className="grid w-full max-w-[1600px] flex-1 grid-cols-1 gap-6 p-4 sm:p-6 lg:grid-cols-[250px_minmax(0,1fr)] lg:overflow-hidden lg:p-8 mx-auto lg:min-h-0"
       >
         
         {/* Left Sidebar Navigation matching APK tabs */}
         <aside
-          className={`hidden lg:flex flex-col gap-6 ${
-            fitViewport ? "lg:min-h-0" : "lg:sticky lg:top-[92px] lg:self-start"
-          }`}
+          className="hidden lg:flex lg:min-h-0 lg:flex-col lg:gap-6 lg:self-start"
         >
           
           {/* Main App Navigation Panel (Core Workflows) */}
@@ -506,8 +500,8 @@ export function AdminShell({
 
         {/* Content Area */}
         <main
-          className={`flex-1 flex flex-col min-w-0 ${
-            fitViewport ? "lg:min-h-0 lg:overflow-hidden" : ""
+          className={`flex min-w-0 flex-1 flex-col lg:min-h-0 ${
+            fitViewport ? "lg:overflow-hidden" : "slim-scrollbar lg:overflow-y-auto"
           }`}
         >
           
