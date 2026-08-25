@@ -339,7 +339,7 @@ export function AdminShell({
 
       {/* Main Layout Grid */}
       <div
-        className="grid w-full max-w-[1600px] flex-1 grid-cols-1 gap-6 p-4 sm:p-6 lg:grid-cols-[250px_minmax(0,1fr)] lg:overflow-hidden lg:p-8 mx-auto lg:min-h-0"
+        className="mx-auto grid w-full max-w-[1600px] flex-1 grid-cols-1 gap-5 p-4 sm:p-6 lg:min-h-0 lg:grid-cols-[240px_minmax(0,1fr)] lg:overflow-hidden lg:p-6"
       >
         
         {/* Left Sidebar Navigation matching APK tabs */}
@@ -352,11 +352,15 @@ export function AdminShell({
               is how More tools vanished off the bottom a moment ago. On a
               laptop nothing here ever scrolls; on a genuinely short window
               the links give way rather than becoming unreachable. */}
-          <div className="slim-scrollbar flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pr-0.5">
+          <div className="slim-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto pr-0.5">
           
-          {/* Main App Navigation Panel (Core Workflows) */}
-          <div className="bg-surface border border-border-soft rounded-[24px] p-3.5 shadow-sm space-y-1 transition-colors duration-200">
-            <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-text-tertiary">
+          {/* One panel, not two.
+              Two panels cost a border, four paddings and a gap between them -
+              about eighty pixels of chrome for a divider that a hairline does
+              in one. With eleven links that was the difference between
+              fitting a laptop screen and not. */}
+          <nav className="flex flex-col rounded-[16px] border border-border-soft bg-surface p-2 shadow-sm transition-colors duration-200">
+            <div className="px-3 pb-1 pt-1 text-[9.5px] font-extrabold uppercase tracking-[0.14em] text-text-tertiary">
               Core Workflows
             </div>
             {mainNav.map((item) => {
@@ -366,24 +370,24 @@ export function AdminShell({
                 <Link
                   key={item.key}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-3 rounded-[10px] px-3 py-2 text-xs font-bold transition-colors ${
                     isActive
                       ? "relative bg-[var(--primary)]/12 text-[var(--primary-hover)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--primary)]"
                       : item.highlight
-                      ? "bg-[var(--primary)]/10 text-primary hover:bg-[var(--primary)]/20"
-                      : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
+                        ? "bg-[var(--primary)]/10 text-primary hover:bg-[var(--primary)]/20"
+                        : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? "text-[var(--text-primary)]" : ""}`} />
-                  <span>{item.label}</span>
+                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-[var(--text-primary)]" : ""}`} />
+                  <span className="truncate">{item.label}</span>
                 </Link>
               );
             })}
-          </div>
 
-          {/* Shop Administration Panel (Manage) */}
-          <div className="bg-surface border border-border-soft rounded-[24px] p-3.5 shadow-sm space-y-1 transition-colors duration-200">
-            <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-text-tertiary">
+            {/* The hairline that replaced the second panel. */}
+            <div className="mx-3 my-1.5 border-t border-border-soft" />
+
+            <div className="px-3 pb-1 text-[9.5px] font-extrabold uppercase tracking-[0.14em] text-text-tertiary">
               {t("settingsManage")}
             </div>
             {adminNav.map((item) => {
@@ -393,21 +397,18 @@ export function AdminShell({
                 <Link
                   key={item.key}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-3 rounded-[10px] px-3 py-2 text-xs font-bold transition-colors ${
                     isActive
                       ? "relative bg-[var(--primary)]/12 text-[var(--primary-hover)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--primary)]"
                       : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.label}</span>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{item.label}</span>
                 </Link>
               );
             })}
-          </div>
-
-
-
+          </nav>
           </div>
 
           {/* Everything else. Not removed: a wholesaler lives in Purchase
