@@ -8,6 +8,9 @@ import {
   Edit2,
   Download,
   X,
+  ChevronDown,
+  LayoutGrid,
+  Rows3,
   History,
   ImagePlus,
 } from "lucide-react";
@@ -82,6 +85,13 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
    *  which is the one a shopkeeper needs before ordering. */
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
   const [sort, setSort] = useState<SortKey>("name");
+  /** Cards fit roughly five times as many products on a screen as rows do,
+   *  which is what you want when you are looking FOR something. The table
+   *  stays for reading figures across columns. */
+  const [view, setView] = useState<"grid" | "table">("grid");
+  /** The category band is a whole row of chrome above the products. It earns
+   *  its place while you are choosing, not for the rest of the time. */
+  const [showCategories, setShowCategories] = useState(false);
 
   // Add / Edit Modal state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -580,6 +590,31 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
             </select>
           </label>
 
+          {/* Cards or rows. Kept beside the sort because both change how the
+              same set is presented rather than which set it is. */}
+          <div className="flex shrink-0 items-center gap-1 rounded-[10px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-1">
+            {[
+              { key: "grid" as const, label: "Cards", Icon: LayoutGrid },
+              { key: "table" as const, label: "Rows", Icon: Rows3 },
+            ].map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setView(key)}
+                aria-pressed={view === key}
+                title={label}
+                className={`focus-ring grid h-7 w-7 cursor-pointer place-items-center rounded-[7px] transition-colors ${
+                  view === key
+                    ? "bg-[var(--primary)]/12 text-[var(--primary-dark)]"
+                    : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="sr-only">{label}</span>
+              </button>
+            ))}
+          </div>
+
           {/* Ordering is not filtering: it hides nothing, so it sits apart
               from the chips and never lights up as an active filter. */}
           <label className="flex items-center gap-2">
@@ -607,10 +642,24 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
             Ordered by size, so the working set is in front. The select above
             stays for jumping straight to a named one. */}
         <div className="flex items-center gap-2 border-t border-[var(--border-soft)] pt-2.5">
-          <span className="shrink-0 font-mono text-[9.5px] font-bold uppercase tracking-[0.13em] text-[var(--text-tertiary)]">
-            Category
-          </span>
-          <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setShowCategories((open) => !open)}
+            aria-expanded={showCategories}
+            className="focus-ring flex shrink-0 cursor-pointer items-center gap-1 rounded-[8px] px-1.5 py-1 font-mono text-[9.5px] font-bold uppercase tracking-[0.13em] text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
+          >
+            {categoryFilter === "all" ? "Category" : categoryFilter}
+            <ChevronDown
+              className={`h-3 w-3 transition-transform duration-200 ${
+                showCategories ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+          <div
+            className={`no-scrollbar min-w-0 flex-1 items-center gap-2 overflow-x-auto ${
+              showCategories ? "flex" : "hidden"
+            }`}
+          >
             <button
               type="button"
               onClick={() => setCategoryFilter("all")}
@@ -696,9 +745,112 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
 
       {/* The catalogue */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm animate-fade-in-up delay-3">
-        {/* The scroll container and the table are separate on purpose: giving
-            one element the flex sizing and the scrolling collapses its rows. */}
-        <div className="min-h-0 flex-1 overflow-auto">
+        {view === "grid" ? (
+          <div className="no-scrollbar min-h-0 flex-1 overflow-auto p-3">
+            {filteredItems.length === 0 ? (
+              <p className="px-4 py-14 text-center text-xs font-bold text-[var(--text-tertiary)]">
+                No products match these filters.
+              </p>
+            ) : (
+              <ul className="m-0 grid list-none gap-2.5 p-0 [grid-template-columns:repeat(auto-fill,minmax(190px,1fr))]">
+                {filteredItems.map((item, index) => {
+                  const margin = marginPercent(item);
+                  return (
+                    <li
+                      key={item.id}
+                      className="animate-fade-in-up"
+                      style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(item)}
+                        className="focus-ring hover-nudge group flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-[13px] border border-[var(--border-soft)] bg-[var(--surface)] text-left transition-colors hover:border-[var(--primary)]"
+                      >
+                        <span className="relative block aspect-[4/3] w-full overflow-hidden border-b border-[var(--border-soft)] bg-[var(--bg-soft)]">
+                          {item.image_data ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.image_data}
+                              alt=""
+                              loading="lazy"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="grid h-full w-full place-items-center bg-gradient-to-br from-[var(--primary)]/10 to-[var(--bg-soft)] text-[26px] font-extrabold text-[var(--primary-hover)] opacity-55">
+                              {item.name.trim().charAt(0).toUpperCase()}
+                            </span>
+                          )}
+
+                          {/* State on the picture, in words as well as colour,
+                              and nothing at all for an item nobody ever
+                              counted - its number is not a claim. */}
+                          {!item.is_tracked ? null : item.current_stock < 0 ? (
+                            <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--error)] px-2 py-0.5 text-[9.5px] font-extrabold text-white">
+                              Short {formatQuantity(Math.abs(item.current_stock))}
+                            </span>
+                          ) : item.is_out_of_stock ? (
+                            <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--warning)] px-2 py-0.5 text-[9.5px] font-extrabold text-white">
+                              Shelf empty
+                            </span>
+                          ) : item.is_low_stock ? (
+                            <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--warning)] px-2 py-0.5 text-[9.5px] font-extrabold text-white">
+                              {formatQuantity(item.current_stock)} left
+                            </span>
+                          ) : null}
+
+                          {canViewCosts && item.cost_price === null && (
+                            <span className="absolute right-1.5 top-1.5 rounded-full bg-[var(--surface)]/90 px-2 py-0.5 text-[9.5px] font-extrabold text-[var(--warning-strong)]">
+                              No cost
+                            </span>
+                          )}
+                        </span>
+
+                        <span className="flex flex-1 flex-col gap-0.5 px-2.5 pb-2.5 pt-2">
+                          <span className="line-clamp-2 text-[12.5px] font-extrabold leading-snug text-[var(--text-primary)] group-hover:text-[var(--primary-hover)]">
+                            {item.name}
+                          </span>
+                          <span className="truncate font-mono text-[10px] font-semibold text-[var(--text-tertiary)]">
+                            {item.category || "Uncategorised"}
+                            {item.sku ? ` · ${item.sku}` : ""}
+                          </span>
+
+                          <span className="mt-auto flex items-baseline justify-between gap-2 pt-1.5">
+                            <b className="tnum font-mono text-[14.5px] font-bold tracking-tight text-[var(--text-primary)]">
+                              {formatCurrency(item.selling_price)}
+                            </b>
+                            {canViewCosts && margin !== null && (
+                              <span
+                                className={`tnum font-mono text-[11px] font-bold ${
+                                  margin < 10
+                                    ? "text-[var(--error-strong)]"
+                                    : margin < 25
+                                      ? "text-[var(--warning-strong)]"
+                                      : "text-[var(--success-strong)]"
+                                }`}
+                              >
+                                {margin.toFixed(0)}%
+                              </span>
+                            )}
+                          </span>
+
+                          <span className="tnum font-mono text-[10px] font-semibold text-[var(--text-tertiary)]">
+                            {!item.is_tracked
+                              ? "stock not tracked"
+                              : `${formatQuantity(item.current_stock)} in stock`}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        ) : (
+          // The scroll container and the table are separate on purpose:
+          // giving one element the flex sizing AND the scrolling collapses
+          // its rows to nothing.
+          <div className="min-h-0 flex-1 overflow-auto">
           <table className="w-full border-collapse text-left">
             {/* Pinned, so you still know which column is Cost and which is
                 Selling a hundred rows down. */}
@@ -931,6 +1083,7 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
             </tbody>
           </table>
         </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-3 border-t border-[var(--border-soft)] bg-[var(--bg-soft)] px-4 py-2.5 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
           <span>
