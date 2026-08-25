@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -187,6 +187,19 @@ export function AdminShell({
     title;
 
   const [moreOpen, setMoreOpen] = useState(false);
+  /** The sidebar scrolls inside itself. Expanding More tools changes its
+   *  content height, and the browser re-resolves the scroll position against
+   *  the new height - so wherever you were reading jumped away. Held here and
+   *  put back after the expansion renders. */
+  const navRef = useRef<HTMLElement>(null);
+  const navScroll = useRef(0);
+
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (nav && navScroll.current > 0) {
+      nav.scrollTop = navScroll.current;
+    }
+  }, [moreOpen]);
   useEffect(() => {
     // Opened if the shopkeeper left it open, or if they are standing on a page
     // inside it — a collapsed section that hides the current page makes the
@@ -325,6 +338,7 @@ export function AdminShell({
         
         {/* Left Sidebar Navigation matching APK tabs */}
         <aside
+          ref={navRef}
           className={`hidden lg:flex flex-col gap-6 no-scrollbar ${
             fitViewport
               ? "lg:min-h-0 lg:overflow-y-auto"
@@ -393,9 +407,17 @@ export function AdminShell({
               <button
                 type="button"
                 onClick={() => {
+                  // Read BEFORE the state change: after it, the list has
+                  // already grown and the number is the new one.
+                  navScroll.current = navRef.current?.scrollTop ?? 0;
                   const next = !moreOpen;
                   setMoreOpen(next);
-                  window.localStorage.setItem("bh_nav_more_open", String(next));
+                  try {
+                    window.localStorage.setItem("bh_nav_more_open", String(next));
+                  } catch {
+                    // A browser with site data blocked must still open the
+                    // menu; only the remembering is lost.
+                  }
                 }}
                 aria-expanded={moreOpen}
                 className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-text-tertiary hover:text-text-secondary"
