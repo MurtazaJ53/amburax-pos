@@ -44,7 +44,10 @@ export function DateRangePicker({ value, custom, today, onChange, className = ""
   }, [open]);
 
   return (
-    <div ref={ref} className={`relative ${className}`}>
+    // z-40 while open so the menu clears anything drawn beside it. Clearing
+    // what is drawn BELOW it is the ancestor's job: a card animating its
+    // transform makes a stacking context the menu cannot escape.
+    <div ref={ref} className={`relative ${open ? "z-40" : ""} ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}

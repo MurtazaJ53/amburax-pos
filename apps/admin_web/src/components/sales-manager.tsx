@@ -437,7 +437,11 @@ export function SalesManager({
 
           It renders in both views on purpose. Folding it into the History
           block would take the switch away the moment you used it. */}
-      <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] p-3 shadow-sm animate-fade-in-up">
+      {/* relative z-20 is load-bearing. animate-fade-in-up animates a
+          transform, which makes this card a stacking context - so the date
+          menu inside it cannot paint above the figures and the table that
+          follow it in the DOM, and was being drawn underneath them. */}
+      <div className="relative z-20 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] p-3 shadow-sm animate-fade-in-up">
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="flex shrink-0 items-center gap-1 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-base)] p-1">
             {[

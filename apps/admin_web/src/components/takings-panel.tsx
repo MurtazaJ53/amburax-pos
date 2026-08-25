@@ -106,7 +106,10 @@ export function TakingsPanel({ currencyCode, timeZone }: Props) {
   }));
 
   return (
-    <div className="rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm animate-fade-in-up delay-1">
+    // relative z-20 for the same reason as History: the fade animates a
+    // transform, and without it the period menu is trapped below the cards
+    // beside and under this one.
+    <div className="relative z-20 rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-sm animate-fade-in-up delay-1">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <span className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
           Takings
