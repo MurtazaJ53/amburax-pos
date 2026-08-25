@@ -344,15 +344,15 @@ export function AdminShell({
         
         {/* Left Sidebar Navigation matching APK tabs */}
         <aside className="hidden h-full lg:flex lg:min-h-0 lg:flex-col lg:gap-5">
-          {/* Core Workflows and the everyday screens - eleven links, which
-              fit. No scrollbar appears at a normal window height.
+          {/* No scroll at all. Eleven links fit, the height was cut to make
+              sure of it, and a nav that can move is a nav you cannot aim at
+              without looking.
 
-              overflow-y-auto is kept as a floor, not as a feature: a fixed
-              column taller than its box does not scroll, it CLIPS, and that
-              is how More tools vanished off the bottom a moment ago. On a
-              laptop nothing here ever scrolls; on a genuinely short window
-              the links give way rather than becoming unreachable. */}
-          <div className="slim-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto pr-0.5">
+              More tools sits OUTSIDE this box and stays pinned, so the one
+              thing a clip could have hidden cannot be hidden. On a window
+              short enough to clip, it is the last link in Manage that goes,
+              not the way to everything else. */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           
           {/* One panel, not two.
               Two panels cost a border, four paddings and a gap between them -
