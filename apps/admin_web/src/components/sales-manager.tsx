@@ -430,33 +430,122 @@ export function SalesManager({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5">
-      {/* Just the switch. The screen already names itself in the navbar, and
-          a title card repeating it cost a sixth of the page above the bills
-          it exists to show. */}
-      <div className="flex items-center justify-end gap-4">
+      {/* One control row: which view on the left, how to narrow it on the
+          right. The switch used to hold a row of its own doing nothing but
+          taking height, and the search sat on a third row below that - three
+          bands of chrome before the first bill.
 
-        <div className="flex items-center p-1 bg-[var(--surface)] border border-[var(--border-soft)] rounded-xl">
-          <button
-            onClick={() => setActiveView("history")}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeView === "history"
-                ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 shadow-sm"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            Sales History
-          </button>
-          <button
-            onClick={() => setActiveView("dayclose")}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeView === "dayclose"
-                ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20 shadow-sm"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            Day Close Register
-          </button>
+          It renders in both views on purpose. Folding it into the History
+          block would take the switch away the moment you used it. */}
+      <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] p-3 shadow-sm animate-fade-in-up">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-1 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-base)] p-1">
+            {[
+              { key: "history" as const, label: "Sales History" },
+              { key: "dayclose" as const, label: "Day Close" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveView(tab.key)}
+                aria-pressed={activeView === tab.key}
+                className={`focus-ring cursor-pointer whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold transition-colors ${
+                  activeView === tab.key
+                    ? "border border-[var(--primary)]/25 bg-[var(--primary)]/12 text-[var(--primary-dark)] shadow-sm"
+                    : "border border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {activeView === "history" && (
+            <>
+              <div className="relative min-w-[200px] flex-1 sm:max-w-[300px]">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Invoice # or customer"
+                  aria-label="Search sales"
+                  className="w-full rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface-muted)] py-2 pl-9 pr-8 text-[12.5px] font-medium text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-tertiary)] focus:border-[var(--primary)]"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    aria-label="Clear search"
+                    className="focus-ring absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 cursor-pointer place-items-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-base)] hover:text-[var(--text-primary)]"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <DateRangePicker
+                value={rangeKey}
+                custom={customRange}
+                today={shopToday}
+                onChange={(key, next) => {
+                  setRangeKey(key);
+                  setCustomRange(next);
+                }}
+                className="w-[180px] shrink-0"
+              />
+
+              <span className="ml-auto shrink-0 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+                {isLoading
+                  ? "Loading..."
+                  : `${filteredSales.length} of ${sales.length} in ${range.label.toLowerCase()}`}
+              </span>
+            </>
+          )}
         </div>
+
+        {/* Kept on a line of its own, below a rule. Slices are scanned as a
+            set - reading across five counts to compare them is the whole
+            point - and mixed in beside a search box they stop reading as one. */}
+        {activeView === "history" && (
+          <div className="no-scrollbar mt-2.5 flex items-center gap-2 overflow-x-auto border-t border-[var(--border-soft)] pt-2.5">
+            {PAYMENT_CHIPS.map((chip) => {
+              const active = paymentFilter === chip.key;
+              const empty = chip.key !== "all" && (paymentCounts[chip.key] ?? 0) === 0;
+              return (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => setPaymentFilter(chip.key)}
+                  aria-pressed={active}
+                  disabled={empty && !active}
+                  className={`focus-ring shrink-0 whitespace-nowrap rounded-full border px-3.5 py-2 text-[11.5px] font-bold transition-colors ${
+                    empty && !active
+                      ? "cursor-not-allowed border-[var(--border-soft)] bg-[var(--surface)] text-[var(--text-tertiary)] opacity-60"
+                      : active
+                        ? "cursor-pointer border-[var(--primary)] bg-[var(--primary)]/12 text-[var(--primary-dark)]"
+                        : "cursor-pointer border-[var(--border-soft)] bg-[var(--surface)] text-[var(--text-secondary)] hover:border-[var(--border)] hover:text-[var(--text-primary)]"
+                  }`}
+                >
+                  {chip.label} <span className="tnum font-mono">{paymentCounts[chip.key] ?? 0}</span>
+                </button>
+              );
+            })}
+
+            {(search.trim() !== "" || paymentFilter !== "all") && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setPaymentFilter("all");
+                }}
+                className="focus-ring ml-auto shrink-0 cursor-pointer whitespace-nowrap rounded-full border border-[var(--border-soft)] bg-[var(--surface)] px-3.5 py-2 text-[11.5px] font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary-dark)]"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {activeView === "history" ? (
@@ -530,74 +619,6 @@ export function SalesManager({
                 />
               </div>
             )}
-          </div>
-
-          {/* Find, then narrow. The search box is sized to what it holds - a
-              receipt number or a name - rather than eating the row, which
-              left the actual filters crowded into the leftover space. */}
-          <div className="flex flex-col gap-2.5 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] p-3">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="relative w-full sm:w-[280px]">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Invoice # or customer"
-                  aria-label="Search sales"
-                  className="w-full rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface-muted)] py-2 pl-9 pr-8 text-[12.5px] font-medium text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-tertiary)] focus:border-[var(--primary)]"
-                />
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => setSearch("")}
-                    aria-label="Clear search"
-                    className="focus-ring absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 cursor-pointer place-items-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-base)] hover:text-[var(--text-primary)]"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-
-              <DateRangePicker
-                value={rangeKey}
-                custom={customRange}
-                today={shopToday}
-                onChange={(key, next) => {
-                  setRangeKey(key);
-                  setCustomRange(next);
-                }}
-                className="w-full sm:w-[190px]"
-              />
-
-              <span className="ml-auto text-[11.5px] font-semibold text-[var(--text-tertiary)]">
-                {isLoading
-                  ? "Loading..."
-                  : `${filteredSales.length} of ${sales.length} in ${range.label.toLowerCase()}`}
-              </span>
-            </div>
-
-            <div className="no-scrollbar flex items-center gap-2 overflow-x-auto border-t border-[var(--border-soft)] pt-2.5">
-              {PAYMENT_CHIPS.map((chip) => {
-                const active = paymentFilter === chip.key;
-                return (
-                  <button
-                    key={chip.key}
-                    type="button"
-                    onClick={() => setPaymentFilter(chip.key)}
-                    aria-pressed={active}
-                    className={`focus-ring shrink-0 cursor-pointer whitespace-nowrap rounded-full border px-3.5 py-2 text-[11.5px] font-bold transition-colors ${
-                      active
-                        ? "border-[var(--primary)] bg-[var(--primary)]/12 text-[var(--primary-dark)]"
-                        : "border-[var(--border-soft)] bg-[var(--surface)] text-[var(--text-secondary)] hover:border-[var(--border)] hover:text-[var(--text-primary)]"
-                    }`}
-                  >
-                    {chip.label}{" "}
-                    <span className="tnum font-mono">{paymentCounts[chip.key] ?? 0}</span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
           {/* Only the rows move. The figures above and the column headings
