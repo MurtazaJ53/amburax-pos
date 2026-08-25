@@ -338,9 +338,12 @@ export function AdminShell({
       >
         
         {/* Left Sidebar Navigation matching APK tabs */}
-        <aside
-          className="hidden lg:flex lg:min-h-0 lg:flex-col lg:gap-6 lg:self-start"
-        >
+        <aside className="hidden h-full lg:flex lg:min-h-0 lg:flex-col lg:gap-3">
+          {/* The panels. They fit on a normal screen and scroll only on a
+              short one - which is better than the alternative, which is what
+              just happened: a fixed sidebar taller than its box silently
+              clipped More tools off the bottom where nobody could reach it. */}
+          <div className="slim-scrollbar flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pr-0.5">
           
           {/* Main App Navigation Panel (Core Workflows) */}
           <div className="bg-surface border border-border-soft rounded-[24px] p-3.5 shadow-sm space-y-1 transition-colors duration-200">
@@ -394,10 +397,49 @@ export function AdminShell({
             })}
           </div>
 
-          {/* Everything else, folded away by default. Not removed: a
-              wholesaler lives in Purchase orders. Auto-opens when the current
-              page is inside it, so a bookmarked link never lands somewhere the
-              nav claims does not exist. */}
+
+          {/* Advanced Panel (Pulse, devices, operations) */}
+          {advancedNav.length > 0 && (
+            <div className="bg-surface border border-border-soft rounded-[24px] p-3.5 shadow-sm space-y-1 transition-colors duration-200">
+              <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-text-tertiary">
+                Advanced
+              </div>
+              {advancedNav.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeRoute === item.key;
+                return (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                      isActive
+                        ? "relative bg-[var(--primary)]/12 text-[var(--primary-hover)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--primary)]"
+                        : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Connected Server Card */}
+          <div className="bg-gradient-to-br from-surface to-bg-soft border border-primary/20 rounded-[24px] p-4 text-xs transition-colors duration-200">
+            <div className="flex items-center gap-2 text-primary font-extrabold mb-1">
+              <span className="w-2 h-2 rounded-full bg-[var(--primary)] animate-pulse" />
+              <span>Backend Connected</span>
+            </div>
+            <p className="text-[11px] text-text-secondary leading-relaxed">
+              Real-time POS sync active. Currency: <b>{activeShop?.shop.currency_code || "INR"}</b>
+            </p>
+          </div>
+          </div>
+
+          {/* Everything else. Not removed: a wholesaler lives in Purchase
+              orders. Pinned to the bottom so it is reachable whatever the
+              panels above it are doing. */}
           {/* An overlay, not an expansion.
 
               Anything that grows INSIDE the sidebar changes the document
@@ -407,7 +449,7 @@ export function AdminShell({
               sits over cannot move. That removes the bug rather than
               compensating for it. */}
           {moreNav.length > 0 && (
-            <div ref={moreRef} className="relative">
+            <div ref={moreRef} className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setMoreOpen((open) => !open)}
@@ -458,44 +500,6 @@ export function AdminShell({
               )}
             </div>
           )}
-
-          {/* Advanced Panel (Pulse, devices, operations) */}
-          {advancedNav.length > 0 && (
-            <div className="bg-surface border border-border-soft rounded-[24px] p-3.5 shadow-sm space-y-1 transition-colors duration-200">
-              <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-text-tertiary">
-                Advanced
-              </div>
-              {advancedNav.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeRoute === item.key;
-                return (
-                  <Link
-                    key={item.key}
-                    href={item.href}
-                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                      isActive
-                        ? "relative bg-[var(--primary)]/12 text-[var(--primary-hover)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--primary)]"
-                        : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Connected Server Card */}
-          <div className="bg-gradient-to-br from-surface to-bg-soft border border-primary/20 rounded-[24px] p-4 text-xs transition-colors duration-200">
-            <div className="flex items-center gap-2 text-primary font-extrabold mb-1">
-              <span className="w-2 h-2 rounded-full bg-[var(--primary)] animate-pulse" />
-              <span>Backend Connected</span>
-            </div>
-            <p className="text-[11px] text-text-secondary leading-relaxed">
-              Real-time POS sync active. Currency: <b>{activeShop?.shop.currency_code || "INR"}</b>
-            </p>
-          </div>
         </aside>
 
         {/* Content Area */}
