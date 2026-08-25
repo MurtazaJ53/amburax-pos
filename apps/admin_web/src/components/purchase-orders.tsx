@@ -13,6 +13,13 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { formatQuantity } from "@/lib/utils";
+import {
+  lineTotal,
+  packIsComplete,
+  packSummary,
+  packToUnitCost,
+  packsToUnits,
+} from "@/lib/pack-maths";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -54,12 +61,37 @@ type StockItem = {
   name: string;
   sku: string;
   size: string;
+  /** The unit the shop counts this item in. Everything - stock, sales,
+   *  purchases - is in it, so it is what a quantity on this screen means. */
+  unit: string;
   /** Null when no cost was ever recorded, or when this role cannot see one. */
   costPrice: number | null;
   stock: number;
 };
 
-type DraftLine = { itemId: string; quantity: string; unitCost: string };
+type DraftLine = {
+  itemId: string;
+  quantity: string;
+  unitCost: string;
+  /** What has been typed into the item search before one is chosen. */
+  query: string;
+  /** The pack helper, open only while a delivery is being converted. */
+  packMode: boolean;
+  packs: string;
+  unitsPerPack: string;
+  packCost: string;
+};
+
+const BLANK_LINE: DraftLine = {
+  itemId: "",
+  quantity: "",
+  unitCost: "",
+  query: "",
+  packMode: false,
+  packs: "",
+  unitsPerPack: "",
+  packCost: "",
+};
 
 const STATUS_STYLES: Record<Order["status"], string> = {
   draft: "bg-[var(--text-tertiary)]/10 text-[var(--text-tertiary)] border-[var(--border)]",
@@ -103,9 +135,8 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
   const [supplierId, setSupplierId] = useState("");
   const [expectedDate, setExpectedDate] = useState("");
   const [note, setNote] = useState("");
-  const [draftLines, setDraftLines] = useState<DraftLine[]>([
-    { itemId: "", quantity: "", unitCost: "" },
-  ]);
+  const [draftLines, setDraftLines] = useState<DraftLine[]>([{ ...BLANK_LINE }]);
+  const [openLine, setOpenLine] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   /** Per-order map of line id -> quantity being booked in right now. */
@@ -128,6 +159,41 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
       setLoading(false);
     }
   }, []);
+
+  const updateLine = (index: number, patch: Partial<DraftLine>) =>
+    setDraftLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
+
+  /** Items matching what has been typed, by name or SKU. Capped: this is a
+   *  picker, not the catalogue. */
+  const matchesFor = (query: string) => {
+    const q = query.trim().toLowerCase();
+    const pool = q
+      ? items.filter(
+          (it) =>
+            it.name.toLowerCase().includes(q) || it.sku.toLowerCase().includes(q),
+        )
+      : items;
+    return pool.slice(0, 8);
+  };
+
+  /** Choosing an item fills the cost it was last bought at - but only into an
+   *  empty field, because a cost typed by hand is a negotiation. */
+  const pickItem = (index: number, item: StockItem) =>
+    setDraftLines((prev) =>
+      prev.map((l, i) =>
+        i === index
+          ? {
+              ...l,
+              itemId: item.id,
+              query: "",
+              unitCost:
+                l.unitCost.trim() === "" && item.costPrice != null
+                  ? String(item.costPrice)
+                  : l.unitCost,
+            }
+          : l,
+      ),
+    );
 
   const loadPickers = useCallback(async () => {
     try {
@@ -169,6 +235,7 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
             name: String(raw.name ?? ""),
             sku: String(raw.sku ?? ""),
             size: String(raw.size ?? ""),
+            unit: String(raw.unit ?? ""),
             // What the shop last paid, so the line does not ask for a cost
             // the app already knows. Null when it was never recorded, or when
             // this role may not see costs - and null must stay null, because
@@ -193,6 +260,14 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Close any open item list on a click elsewhere.
+  useEffect(() => {
+    if (openLine === null) return;
+    const close = () => setOpenLine(null);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [openLine]);
 
   useEffect(() => {
     if (composing) void loadPickers();
@@ -230,7 +305,7 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
       setSupplierId("");
       setExpectedDate("");
       setNote("");
-      setDraftLines([{ itemId: "", quantity: "", unitCost: "" }]);
+      setDraftLines([{ ...BLANK_LINE }]);
       await load();
     } catch (err) {
       setError(errorMessage(err, "Could not place the order."));
@@ -519,86 +594,201 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
             <span className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)]">
               Items
             </span>
-            {draftLines.map((line, index) => (
-              <div key={index} className="flex flex-wrap items-center gap-2">
-                <select
-                  aria-label="Item"
-                  value={line.itemId}
-                  onChange={(e) => {
-                    const picked = items.find((it) => it.id === e.target.value);
-                    setDraftLines((prev) =>
-                      prev.map((l, i) =>
-                        i === index
-                          ? {
-                              ...l,
-                              itemId: e.target.value,
-                              // Only when the line is still blank: a cost
-                              // typed by hand is a decision, and overwriting
-                              // it with an old one would undo a negotiation.
-                              unitCost:
-                                l.unitCost.trim() === "" && picked?.costPrice != null
-                                  ? String(picked.costPrice)
-                                  : l.unitCost,
-                            }
-                          : l,
-                      ),
-                    );
-                  }}
-                  className="flex-1 min-w-[180px] rounded-2xl border border-[var(--border)] bg-[var(--bg-base)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)]"
+            {draftLines.map((line, index) => {
+              const picked = items.find((it) => it.id === line.itemId) ?? null;
+              const unitLabel = picked?.unit?.trim() || "units";
+              const packEntry = {
+                packs: line.packs,
+                unitsPerPack: line.unitsPerPack,
+                packCost: line.packCost,
+              };
+              const total = lineTotal(line.quantity, line.unitCost);
+              return (
+                <div
+                  key={index}
+                  className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-3"
                 >
-                  <option value="">Choose an item…</option>
-                  {items.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                      {item.size ? ` (${item.size})` : ""}
-                      {` - ${formatQuantity(item.stock)} in stock`}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  aria-label="Quantity"
-                  type="number"
-                  min="0"
-                  step="any"
-                  placeholder="Qty"
-                  value={line.quantity}
-                  onChange={(e) =>
-                    setDraftLines((prev) =>
-                      prev.map((l, i) => (i === index ? { ...l, quantity: e.target.value } : l)),
-                    )
-                  }
-                  className="w-24 rounded-2xl border border-[var(--border)] bg-[var(--bg-base)] px-3 py-2.5 text-sm font-bold text-[var(--text-primary)]"
-                />
-                <input
-                  aria-label="Unit cost"
-                  type="number"
-                  min="0"
-                  step="any"
-                  placeholder="₹ cost"
-                  value={line.unitCost}
-                  onChange={(e) =>
-                    setDraftLines((prev) =>
-                      prev.map((l, i) => (i === index ? { ...l, unitCost: e.target.value } : l)),
-                    )
-                  }
-                  className="w-28 rounded-2xl border border-[var(--border)] bg-[var(--bg-base)] px-3 py-2.5 text-sm font-bold text-[var(--text-primary)]"
-                />
-                {draftLines.length > 1 && (
-                  <button
-                    type="button"
-                    aria-label="Remove item"
-                    onClick={() => setDraftLines((prev) => prev.filter((_, i) => i !== index))}
-                    className="p-2 rounded-xl text-[var(--text-tertiary)] hover:text-[var(--error-strong)]"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Type to find. A native select over two hundred and
+                        eighty products is a list nobody can reach the end
+                        of. */}
+                    <div className="relative min-w-[200px] flex-1">
+                      <input
+                        type="text"
+                        value={picked ? picked.name : (line.query ?? "")}
+                        onChange={(e) =>
+                          updateLine(index, { query: e.target.value, itemId: "" })
+                        }
+                        onFocus={() => setOpenLine(index)}
+                        placeholder="Type an item name or SKU"
+                        className="w-full rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-2 text-[12.5px] font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
+                      />
+                      {picked && (
+                        <button
+                          type="button"
+                          onClick={() => updateLine(index, { itemId: "", query: "" })}
+                          aria-label="Choose a different item"
+                          className="focus-ring absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 cursor-pointer place-items-center rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+
+                      {openLine === index && !picked && (
+                        <div
+                          onMouseDown={(e) => e.stopPropagation()}
+                          className="animate-fade-in-up absolute left-0 right-0 top-full z-30 mt-1 max-h-[200px] overflow-y-auto rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] p-1 shadow-lg"
+                        >
+                          {matchesFor(line.query ?? "").map((it) => (
+                            <button
+                              key={it.id}
+                              type="button"
+                              onClick={() => pickItem(index, it)}
+                              className="focus-ring flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-base)]"
+                            >
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[12px] font-bold text-[var(--text-primary)]">
+                                  {it.name}
+                                  {it.size ? ` (${it.size})` : ""}
+                                </span>
+                                <span className="block truncate font-mono text-[10px] text-[var(--text-tertiary)]">
+                                  {formatQuantity(it.stock)} {it.unit?.trim() || "in stock"}
+                                  {it.costPrice != null ? ` · last ${it.costPrice}` : " · no cost yet"}
+                                </span>
+                              </span>
+                            </button>
+                          ))}
+                          {matchesFor(line.query ?? "").length === 0 && (
+                            <p className="m-0 px-2.5 py-3 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+                              Nothing in stock matches that. Add it in Stock first.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <label className="flex items-center gap-1.5">
+                      <span className="sr-only">Quantity</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="Qty"
+                        value={line.quantity}
+                        onChange={(e) => updateLine(index, { quantity: e.target.value })}
+                        className="tnum w-24 rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-2 font-mono text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
+                      />
+                      {/* The unit, said out loud. Whether 50 means fifty kilos
+                          or fifty sacks is the whole question. */}
+                      <span className="text-[11px] font-bold text-[var(--text-tertiary)]">
+                        {unitLabel}
+                      </span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5">
+                      <span className="sr-only">Cost per unit</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="Cost"
+                        value={line.unitCost}
+                        onChange={(e) => updateLine(index, { unitCost: e.target.value })}
+                        className="tnum w-28 rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-2 font-mono text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
+                      />
+                      <span className="whitespace-nowrap text-[11px] font-bold text-[var(--text-tertiary)]">
+                        per {unitLabel}
+                      </span>
+                    </label>
+
+                    {total > 0 && (
+                      <span className="tnum ml-auto font-mono text-[13px] font-bold text-[var(--text-primary)]">
+                        {formatCurrency(total)}
+                      </span>
+                    )}
+
+                    {draftLines.length > 1 && (
+                      <button
+                        type="button"
+                        aria-label="Remove item"
+                        onClick={() =>
+                          setDraftLines((prev) => prev.filter((_, i) => i !== index))
+                        }
+                        className="focus-ring cursor-pointer rounded-lg p-2 text-[var(--text-tertiary)] hover:text-[var(--error-strong)]"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* The bag question, answered by arithmetic instead of by
+                      the shopkeeper. Stock is kept in the selling unit, so a
+                      50kg sack entered as "1" makes the app believe it holds
+                      one kilo. Enter the delivery as it came and this fills
+                      the two fields above correctly. */}
+                  <div className="mt-2 border-t border-[var(--border-soft)] pt-2">
+                    {!line.packMode ? (
+                      <button
+                        type="button"
+                        onClick={() => updateLine(index, { packMode: true })}
+                        className="focus-ring cursor-pointer text-[11.5px] font-bold text-[var(--primary-hover)] hover:underline"
+                      >
+                        + It came in bags, boxes or cases
+                      </button>
+                    ) : (
+                      <div className="flex flex-wrap items-end gap-2">
+                        {[
+                          { key: "packs" as const, label: "Packs", placeholder: "2", width: "w-20" },
+                          { key: "unitsPerPack" as const, label: `${unitLabel} in one`, placeholder: "50", width: "w-24" },
+                          { key: "packCost" as const, label: "Cost of one", placeholder: "2000", width: "w-28" },
+                        ].map((field) => (
+                          <label key={field.key} className="flex flex-col gap-1">
+                            <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">
+                              {field.label}
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              placeholder={field.placeholder}
+                              value={line[field.key]}
+                              onChange={(e) => updateLine(index, { [field.key]: e.target.value })}
+                              className={`tnum ${field.width} rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-2 font-mono text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]`}
+                            />
+                          </label>
+                        ))}
+
+                        <button
+                          type="button"
+                          disabled={!packIsComplete(packEntry)}
+                          onClick={() => {
+                            const cost = packToUnitCost(packEntry);
+                            updateLine(index, {
+                              quantity: String(packsToUnits(packEntry)),
+                              unitCost: cost === null ? "" : String(cost),
+                              packMode: false,
+                            });
+                          }}
+                          className="focus-ring cursor-pointer rounded-[10px] border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-3 py-2 text-[12px] font-extrabold text-[var(--primary-dark)] transition-colors hover:bg-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Use this
+                        </button>
+
+                        {/* Shown before it is applied, so a wrong pack size is
+                            caught here rather than in the stock figures. */}
+                        <span className="text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+                          {packSummary(packEntry, unitLabel) || "Fill all three to work it out"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
             <button
               type="button"
               onClick={() =>
-                setDraftLines((prev) => [...prev, { itemId: "", quantity: "", unitCost: "" }])
+                setDraftLines((prev) => [...prev, { ...BLANK_LINE }])
               }
               className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[var(--primary)] hover:underline"
             >
