@@ -55,7 +55,7 @@ type OrdersPayload = {
   overdue_count: number;
 };
 
-type Supplier = { id: string; name: string };
+type Supplier = { id: string; name: string; phone: string };
 type StockItem = {
   id: string;
   name: string;
@@ -133,6 +133,12 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
 
   const [composing, setComposing] = useState(false);
   const [supplierId, setSupplierId] = useState("");
+  const [supplierQuery, setSupplierQuery] = useState("");
+  const [supplierOpen, setSupplierOpen] = useState(false);
+  const [newSupplierOpen, setNewSupplierOpen] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [newSupplierPhone, setNewSupplierPhone] = useState("");
+  const [creatingSupplier, setCreatingSupplier] = useState(false);
   const [expectedDate, setExpectedDate] = useState("");
   const [note, setNote] = useState("");
   const [draftLines, setDraftLines] = useState<DraftLine[]>([{ ...BLANK_LINE }]);
@@ -159,6 +165,59 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
       setLoading(false);
     }
   }, []);
+
+  const chosenSupplier = suppliers.find((sup) => sup.id === supplierId) ?? null;
+  const supplierMatches = (() => {
+    const q = supplierQuery.trim().toLowerCase();
+    const pool = q
+      ? suppliers.filter(
+          (sup) =>
+            sup.name.toLowerCase().includes(q) ||
+            (sup.phone ?? "").toLowerCase().includes(q),
+        )
+      : suppliers;
+    return pool.slice(0, 6);
+  })();
+
+  /** Create a vendor without leaving the order, and select it.
+   *
+   *  A first order from somebody new is the commonest reason to be on this
+   *  screen at all, and it was the one thing the screen could not do. */
+  const createSupplier = async () => {
+    const name = newSupplierName.trim();
+    if (!name) return;
+    setCreatingSupplier(true);
+    setPickerError(null);
+    try {
+      const res = await fetch("/api/suppliers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone: newSupplierPhone.trim() }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(body?.error || "Could not save that supplier.");
+      }
+      const created = body as { id?: unknown; name?: unknown; phone?: unknown };
+      if (!created?.id) throw new Error("The supplier was saved without an id.");
+      const record: Supplier = {
+        id: String(created.id),
+        name: String(created.name ?? name),
+        phone: String(created.phone ?? newSupplierPhone.trim()),
+      };
+      setSuppliers((prev) => [record, ...prev]);
+      setSupplierId(record.id);
+      setSupplierQuery("");
+      setNewSupplierOpen(false);
+      setNewSupplierName("");
+      setNewSupplierPhone("");
+      setSupplierOpen(false);
+    } catch (err) {
+      setPickerError(errorMessage(err, "Could not save that supplier."));
+    } finally {
+      setCreatingSupplier(false);
+    }
+  };
 
   const updateLine = (index: number, patch: Partial<DraftLine>) =>
     setDraftLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
@@ -262,6 +321,13 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
   }, [load]);
 
   // Close any open item list on a click elsewhere.
+  useEffect(() => {
+    if (!supplierOpen) return;
+    const close = () => setSupplierOpen(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [supplierOpen]);
+
   useEffect(() => {
     if (openLine === null) return;
     const close = () => setOpenLine(null);
@@ -546,32 +612,124 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
               screen, which is exactly how this one read. */}
           {!pickerError && suppliers.length === 0 && (
             <p className="m-0 rounded-[10px] border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2 text-[12px] font-bold text-[var(--warning-strong)]">
-              No suppliers yet. Add one on the Suppliers screen first - an
-              order has to be addressed to somebody.
+              No suppliers yet. Type a name in the supplier box below and add
+              them there - an order has to be addressed to somebody.
             </p>
           )}
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label
-                htmlFor="po-supplier"
-                className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] mb-1.5"
-              >
+              <label className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)]">
                 Supplier
               </label>
-              <select
-                id="po-supplier"
-                value={supplierId}
-                onChange={(e) => setSupplierId(e.target.value)}
-                className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-base)] px-4 py-3 text-sm font-bold text-[var(--text-primary)]"
-              >
-                <option value="">Choose a supplier…</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+
+              {/* Same control as the Suppliers screen, because it is the same
+                  question. A native select could not be searched and had no
+                  way to add a vendor, so a first order from somebody new
+                  meant abandoning the order to go and create them. */}
+              <div className="relative" onMouseDown={(e) => e.stopPropagation()}>
+                <input
+                  type="text"
+                  value={chosenSupplier ? chosenSupplier.name : supplierQuery}
+                  onChange={(e) => {
+                    setSupplierQuery(e.target.value);
+                    setSupplierId("");
+                  }}
+                  onFocus={() => setSupplierOpen(true)}
+                  placeholder="Type a supplier name"
+                  className="w-full rounded-[10px] border border-[var(--border-soft)] bg-[var(--bg-base)] px-3 py-2.5 text-[13px] font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
+                />
+                {chosenSupplier && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSupplierId("");
+                      setSupplierQuery("");
+                      setSupplierOpen(true);
+                    }}
+                    aria-label="Choose a different supplier"
+                    className="focus-ring absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 cursor-pointer place-items-center rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+
+                {supplierOpen && !chosenSupplier && (
+                  <div className="animate-fade-in-up absolute left-0 right-0 top-full z-30 mt-1 max-h-[220px] overflow-y-auto rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] p-1 shadow-lg">
+                    {supplierMatches.map((sup) => (
+                      <button
+                        key={sup.id}
+                        type="button"
+                        onClick={() => {
+                          setSupplierId(sup.id);
+                          setSupplierOpen(false);
+                        }}
+                        className="focus-ring flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-base)]"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[12px] font-bold text-[var(--text-primary)]">
+                            {sup.name}
+                          </span>
+                          <span className="block truncate font-mono text-[10px] text-[var(--text-tertiary)]">
+                            {sup.phone || "no phone"}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+
+                    {newSupplierOpen ? (
+                      <div className="border-t border-[var(--border-soft)] p-2">
+                        <p className="m-0 mb-1.5 font-mono text-[9.5px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">
+                          New supplier
+                        </p>
+                        <input
+                          type="text"
+                          value={newSupplierName}
+                          onChange={(e) => setNewSupplierName(e.target.value)}
+                          placeholder="Name"
+                          className="mb-1.5 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-2.5 py-2 text-[12px] font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
+                        />
+                        <input
+                          type="tel"
+                          inputMode="tel"
+                          value={newSupplierPhone}
+                          onChange={(e) => setNewSupplierPhone(e.target.value)}
+                          placeholder="Phone (optional)"
+                          className="mb-2 w-full rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-2.5 py-2 text-[12px] font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
+                        />
+                        <button
+                          type="button"
+                          disabled={!newSupplierName.trim() || creatingSupplier}
+                          onClick={() => void createSupplier()}
+                          className="focus-ring w-full cursor-pointer rounded-lg border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-3 py-2 text-[12px] font-extrabold text-[var(--primary-dark)] transition-colors hover:bg-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {creatingSupplier ? "Saving..." : "Save and use"}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewSupplierName(supplierQuery.trim());
+                          setNewSupplierOpen(true);
+                        }}
+                        className="focus-ring mt-1 flex w-full cursor-pointer items-center gap-2 rounded-lg border-t border-[var(--border-soft)] px-2.5 py-2 text-[11.5px] font-bold text-[var(--primary-hover)] hover:bg-[var(--bg-base)]"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        {supplierQuery.trim()
+                          ? `Add "${supplierQuery.trim()}" as a new supplier`
+                          : "Add a new supplier"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {chosenSupplier?.phone && (
+                <p className="m-0 mt-1.5 font-mono text-[11px] text-[var(--text-tertiary)]">
+                  {chosenSupplier.phone}
+                </p>
+              )}
             </div>
             <div>
               <label
