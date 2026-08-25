@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -31,6 +31,8 @@ import {
   Layers,
   Bell,
   ShieldCheck,
+  LayoutGrid,
+  ChevronDown,
 } from "lucide-react";
 
 import { formatRole } from "@/lib/formatters";
@@ -187,41 +189,31 @@ export function AdminShell({
     title;
 
   const [moreOpen, setMoreOpen] = useState(false);
-  /** The sidebar scrolls inside itself. Expanding More tools changes its
-   *  content height, and the browser re-resolves the scroll position against
-   *  the new height - so wherever you were reading jumped away. Held here and
-   *  put back after the expansion renders. */
-  const navRef = useRef<HTMLElement>(null);
-  const navScroll = useRef(0);
-  /** The PAGE scroll, held across the same toggle.
-   *
-   *  The sidebar is sticky and sits in the page's own scroll flow, so
-   *  expanding it changes the document height. Chrome's scroll anchoring then
-   *  re-resolves where the viewport should sit and moves the whole page -
-   *  which is why the screen jumped to the top rather than only the nav. */
-  const pageScroll = useRef(0);
+  /** The tools menu, for closing it on a click elsewhere. */
+  const moreRef = useRef<HTMLDivElement>(null);
 
-  useLayoutEffect(() => {
-    const nav = navRef.current;
-    if (nav && navScroll.current > 0) {
-      nav.scrollTop = navScroll.current;
-    }
-    // Same frame as the expansion paints. Restoring later would draw the
-    // jumped position first and then correct it, which is a flinch rather
-    // than a fix.
-    if (pageScroll.current > 0 && window.scrollY !== pageScroll.current) {
-      window.scrollTo({ top: pageScroll.current, behavior: "instant" as ScrollBehavior });
-    }
-  }, [moreOpen]);
+  // Close on a click anywhere else, or on Escape. A menu that stays open
+  // over the page is worse than one that never opened.
   useEffect(() => {
-    // Opened if the shopkeeper left it open, or if they are standing on a page
-    // inside it — a collapsed section that hides the current page makes the
-    // nav look broken.
-    const remembered = window.localStorage.getItem("bh_nav_more_open") === "true";
-    const onAMorePage = moreNav.some((item) => item.key === activeRoute);
-    setMoreOpen(remembered || onAMorePage);
-    // moreNav is rebuilt each render; activeRoute is the value that matters.
-  }, [activeRoute]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!moreOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!moreRef.current?.contains(event.target as Node)) setMoreOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMoreOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [moreOpen]);
+  // A menu opens when it is asked for and not before. Remembering it open
+  // made sense while it was a section of the nav; as an overlay it would mean
+  // a panel covering the page on every single load. The button carries the
+  // active highlight instead, so a page inside the menu is still findable
+  // without the menu being open.
 
   const advancedNav = [
     ...(isPlatformAdmin
@@ -351,12 +343,8 @@ export function AdminShell({
         
         {/* Left Sidebar Navigation matching APK tabs */}
         <aside
-          ref={navRef}
-          style={{ overflowAnchor: "none" }}
-          className={`hidden lg:flex flex-col gap-6 no-scrollbar ${
-            fitViewport
-              ? "lg:min-h-0 lg:overflow-y-auto"
-              : "lg:sticky lg:top-[92px] lg:max-h-[calc(100vh-108px)] lg:overflow-y-auto lg:self-start"
+          className={`hidden lg:flex flex-col gap-6 ${
+            fitViewport ? "lg:min-h-0" : "lg:sticky lg:top-[92px] lg:self-start"
           }`}
         >
           
@@ -416,49 +404,64 @@ export function AdminShell({
               wholesaler lives in Purchase orders. Auto-opens when the current
               page is inside it, so a bookmarked link never lands somewhere the
               nav claims does not exist. */}
+          {/* An overlay, not an expansion.
+
+              Anything that grows INSIDE the sidebar changes the document
+              height, and the browser then re-resolves where the viewport
+              belongs - which is what threw the page to the top. A menu that is
+              absolutely positioned is out of the flow entirely, so the page it
+              sits over cannot move. That removes the bug rather than
+              compensating for it. */}
           {moreNav.length > 0 && (
-            <div className="bg-surface border border-border-soft rounded-[24px] p-3.5 shadow-sm space-y-1 transition-colors duration-200">
+            <div ref={moreRef} className="relative">
               <button
                 type="button"
-                onClick={() => {
-                  // Read BEFORE the state change: after it, the list has
-                  // already grown and the number is the new one.
-                  navScroll.current = navRef.current?.scrollTop ?? 0;
-                  pageScroll.current = window.scrollY;
-                  const next = !moreOpen;
-                  setMoreOpen(next);
-                  try {
-                    window.localStorage.setItem("bh_nav_more_open", String(next));
-                  } catch {
-                    // A browser with site data blocked must still open the
-                    // menu; only the remembering is lost.
-                  }
-                }}
+                onClick={() => setMoreOpen((open) => !open)}
                 aria-expanded={moreOpen}
-                className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-text-tertiary hover:text-text-secondary"
+                aria-haspopup="menu"
+                className={`focus-ring flex w-full cursor-pointer items-center justify-between gap-2 rounded-[16px] border px-3.5 py-3 text-xs font-bold shadow-sm transition-colors ${
+                  moreOpen || moreNav.some((item) => item.key === activeRoute)
+                    ? "border-[var(--primary)]/25 bg-[var(--primary)]/10 text-[var(--primary-dark)]"
+                    : "border-border-soft bg-surface text-text-secondary hover:text-text-primary"
+                }`}
               >
-                <span>More tools</span>
-                <span aria-hidden>{moreOpen ? "−" : "+"}</span>
+                <span className="flex items-center gap-3">
+                  <LayoutGrid className="h-4 w-4" />
+                  More tools
+                </span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                    moreOpen ? "rotate-180" : ""
+                  }`}
+                />
               </button>
-              {moreOpen &&
-                moreNav.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeRoute === item.key;
-                  return (
-                    <Link
-                      key={item.key}
-                      href={item.href}
-                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                        isActive
-                          ? "relative bg-[var(--primary)]/12 text-[var(--primary-hover)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--primary)]"
-                          : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
+
+              {moreOpen && (
+                <div
+                  role="menu"
+                  className="animate-fade-in-up absolute bottom-full left-0 z-40 mb-2 max-h-[60vh] w-full min-w-[220px] overflow-y-auto rounded-[16px] border border-border-soft bg-surface p-2 shadow-lg"
+                >
+                  {moreNav.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeRoute === item.key;
+                    return (
+                      <Link
+                        key={item.key}
+                        href={item.href}
+                        onClick={() => setMoreOpen(false)}
+                        className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-bold transition-colors ${
+                          isActive
+                            ? "bg-[var(--primary)]/12 text-[var(--primary-hover)]"
+                            : "text-text-secondary hover:bg-bg-soft hover:text-text-primary"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
