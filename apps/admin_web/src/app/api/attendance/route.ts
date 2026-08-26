@@ -17,6 +17,10 @@ export async function GET(req: NextRequest) {
     const membershipId = searchParams.get("membership_id") || "";
     const status = searchParams.get("status") || "";
     const q = searchParams.get("q") || "";
+    // Keyset-paged now: one attendance row per person per day accumulates
+    // forever, and this screen sends no date window of its own.
+    const cursor = searchParams.get("cursor") || "";
+    const limit = searchParams.get("limit") || "";
 
     const cookieStore = await cookies();
     const token = cookieStore.get("bh_access_token")?.value;
@@ -32,6 +36,8 @@ export async function GET(req: NextRequest) {
     if (membershipId) backendUrl.searchParams.set("membership_id", membershipId);
     if (status) backendUrl.searchParams.set("status", status);
     if (q) backendUrl.searchParams.set("q", q);
+    if (cursor) backendUrl.searchParams.set("cursor", cursor);
+    if (limit) backendUrl.searchParams.set("limit", limit);
 
     const res = await fetch(backendUrl.toString(), {
       headers: {
@@ -46,7 +52,10 @@ export async function GET(req: NextRequest) {
     }
 
     const data = await res.json();
-    return NextResponse.json(data);
+    const out = NextResponse.json(data);
+    const nextCursor = res.headers.get("X-Next-Cursor");
+    if (nextCursor) out.headers.set("X-Next-Cursor", nextCursor);
+    return out;
   } catch (error) {
     return NextResponse.json({ error: errorMessage(error, "Internal server error") }, { status: 500 });
   }

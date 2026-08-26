@@ -14,6 +14,7 @@ from platform_apps.attendance.serializers import (
     AttendanceSummarySerializer,
 )
 from platform_apps.shops.models import ShopMembership
+from platform_apps.common.cursor import CursorListMixin
 from platform_apps.shops.permissions import ensure_feature_enabled_or_403, get_membership_or_403
 
 
@@ -39,7 +40,12 @@ class ShopScopedMixin:
         return self._membership_map_cache
 
 
-class AttendanceSessionListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
+class AttendanceSessionListCreateView(
+    CursorListMixin, ShopScopedMixin, generics.ListCreateAPIView
+):
+    # One row per person per day, forever. A date window narrows it when the
+    # screen sends one, and the screen does not have to.
+    cursor_field = "session_date"
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = None
 

@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from platform_apps.expenses.models import Expense
 from platform_apps.expenses.serializers import ExpenseSerializer, ExpenseSummarySerializer
 from platform_apps.shops.models import ShopMembership
+from platform_apps.common.cursor import CursorListMixin
 from platform_apps.shops.permissions import ensure_feature_enabled_or_403, get_membership_or_403
 
 
@@ -28,7 +29,13 @@ class ShopScopedMixin:
         return self._membership_cache
 
 
-class ExpenseListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
+class ExpenseListCreateView(
+    CursorListMixin, ShopScopedMixin, generics.ListCreateAPIView
+):
+    # Newest first, which is the order this screen has always shown. There was
+    # no bound at all here: every expense a shop has ever recorded came back in
+    # one response, and one row is added every time somebody buys anything.
+    cursor_field = "expense_date"
     serializer_class = ExpenseSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = None

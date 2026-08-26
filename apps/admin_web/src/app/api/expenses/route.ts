@@ -14,6 +14,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q") || "";
     const category = searchParams.get("category") || "";
+    // The list is keyset-paged now. Without these the screen always asks for
+    // the first page and "load more" returns what is already on it.
+    const cursor = searchParams.get("cursor") || "";
+    const limit = searchParams.get("limit") || "";
 
     const cookieStore = await cookies();
     const token = cookieStore.get("bh_access_token")?.value;
@@ -26,6 +30,8 @@ export async function GET(req: NextRequest) {
     const backendUrl = new URL(`${API_BASE_URL}/shops/${shopId}/expenses/`);
     if (q) backendUrl.searchParams.set("q", q);
     if (category) backendUrl.searchParams.set("category", category);
+    if (cursor) backendUrl.searchParams.set("cursor", cursor);
+    if (limit) backendUrl.searchParams.set("limit", limit);
 
     const res = await fetch(backendUrl.toString(), {
       headers: {
@@ -40,7 +46,12 @@ export async function GET(req: NextRequest) {
     }
 
     const data = await res.json();
-    return NextResponse.json(data);
+    const out = NextResponse.json(data);
+    // The next-page cursor rides in a header so the body stays the bare array
+    // every existing client parses. It stops here unless it is forwarded.
+    const nextCursor = res.headers.get("X-Next-Cursor");
+    if (nextCursor) out.headers.set("X-Next-Cursor", nextCursor);
+    return out;
   } catch (error) {
     return NextResponse.json({ error: errorMessage(error, "Internal server error") }, { status: 500 });
   }
