@@ -94,6 +94,17 @@ services:
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+      # Where product photos live. "filesystem" uses the bhub_media volume
+      # below, which survives a rebuild but lives and dies with the machine -
+      # so it must be in your backups. Set BLOB_STORE=s3 with the BLOB_S3_*
+      # values to use Spaces, R2 or S3 instead.
+      BLOB_STORE: ${BLOB_STORE:-filesystem}
+      BLOB_ROOT: /var/lib/bhub/media
+      BLOB_S3_BUCKET: ${BLOB_S3_BUCKET:-}
+      BLOB_S3_ENDPOINT: ${BLOB_S3_ENDPOINT:-}
+      BLOB_S3_REGION: ${BLOB_S3_REGION:-}
+      BLOB_S3_ACCESS_KEY: ${BLOB_S3_ACCESS_KEY:-}
+      BLOB_S3_SECRET_KEY: ${BLOB_S3_SECRET_KEY:-}
     ports:
       # Local-only by default; front it with Nginx + SSL. For a quick public
       # IP:port demo, change to "0.0.0.0:8001:8000" and open the firewall.
@@ -109,6 +120,10 @@ services:
       # delete a backup, and an application container is exactly where a
       # compromise would start.
       - ${BACKUP_DIR:-/var/backups/bhub}:/var/backups/bhub:ro
+      # Product photos. Without this they are written to the container's own
+      # disk, which is discarded on the next deploy - and since the picture is
+      # cleared from the database row once it is stored, that is the only copy.
+      - bhub_media:/var/lib/bhub/media
     depends_on:
       db:
         condition: service_healthy
@@ -142,3 +157,6 @@ services:
 
 volumes:
   bhub_db:
+  # Product photos when BLOB_STORE=filesystem. Back this up: unlike the
+  # database it has no dump, and losing it loses every picture.
+  bhub_media:
