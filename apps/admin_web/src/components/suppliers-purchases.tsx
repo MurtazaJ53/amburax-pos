@@ -8,6 +8,16 @@ import {
   X,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import {
+  BLANK_LINE,
+  type DraftLine,
+  type StockItem,
+  linesSubtotal,
+  readStockItems,
+  toPayload,
+  validateLines,
+} from "@/lib/item-lines";
+import { ItemLinesEditor } from "@/components/ui/item-lines-editor";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -109,8 +119,15 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
   const [supplierQuery, setSupplierQuery] = useState("");
   const [supplierListOpen, setSupplierListOpen] = useState(false);
   const [poInvoiceNo, setPoInvoiceNo] = useState("");
-  const [poTotalAmount, setPoTotalAmount] = useState("");
   const [poPaidAmount, setPoPaidAmount] = useState("");
+  // The bill is entered line by line against real stock, so the total is
+  // worked out rather than typed: a typed total that disagrees with the
+  // lines is a bill whose money and whose stock tell different stories.
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [draftLines, setDraftLines] = useState<DraftLine[]>([{ ...BLANK_LINE }]);
+  const [openLine, setOpenLine] = useState<number | null>(null);
+  const [stockError, setStockError] = useState<string | null>(null);
+  const poTotal = linesSubtotal(draftLines);
 
   // New Supplier form
   const [supName, setSupName] = useState("");
@@ -181,16 +198,50 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
     return pool.slice(0, 8);
   })();
 
+  // Loaded when the bill opens rather than on mount: the picker is only
+  // needed by this one dialog, and the catalogue is a few hundred rows.
+  useEffect(() => {
+    if (!isNewPoOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/inventory");
+        if (!res.ok) throw new Error(`Could not load your stock (${res.status})`);
+        const rows = readStockItems(await res.json());
+        if (cancelled) return;
+        setStockItems(rows);
+        // Said out loud. An empty picker with no explanation is why the
+        // purchase-order screen looked broken rather than merely unloaded.
+        setStockError(
+          rows.length === 0 ? "No products in stock yet. Add them in Stock first." : null,
+        );
+      } catch (err) {
+        if (!cancelled) setStockError(errorMessage(err, "Could not load your stock."));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isNewPoOpen]);
+
   const handleCreatePo = async (e: React.FormEvent) => {
     e.preventDefault();
     const sup = suppliers.find((s) => s.id === poSupplierId);
-    const total = parseFloat(poTotalAmount) || 0;
     const paid = parseFloat(poPaidAmount) || 0;
 
     // The label says "Supplier *", and it meant nothing: supplier_id fell
     // through as null and the purchase was filed against no vendor at all.
     if (!sup) {
       setSaveError("Choose the supplier this invoice came from.");
+      return;
+    }
+
+    // Every line must name a product in stock. Without one the backend books
+    // the money owed and nothing else - no stock, no cost price, no price
+    // history - which is exactly what this screen used to do.
+    const lineProblem = validateLines(draftLines);
+    if (lineProblem) {
+      setSaveError(lineProblem);
       return;
     }
 
@@ -208,16 +259,10 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
           amount_paid: paid.toFixed(2),
           payment_mode: "CASH",
           purchase_date: new Date().toISOString().slice(0, 10),
-          // One summary line for the whole invoice, matching what the mobile
-          // app sends: the backend requires at least one item, and this form
-          // records an invoice total rather than a line-by-line delivery.
-          items: [
-            {
-              name: invoice || "Stock purchase",
-              quantity: "1",
-              unit_cost: total.toFixed(2),
-            },
-          ],
+          // The real lines. Each one carries the stock item it belongs to,
+          // which is what moves stock, rewrites the cost price, stamps the
+          // supplier and date on the product, and feeds Supplier prices.
+          items: toPayload(draftLines, stockItems),
         }),
       });
       if (!res.ok) {
@@ -226,8 +271,8 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
       }
       setIsNewPoOpen(false);
       setPoInvoiceNo("");
-      setPoTotalAmount("");
       setPoPaidAmount("");
+      setDraftLines([{ ...BLANK_LINE }]);
       // Re-read rather than patch local state: the supplier's payable balance
       // is recalculated server-side from its ledger.
       await load();
@@ -589,20 +634,43 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
                 />
               </div>
 
+              <div>
+                <div className="mb-1 flex items-baseline justify-between gap-3">
+                  <label className="block text-xs font-semibold text-[var(--text-secondary)]">
+                    What arrived *
+                  </label>
+                  {/* Said plainly, because this is the whole point of the
+                      screen: these lines are what move stock. */}
+                  <span className="text-[11px] font-semibold text-[var(--text-tertiary)]">
+                    Each line adds to stock and updates its cost
+                  </span>
+                </div>
+                {stockError && (
+                  <p className="mb-2 rounded-xl border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-3 py-2 text-[11.5px] font-semibold text-[var(--warning-strong)]">
+                    {stockError}
+                  </p>
+                )}
+                <ItemLinesEditor
+                  items={stockItems}
+                  lines={draftLines}
+                  onChange={setDraftLines}
+                  openLine={openLine}
+                  onOpenLine={setOpenLine}
+                  quantityLabel="Arrived"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
-                    Total Inward Bill (₹) *
+                    Bill total (₹)
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={poTotalAmount}
-                    onChange={(e) => setPoTotalAmount(e.target.value)}
-                    placeholder="₹0.00"
-                    className="w-full px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none"
-                  />
+                  {/* Added up from the lines, not typed. A typed total that
+                      disagrees with the lines is a bill whose money and whose
+                      stock tell two different stories. */}
+                  <output className="tnum block w-full rounded-xl border border-[var(--border-soft)] bg-bg-base px-3 py-2 font-mono text-xs font-bold text-text-primary">
+                    {formatCurrency(poTotal)}
+                  </output>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
