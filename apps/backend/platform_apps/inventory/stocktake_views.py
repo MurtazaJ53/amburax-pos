@@ -33,6 +33,7 @@ from rest_framework import exceptions, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from platform_apps.projections.services import refresh_projection_after_write
 from platform_apps.inventory.models import (
     InventoryItem,
     InventoryStockLedger,
@@ -282,6 +283,13 @@ class StocktakeApplyView(APIView):
         stocktake.save(
             update_fields=["status", "applied_at", "applied_by", "updated_at"]
         )
+
+        # The whole point of a count is to correct the figures people act on,
+        # and the dashboard is a stored snapshot. Without this, applying a
+        # count fixed the stock screen and left the homepage showing exactly
+        # the numbers the count was run to disprove.
+        if applied:
+            refresh_projection_after_write(shop, context="a stocktake")
 
         payload = _serialize(stocktake)
         payload["adjustments_posted"] = applied

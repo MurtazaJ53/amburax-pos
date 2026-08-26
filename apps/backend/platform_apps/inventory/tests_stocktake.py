@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
@@ -108,6 +109,22 @@ class StocktakeTests(TestCase):
         self._apply(started["id"])
 
         self.assertEqual(stock_of(item), Decimal("5"))
+
+    def test_applying_a_count_rebuilds_the_dashboard(self):
+        """The homepage is a stored snapshot, not a live query.
+
+        Without this, applying a count corrected the stock screen and left the
+        dashboard showing exactly the figures the count was run to disprove.
+        """
+        item = self._item("Rice", stock="10")
+        started = self._start().data
+        self._count(started["id"], item, "8")
+
+        with patch(
+            "platform_apps.inventory.stocktake_views.refresh_projection_after_write"
+        ) as refresh:
+            self._apply(started["id"])
+        self.assertTrue(refresh.called, "a stocktake left the dashboard stale")
 
     def test_a_matching_count_posts_no_adjustment(self):
         """Zero-variance rows would be noise in a ledger people read."""

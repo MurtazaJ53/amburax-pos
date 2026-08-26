@@ -8,6 +8,7 @@ from rest_framework import exceptions, generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from platform_apps.projections.services import refresh_projection_after_write
 from platform_apps.purchases.models import Purchase, Supplier, SupplierLedgerEntry
 from platform_apps.purchases.serializers import (
     PurchaseSerializer,
@@ -163,6 +164,11 @@ class PurchaseListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
         membership = get_membership_or_403(self.request.user, self.kwargs["shop_id"], ShopMembership.Role.ADMIN)
         ensure_feature_enabled_or_403(membership, "purchase_workflow")
         serializer.save()
+        # A delivery moves low_stock_items_count, out_of_stock_items_count and
+        # projected_sell_value - three of the dashboard's headline figures. The
+        # dashboard is a stored snapshot, so without this the homepage still
+        # calls an item out of stock after it has been received and put away.
+        refresh_projection_after_write(membership.shop, context="a purchase")
 
 
 class PurchaseDetailView(ShopScopedMixin, generics.RetrieveAPIView):
