@@ -101,7 +101,20 @@ export function DataHealth() {
       // /customers/, which slice to 200 rows, so a larger catalog was
       // half-scanned while this page claimed a full sweep.
       const res = await fetch("/api/reports/data-health");
-      if (!res.ok) throw new Error(`Could not run the scan (${res.status})`);
+      if (!res.ok) {
+        // The status alone says nothing anybody can act on. The proxy already
+        // pulls the server's own sentence out of the failure - "you do not
+        // have access to this shop", "no shop selected" - and it was being
+        // thrown away here, leaving a bare number on screen and no way to
+        // tell a permissions problem from a missing route.
+        const body = await res.json().catch(() => null);
+        const detail = typeof body?.error === "string" ? body.error : "";
+        throw new Error(
+          detail
+            ? `Could not run the scan: ${detail}`
+            : `Could not run the scan (${res.status})`,
+        );
+      }
       const body = await res.json();
       setReport(toReport(body));
       setScanned({
