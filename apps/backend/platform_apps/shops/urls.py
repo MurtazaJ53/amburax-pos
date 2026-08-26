@@ -44,6 +44,7 @@ from platform_apps.inventory.stocktake_views import (
     StocktakeDetailView,
     StocktakeListCreateView,
 )
+from platform_apps.inventory.sku_views import GenerateSkusView
 from platform_apps.inventory.transfer_views import (
     StockTransferCancelView,
     StockTransferListCreateView,
@@ -366,6 +367,11 @@ urlpatterns = [
         "<uuid:shop_id>/inventory/<uuid:item_id>/adjust-stock/",
         InventoryItemAdjustmentView.as_view(),
         name="inventory-adjust-stock",
+    ),
+    path(
+        "<uuid:shop_id>/inventory/generate-skus/",
+        GenerateSkusView.as_view(),
+        name="inventory-generate-skus",
     ),
     # shop_id is the shop ACTING, which differs by verb: the destination
     # receives, the source cancels. Each view checks the transfer really has

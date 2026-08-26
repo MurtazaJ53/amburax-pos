@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Minus, Plus, Printer, Search, X } from "lucide-react";
+import { AlertTriangle, Minus, Plus, Printer, Search, Wand2, X } from "lucide-react";
+
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 import { barcodeSvg, canEncode } from "@/lib/barcode";
 
@@ -84,6 +86,8 @@ export function LabelPrinter({ shopName }: { shopName: string }) {
 
   const format = FORMATS.find((f) => f.key === formatKey) ?? FORMATS[0];
 
+  const refreshServerData = useServerRefresh();
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -148,6 +152,47 @@ export function LabelPrinter({ shopName }: { shopName: string }) {
       return copy;
     });
 
+  /** Every product in the shop that cannot be printed at all.
+   *
+   *  Distinct from `unprintable`, which counts only what is selected. This is
+   *  the number that decides whether the screen can do anything useful yet:
+   *  a catalogue imported from a spreadsheet arrives with no codes, and the
+   *  screen's only response was to say so once per product.
+   */
+  const withoutCode = useMemo(
+    () => items.filter((item) => !codeFor(item)).length,
+    [items],
+  );
+
+  const [generating, setGenerating] = useState(false);
+  const [generated, setGenerated] = useState<number | null>(null);
+
+  const generateSkus = async () => {
+    setGenerating(true);
+    setError(null);
+    setGenerated(null);
+    try {
+      const res = await fetch("/api/inventory/generate-skus", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.detail || body?.error || `Could not create codes (${res.status})`);
+      }
+      setGenerated(Number(body?.assigned_count ?? 0));
+      // The codes are on the products now, so every other screen that shows a
+      // SKU is out of date as well.
+      await load();
+      refreshServerData();
+    } catch (err) {
+      setError(errorMessage(err, "Could not create codes for those products."));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const unprintable = useMemo(
     () => Object.keys(counts).filter((id) => {
       const item = items.find((i) => i.id === id);
@@ -168,7 +213,7 @@ export function LabelPrinter({ shopName }: { shopName: string }) {
           </div>
         )}
 
-        <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 sm:p-6 shadow-sm space-y-4">
           <div>
             <label
               htmlFor="label-format"
@@ -217,7 +262,43 @@ export function LabelPrinter({ shopName }: { shopName: string }) {
         </div>
 
         {/* --- picking what to print -------------------------------------- */}
-        <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 sm:p-6 shadow-sm space-y-4">
+          {/* A label needs something to encode. Saying "NEEDS A SKU" once per
+              product, a few hundred times, states the problem and offers no
+              way out of it - so the way out lives here. */}
+          {withoutCode > 0 && (
+            <div className="flex flex-col gap-3 rounded-[16px] border border-[var(--warning)]/30 bg-[var(--warning)]/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="m-0 text-[13px] font-extrabold text-[var(--warning-strong)]">
+                  {withoutCode} product{withoutCode === 1 ? "" : "s"} cannot be
+                  printed yet
+                </p>
+                <p className="m-0 mt-1 max-w-[62ch] text-[12px] font-semibold leading-relaxed text-[var(--text-secondary)]">
+                  A barcode has to encode something, and these have neither a
+                  barcode nor a SKU. Give them one and they become printable
+                  and scannable at the till.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void generateSkus()}
+                disabled={generating}
+                className="focus-ring inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[12px] border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-4 py-2.5 text-[12px] font-extrabold text-[var(--primary-dark)] transition-colors duration-200 hover:bg-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Wand2 className={`h-3.5 w-3.5 ${generating ? "motion-safe:animate-pulse" : ""}`} />
+                {generating ? "Creating codes…" : "Create codes for all"}
+              </button>
+            </div>
+          )}
+
+          {generated !== null && (
+            <p className="m-0 rounded-[16px] border border-[var(--success)]/30 bg-[var(--success)]/10 px-4 py-3 text-[12px] font-extrabold text-[var(--success-strong)]">
+              {generated === 0
+                ? "Every product already had a code."
+                : `Gave ${generated} product${generated === 1 ? "" : "s"} a code. They can be printed now.`}
+            </p>
+          )}
+
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
             <input
@@ -245,7 +326,7 @@ export function LabelPrinter({ shopName }: { shopName: string }) {
                 return (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-base)] px-4 py-3"
+                    className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] px-4 py-3 transition-colors duration-200 hover:border-[var(--border)]"
                   >
                     <div className="min-w-0">
                       <span className="block text-xs font-extrabold text-[var(--text-primary)] truncate">
