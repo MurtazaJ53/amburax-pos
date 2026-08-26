@@ -138,6 +138,32 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
     };
   }, [selectedCustomerId]);
 
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const loadMoreCustomers = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ cursor: nextCursor });
+      if (search) params.set("q", search);
+      const res = await fetch(`/api/customers?${params.toString()}`);
+      if (!res.ok) throw new Error("Could not load more customers.");
+      const rows: Customer[] = await res.json();
+      // Merged by id: a customer edited in another tab between two pages
+      // would otherwise arrive twice.
+      setCustomers((previous) => {
+        const seen = new Set(previous.map((c) => c.id));
+        return [...previous, ...rows.filter((c) => !seen.has(c.id))];
+      });
+      setNextCursor(res.headers.get("X-Next-Cursor"));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   // Debounced search customer list
   useEffect(() => {
     let active = true;
@@ -147,6 +173,10 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
         if (!res.ok) throw new Error("Failed to search customers");
         const data = await res.json();
         if (active) {
+          // The list is paged now. On 243 customers the old cap of 200 left
+          // 43 of them unreachable from this screen with nothing said, so the
+          // cursor is what makes the rest loadable.
+          setNextCursor(res.headers.get("X-Next-Cursor"));
           setCustomers(data);
           if (
             data.length > 0 &&
@@ -443,6 +473,19 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
                   </button>
                 );
               })
+            )}
+
+            {/* 243 customers against a 200-row cap meant 43 of them could not
+                be reached from this screen, and nothing said so. */}
+            {nextCursor && (
+              <button
+                type="button"
+                onClick={() => void loadMoreCustomers()}
+                disabled={loadingMore}
+                className="focus-ring mt-2 w-full cursor-pointer rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-3 py-2 text-[11.5px] font-extrabold text-[var(--primary-dark)] transition-colors duration-200 hover:bg-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loadingMore ? "Loading…" : "Load more customers"}
+              </button>
             )}
           </div>
         </div>

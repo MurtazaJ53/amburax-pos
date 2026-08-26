@@ -251,3 +251,83 @@ class CursorEndpointTests(TestCase):
         # screen has always shown, or the list silently reshuffles.
         names = [row["name"] for row in self.client.get(self.url).json()]
         self.assertEqual(names, sorted(names))
+
+
+class MultiColumnCursorTests(TestCase):
+    """Paging a sort of more than one column.
+
+    The customers list is "who owes most first, then alphabetically". Most
+    customers owe nothing, so the first column ties across almost the whole
+    table - which is exactly where a naive keyset drops rows.
+    """
+
+    def setUp(self):
+        from platform_apps.customers.models import Customer
+
+        self.Customer = Customer
+        self.shop = Shop.objects.create(name="Owed Shop", slug="owed-shop")
+        self._next_phone = 0
+
+    def _customer(self, name, balance="0"):
+        # Counted, not hashed. Python randomises string hashing per process,
+        # so a hash-derived fixture value differs between runs - which is how
+        # a test starts failing once in every few runs for no visible reason.
+        self._next_phone += 1
+        return self.Customer.objects.create(
+            shop=self.shop,
+            name=name,
+            phone=f"9{self._next_phone:09d}",
+            balance=Decimal(balance),
+        )
+
+    def _all(self):
+        return self.Customer.objects.filter(shop=self.shop)
+
+    ORDER = (("balance", True), ("name", False))
+
+    def _walk(self, size):
+        seen, cursor, guard = [], None, 0
+        while True:
+            rows, cursor = cursor_page(
+                self._all(), order=self.ORDER, cursor=cursor, size=size
+            )
+            seen.extend(rows)
+            guard += 1
+            self.assertLess(guard, 40, "pager did not terminate")
+            if cursor is None:
+                return seen
+
+    def test_the_order_is_who_owes_most_then_alphabetical(self):
+        self._customer("Zoya", "500")
+        self._customer("Amit", "500")
+        self._customer("Bilal", "900")
+        rows, _ = cursor_page(self._all(), order=self.ORDER, size=10)
+        self.assertEqual([r.name for r in rows], ["Bilal", "Amit", "Zoya"])
+
+    def test_every_customer_is_seen_once_when_most_owe_nothing(self):
+        # The real shape of the data: one debtor and a long tail of zeros.
+        self._customer("Debtor", "1200")
+        for n in range(24):
+            self._customer(f"Customer {n:02d}")
+        seen = self._walk(size=5)
+        self.assertEqual(len(seen), 25)
+        self.assertEqual(len({c.id for c in seen}), 25, "a customer was repeated")
+
+    def test_no_customer_is_lost_across_a_page_boundary(self):
+        """Twenty identical balances and a page size that splits them.
+
+        A keyset on balance alone would compare 0 against 0, match nothing
+        past it, and either loop or silently drop the rest.
+        """
+        for n in range(20):
+            self._customer(f"Customer {n:02d}")
+        names = [c.name for c in self._walk(size=6)]
+        self.assertEqual(len(names), 20)
+        self.assertEqual(names, sorted(names), "alphabetical order was lost")
+
+    def test_paging_preserves_the_order_a_single_page_would_show(self):
+        for n in range(12):
+            self._customer(f"Name {n:02d}", "0" if n % 2 else "100")
+        one_page, _ = cursor_page(self._all(), order=self.ORDER, size=50)
+        paged = self._walk(size=4)
+        self.assertEqual([c.id for c in paged], [c.id for c in one_page])

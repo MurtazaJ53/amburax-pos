@@ -18,7 +18,7 @@ from platform_apps.audit.services import (
 from platform_apps.common.blind_index import generate_blind_index
 from platform_apps.common.migration import MigrationDomain
 from platform_apps.common.migration_guards import assert_postgres_primary_write_enabled
-from platform_apps.common.query import bounded_list_limit
+from platform_apps.common.cursor import CursorListMixin
 from platform_apps.customers.models import Customer, CustomerLedgerEntry
 from platform_apps.customers.serializers import (
     CustomerLedgerEntrySerializer,
@@ -44,7 +44,14 @@ class ShopScopedMixin:
         return self._membership_cache
 
 
-class CustomerListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
+class CustomerListCreateView(
+    CursorListMixin, ShopScopedMixin, generics.ListCreateAPIView
+):
+    # The exact order this screen has always shown: who owes most first, then
+    # alphabetically. Keyed on both, so paging preserves it rather than
+    # trading it away - most customers carry a zero balance, and a keyset on
+    # balance alone would scatter them into primary-key order.
+    cursor_order = (("balance", True), ("name", False))
     serializer_class = CustomerSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = None
@@ -65,7 +72,9 @@ class CustomerListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
             queryset = queryset.filter(filters)
         if status_value:
             queryset = queryset.filter(status=status_value)
-        return queryset[: bounded_list_limit(self.request.query_params.get("limit"))]
+        # No slice: CursorListMixin pages this. On 243 customers the old cap
+        # of 200 left 43 unreachable from the screen, with nothing said.
+        return queryset
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

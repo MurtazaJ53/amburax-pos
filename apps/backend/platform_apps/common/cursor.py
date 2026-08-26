@@ -107,46 +107,75 @@ def _as_text(value: Any) -> str:
     return str(value)
 
 
-def after(field: str, *, descending: bool, values: Sequence[str]) -> Q:
+def after(order: Sequence[tuple[str, bool]], values: Sequence[str]) -> Q:
     """Rows strictly after the one the cursor names, in the given order.
 
-    The row-value comparison, written out: either the sort field is already
-    past the cursor's, or it is equal and the primary key breaks the tie. That
-    second half is what stops a row being dropped when several share a
-    timestamp.
+    The row-value comparison written out longhand, because Django cannot
+    express `(a, b, c) < (?, ?, ?)` directly and a naive AND of per-column
+    filters is simply wrong - it would exclude rows whose first column ties.
+
+    For each column in turn: every earlier column equal, and this one past the
+    cursor's value. OR them together and you have "the next row", whatever mix
+    of ascending and descending the sort uses.
     """
-    sort_value, tie_value = values
-    if descending:
-        return Q(**{f"{field}__lt": sort_value}) | (
-            Q(**{field: sort_value}) & Q(id__lt=tie_value)
-        )
-    return Q(**{f"{field}__gt": sort_value}) | (
-        Q(**{field: sort_value}) & Q(id__gt=tie_value)
-    )
+    clause = Q(pk__in=[])  # Matches nothing, so the OR below builds up cleanly.
+    for index, (field, descending) in enumerate(order):
+        step = Q(**{f"{field}__{'lt' if descending else 'gt'}": values[index]})
+        for earlier, (prior_field, _) in enumerate(order[:index]):
+            step &= Q(**{prior_field: values[earlier]})
+        clause |= step
+    return clause
+
+
+def normalise_order(
+    field: str | None,
+    descending: bool,
+    order: Sequence[tuple[str, bool]] | None,
+) -> list[tuple[str, bool]]:
+    """The sort a keyset will use, always ending in the primary key.
+
+    The tiebreak is not optional. Primary keys here are random UUIDs and
+    imported sales share a timestamp in their thousands, so a sort that can
+    tie has rows with no defined position - and two of them either side of a
+    page boundary means one is never returned.
+    """
+    columns = list(order) if order else [(field or "created_at", descending)]
+    if not any(name == "id" for name, _ in columns):
+        # Direction follows the last real column, so the tiebreak reads in the
+        # same direction as the sort rather than fighting it.
+        columns.append(("id", columns[-1][1]))
+    return columns
 
 
 def cursor_page(
     queryset: QuerySet,
     *,
-    field: str,
+    field: str | None = None,
     descending: bool = True,
+    order: Sequence[tuple[str, bool]] | None = None,
     cursor: object = None,
     size: object = None,
 ) -> tuple[list, str | None]:
     """One page of rows, and the cursor for the next - or None at the end.
 
+    Pass `field` for a single-column sort, or `order` for several - a list of
+    (column, descending) pairs, outermost first. The primary key is appended
+    automatically as the tiebreak.
+
     Ordering is applied here rather than trusted from the caller: a keyset only
     works if the query is sorted by exactly the columns the cursor compares,
-    and a queryset ordered some other way would page incoherently while looking
-    perfectly fine.
+    and a queryset ordered some other way would page incoherently while
+    looking perfectly fine.
     """
     limit = page_size(size)
-    direction = "-" if descending else ""
-    queryset = queryset.order_by(f"{direction}{field}", f"{direction}id")
+    columns = normalise_order(field, descending, order)
+    queryset = queryset.order_by(
+        *[f"{'-' if desc else ''}{name}" for name, desc in columns]
+    )
 
-    values = decode_cursor(cursor, expected=2)
+    values = decode_cursor(cursor, expected=len(columns))
     if values is not None:
-        queryset = queryset.filter(after(field, descending=descending, values=values))
+        queryset = queryset.filter(after(columns, values))
 
     # One extra row, purely to learn whether there is a next page. Counting the
     # whole table instead would cost a second scan on every request, and the
@@ -157,7 +186,7 @@ def cursor_page(
 
     page = rows[:limit]
     last = page[-1]
-    return page, encode_cursor([getattr(last, field), last.pk])
+    return page, encode_cursor([getattr(last, name) for name, _ in columns])
 
 
 def attach_cursor(response, next_cursor: str | None):
@@ -181,6 +210,9 @@ class CursorListMixin:
     #: position in an ordering, so rows carrying one cannot be paged past.
     cursor_field = "created_at"
     cursor_descending = True
+    #: For sorts of more than one column: (column, descending) pairs,
+    #: outermost first. Overrides cursor_field when set.
+    cursor_order: Sequence[tuple[str, bool]] | None = None
 
     def list(self, request, *args, **kwargs):
         from rest_framework.response import Response
@@ -190,6 +222,7 @@ class CursorListMixin:
             queryset,
             field=self.cursor_field,
             descending=self.cursor_descending,
+            order=self.cursor_order,
             cursor=request.query_params.get("cursor"),
             size=request.query_params.get("limit"),
         )
