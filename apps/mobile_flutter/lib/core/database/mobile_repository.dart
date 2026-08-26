@@ -944,6 +944,12 @@ class InventoryRepository {
   Future<void> mergeBackendInventoryItem(
     Map<String, dynamic> row, {
     int? updatedAt,
+    /// Fetches this product's photo, when the row says there is one.
+    ///
+    /// Injected rather than called from here: the repository talks to the
+    /// database, and giving it an HTTP client to reach for would make every
+    /// merge a network operation.
+    Future<({List<int> bytes, String? contentType})?> Function()? fetchImage,
   }) async {
     final id = _asStringOrNull(row['id']);
     if (id == null) {
@@ -958,8 +964,15 @@ class InventoryRepository {
     // the existing file-based display code works and images survive a data
     // clear. Only when we don't already have a local copy.
     String? hydratedImagePath;
+    // The list no longer carries the picture - it was base64 on every row, so
+    // one sync pulled every photo in the shop whether it had changed or not.
+    // It carries a flag now, and the picture is fetched from its own address.
+    //
+    // image_data is still read first so this keeps working against a server
+    // that has not been updated yet.
     final remoteImage = _asStringOrNull(row['image_data']);
-    if (remoteImage != null) {
+    final serverHasImage = remoteImage != null || row['has_image'] == true;
+    if (serverHasImage) {
       final existing = await (_db.select(_db.inventoryEntries)
             ..where((t) => t.id.equals(id)))
           .getSingleOrNull();
@@ -967,8 +980,18 @@ class InventoryRepository {
           existing!.imagePath!.isNotEmpty &&
           File(existing.imagePath!).existsSync();
       if (!hasLocal) {
-        hydratedImagePath =
-            await ProductImageStore().storeFromDataUri(remoteImage);
+        if (remoteImage != null) {
+          hydratedImagePath =
+              await ProductImageStore().storeFromDataUri(remoteImage);
+        } else if (fetchImage != null) {
+          final fetched = await fetchImage();
+          if (fetched != null) {
+            hydratedImagePath = await ProductImageStore().storeFromBytes(
+              fetched.bytes,
+              contentType: fetched.contentType,
+            );
+          }
+        }
       }
     }
 

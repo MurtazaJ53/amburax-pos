@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -1729,6 +1730,57 @@ class BackendApiClient {
       } finally {
         client.close(force: true);
       }
+    }
+  }
+
+  /// One product's photo, as bytes, or null when there is none.
+  ///
+  /// Photos used to arrive inside the inventory list as base64 on every row,
+  /// so one sync pulled every picture in the shop whether it had changed or
+  /// not. They have their own address now. A missing picture is an ordinary
+  /// answer here, not a failure - a product without one is normal - so this
+  /// returns null rather than throwing, and a sync is never failed by it.
+  Future<({List<int> bytes, String? contentType})?> fetchInventoryImage({
+    required User user,
+    required String shopId,
+    required String itemId,
+  }) async {
+    if (baseUrl.trim().isEmpty) return null;
+
+    final client = HttpClient();
+    client.connectionTimeout = _requestTimeout;
+    try {
+      final url = Uri.parse(
+        '${baseUrl.replaceAll(RegExp(r"/$"), "")}'
+        '/shops/$shopId/inventory/$itemId/image/',
+      );
+      final request =
+          await client.openUrl('GET', url).timeout(_requestTimeout);
+      await _attachAuthHeaders(request, user);
+
+      final response = await request.close().timeout(_requestTimeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        // 404 is the common case: the product simply has no photo.
+        await response.drain<void>();
+        return null;
+      }
+
+      final builder = BytesBuilder(copy: false);
+      await for (final chunk in response.timeout(_requestTimeout)) {
+        builder.add(chunk);
+      }
+      final bytes = builder.takeBytes();
+      if (bytes.isEmpty) return null;
+      return (
+        bytes: bytes,
+        contentType: response.headers.contentType?.mimeType,
+      );
+    } catch (_) {
+      // A picture is never worth failing a sync over. The product still
+      // arrives; it shows its initial instead.
+      return null;
+    } finally {
+      client.close(force: true);
     }
   }
 

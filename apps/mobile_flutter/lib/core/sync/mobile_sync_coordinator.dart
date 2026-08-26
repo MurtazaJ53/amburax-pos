@@ -671,6 +671,13 @@ class MobileSyncCoordinator {
         await _inventoryRepository.mergeBackendInventoryItem(
           row,
           updatedAt: now,
+          // Fetched only when the row says there is a photo and no local copy
+          // exists, so a repeat sync costs nothing.
+          fetchImage: () => _backendApiClient.fetchInventoryImage(
+            user: user,
+            shopId: shopId,
+            itemId: row['id'].toString(),
+          ),
         );
       }
 
@@ -1554,8 +1561,15 @@ class MobileSyncCoordinator {
       );
       final now = DateTime.now().millisecondsSinceEpoch;
       for (final item in items) {
-        await _inventoryRepository.mergeBackendInventoryItem(item,
-            updatedAt: now);
+        await _inventoryRepository.mergeBackendInventoryItem(
+          item,
+          updatedAt: now,
+          fetchImage: () => _backendApiClient.fetchInventoryImage(
+            user: session.user,
+            shopId: session.shopId!,
+            itemId: item['id'].toString(),
+          ),
+        );
       }
     } catch (error) {
       debugPrint('Inventory server search failed: $error');
@@ -1606,6 +1620,11 @@ class MobileSyncCoordinator {
         await _inventoryRepository.mergeBackendInventoryItem(
           item,
           updatedAt: updatedAt,
+          fetchImage: () => _backendApiClient.fetchInventoryImage(
+            user: session.user,
+            shopId: shopId,
+            itemId: item['id'].toString(),
+          ),
         );
       }
       if (updateStatus) {

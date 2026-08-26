@@ -100,6 +100,37 @@ class ProductImageStore {
     }
   }
 
+  /// Save raw image bytes fetched from the server.
+  ///
+  /// Product photos no longer travel inside the inventory list - they were
+  /// base64 text on every row, so one sync pulled every picture in the shop
+  /// whether it had changed or not. They are fetched from their own address
+  /// now, which arrives as bytes rather than a data URI.
+  Future<String?> storeFromBytes(List<int>? bytes, {String? contentType}) async {
+    if (bytes == null || bytes.isEmpty) return null;
+    try {
+      final type = (contentType ?? '').toLowerCase();
+      final ext = type.contains('png')
+          ? '.png'
+          : type.contains('webp')
+              ? '.webp'
+              : type.contains('gif')
+                  ? '.gif'
+                  : '.jpg';
+      final dir = await _dir();
+      final dest = p.join(
+        dir.path,
+        'img_${DateTime.now().microsecondsSinceEpoch}$ext',
+      );
+      await File(dest).writeAsBytes(bytes, flush: true);
+      return dest;
+    } catch (_) {
+      // A photo that will not save is not worth failing a sync over. The
+      // product still arrives; it simply shows its initial instead.
+      return null;
+    }
+  }
+
   /// Best-effort delete of a stored photo. Safe to call with a null/empty path
   /// or a file that is already gone.
   Future<void> deleteIfOwned(String? path) async {
