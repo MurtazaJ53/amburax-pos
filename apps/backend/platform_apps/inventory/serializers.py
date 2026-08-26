@@ -6,6 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
+from platform_apps.inventory.image_views import MAX_IMAGE_BYTES, parse_data_uri
 from platform_apps.inventory.models import InventoryItem, InventoryItemPrivate, InventoryStockLedger
 
 
@@ -53,6 +54,18 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         write_only=True,
         allow_null=True,
     )
+    # Write-only. The picture used to be read back inside every product list,
+    # so opening Stock - or the till - downloaded every photo of every product
+    # in one uncacheable response. It is served from its own address now, which
+    # a browser can cache; see image_views.
+    #
+    # Omitting the field leaves the existing picture alone. Sending "" clears
+    # it. That distinction matters: the edit form posts every field it holds,
+    # so without it, saving a change of price would silently delete the photo.
+    image_data = serializers.CharField(
+        write_only=True, required=False, allow_blank=True
+    )
+    has_image = serializers.SerializerMethodField()
 
     class Meta:
         model = InventoryItem
@@ -75,6 +88,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             "tombstone",
             "source_meta_json",
             "image_data",
+            "has_image",
             "stock_on_hand",
             "has_stock_history",
             "cost_price",
@@ -87,6 +101,15 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             "private_last_purchase_date",
         )
         read_only_fields = ("id", "stock_on_hand", "created_at")
+
+    def get_has_image(self, obj) -> bool:
+        """Whether there is a picture to fetch, without sending it.
+
+        The screen needs this to decide between an <img> and the fallback
+        initial, and asking for the picture just to find out there is none
+        would undo the point of moving it out of the list.
+        """
+        return bool((getattr(obj, "image_data", "") or "").strip())
 
     def get_has_stock_history(self, obj) -> bool:
         """Was this item ever given stock?
@@ -105,6 +128,28 @@ class InventoryItemSerializer(serializers.ModelSerializer):
 
     def _can_view_purchase_workflow(self) -> bool:
         return bool(self.context.get("can_view_purchase_workflow"))
+
+    def validate_image_data(self, value):
+        """A picture, and one that fits in a row.
+
+        There was no limit at all. The browser resizes to about 60 KB before
+        upload, but anything calling the API directly could store an image of
+        any size - in a column on the product, so it would then travel with
+        every backup and every replica of the table the till reads.
+        """
+        candidate = (value or "").strip()
+        if not candidate:
+            return ""  # Deliberately clearing the picture.
+        if parse_data_uri(candidate) is None:
+            raise serializers.ValidationError(
+                "Expected a JPEG, PNG, WebP or GIF image."
+            )
+        if len(candidate.encode("utf-8")) > MAX_IMAGE_BYTES:
+            raise serializers.ValidationError(
+                "That picture is too large. It is resized before upload, so "
+                "this usually means it did not go through the picker."
+            )
+        return candidate
 
     def validate(self, attrs):
         supplier_id = attrs.get("supplier_id_input")

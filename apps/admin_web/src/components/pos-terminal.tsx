@@ -716,9 +716,9 @@ Press Pay again to retry — ` +
                   className="focus-ring flex cursor-pointer items-center gap-2.5 rounded-[11px] border border-[var(--border-soft)] bg-[var(--surface)] p-2 text-left transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary)]/5"
                 >
                   <span className="grid h-9 w-9 flex-none place-items-center overflow-hidden rounded-[9px] bg-[var(--bg-soft)]">
-                    {prod.image_data ? (
+                    {prod.has_image ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={prod.image_data} alt="" className="h-full w-full object-cover" />
+                      <img src={`/api/inventory/${prod.id}/image`} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <span className="text-[15px] font-extrabold text-[var(--primary-hover)] opacity-60">
                         {prod.name.trim().charAt(0).toUpperCase()}
@@ -770,10 +770,10 @@ Press Pay again to retry — ` +
                   className="focus-ring group flex cursor-pointer flex-col overflow-hidden rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface)] text-left transition-all hover:-translate-y-[3px] hover:border-[var(--primary)] hover:shadow-md active:translate-y-0"
                 >
                   <span className="relative block aspect-[4/3] w-full overflow-hidden border-b border-[var(--border-soft)] bg-[var(--bg-soft)]">
-                    {prod.image_data ? (
+                    {prod.has_image ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={prod.image_data}
+                        src={`/api/inventory/${prod.id}/image`}
                         alt=""
                         loading="lazy"
                         className="h-full w-full object-cover"

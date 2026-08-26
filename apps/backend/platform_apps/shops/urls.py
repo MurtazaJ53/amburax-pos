@@ -44,6 +44,7 @@ from platform_apps.inventory.stocktake_views import (
     StocktakeDetailView,
     StocktakeListCreateView,
 )
+from platform_apps.inventory.image_views import InventoryItemImageView
 from platform_apps.inventory.sku_views import GenerateSkusView
 from platform_apps.inventory.transfer_views import (
     StockTransferCancelView,
@@ -367,6 +368,11 @@ urlpatterns = [
         "<uuid:shop_id>/inventory/<uuid:item_id>/adjust-stock/",
         InventoryItemAdjustmentView.as_view(),
         name="inventory-adjust-stock",
+    ),
+    path(
+        "<uuid:shop_id>/inventory/<uuid:item_id>/image/",
+        InventoryItemImageView.as_view(),
+        name="inventory-item-image",
     ),
     path(
         "<uuid:shop_id>/inventory/generate-skus/",

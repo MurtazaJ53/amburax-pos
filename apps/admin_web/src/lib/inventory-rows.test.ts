@@ -116,16 +116,19 @@ describe("the shelf-fill bar", () => {
 });
 
 describe("the product photo", () => {
-  it("carries a stored data URI through untouched", () => {
-    const uri = "data:image/jpeg;base64,AAAA";
-    expect(mapInventoryRow(row({ image_data: uri })).image_data).toBe(uri);
+  // The bytes no longer travel with the list - opening Stock, or the till,
+  // used to download every photo inside one uncacheable response. All a row
+  // carries now is whether there is one to fetch.
+  it("says when there is a picture to fetch", () => {
+    expect(mapInventoryRow(row({ has_image: true })).has_image).toBe(true);
   });
 
-  it("becomes an empty string when the shop never added one", () => {
-    // Null and undefined both mean "no photo"; the tile falls back to the
-    // product's initial rather than rendering a broken image.
-    expect(mapInventoryRow(row({ image_data: null })).image_data).toBe("");
-    expect(mapInventoryRow(row({})).image_data).toBe("");
+  it("says there is none when the shop never added one", () => {
+    // Null, false and absent all mean "no photo"; the tile falls back to the
+    // product's initial rather than requesting a picture that is not there.
+    expect(mapInventoryRow(row({ has_image: null })).has_image).toBe(false);
+    expect(mapInventoryRow(row({ has_image: false })).has_image).toBe(false);
+    expect(mapInventoryRow(row({})).has_image).toBe(false);
   });
 });
 

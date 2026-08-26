@@ -115,6 +115,16 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
   const [formHsnCode, setFormHsnCode] = useState("");
   /** The product photo as a small data URI, or "" for none. */
   const [formImage, setFormImage] = useState("");
+  /** Whether the picture was changed in this editing session.
+   *
+   *  The photo is no longer sent back with the product, so the form cannot
+   *  hold the current one. Posting formImage regardless would send an empty
+   *  string every time, and an empty string means "clear it" - so correcting
+   *  a price would silently delete the photo. It is sent only when touched. */
+  const [imageDirty, setImageDirty] = useState(false);
+  /** Shown while editing, so the existing photo is visible without the form
+   *  holding its bytes. */
+  const [existingImageId, setExistingImageId] = useState<string | null>(null);
   const [imageBusy, setImageBusy] = useState(false);
   const [imageError, setImageError] = useState("");
   //: Whether the selling price already contains the GST.
@@ -291,6 +301,8 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
     setFormReorderLevel("10");
     setFormHsnCode("");
     setFormImage("");
+    setImageDirty(false);
+    setExistingImageId(null);
     setImageError("");
     setFormPriceIncludesTax(defaultIncludesTax);
     setIsProductModalOpen(true);
@@ -310,7 +322,11 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
     setFormStock(item.current_stock.toString());
     setFormReorderLevel((item.reorder_level ?? DEFAULT_REORDER_LEVEL).toString());
     setFormHsnCode(item.hsn_code || "");
-    setFormImage(item.image_data || "");
+    // The list no longer carries the picture, so the preview points at the
+    // image endpoint instead of holding its bytes.
+    setFormImage("");
+    setImageDirty(false);
+    setExistingImageId(item.has_image ? item.id : null);
     setImageError("");
     // The item's own answer, never the shop default — editing a product must
     // not silently re-base its price.
@@ -334,6 +350,10 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
     setImageError("");
     try {
       setFormImage(await fileToProductImage(file));
+      setImageDirty(true);
+      // A newly chosen picture replaces whatever was stored, so the old one
+      // stops being the thing on screen.
+      setExistingImageId(null);
     } catch (err) {
       setImageError(
         err instanceof Error ? err.message : "That image could not be used.",
@@ -364,7 +384,7 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
       gst_rate: tax.toFixed(2),
       hsn_code: formHsnCode.trim(),
       price_includes_tax: formPriceIncludesTax,
-      image_data: formImage,
+      ...(imageDirty ? { image_data: formImage } : {}),
     };
 
     try {
@@ -383,7 +403,7 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
             gst_rate: tax.toFixed(2),
             hsn_code: formHsnCode.trim(),
             price_includes_tax: formPriceIncludesTax,
-            image_data: formImage,
+            ...(imageDirty ? { image_data: formImage } : {}),
           }),
         });
         if (!res.ok) {
@@ -772,10 +792,10 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
                         className="focus-ring hover-nudge group flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-[13px] border border-[var(--border-soft)] bg-[var(--surface)] text-left transition-colors hover:border-[var(--primary)]"
                       >
                         <span className="relative block aspect-[4/3] w-full overflow-hidden border-b border-[var(--border-soft)] bg-[var(--bg-soft)]">
-                          {item.image_data ? (
+                          {item.has_image ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                              src={item.image_data}
+                              src={`/api/inventory/${item.id}/image`}
                               alt=""
                               loading="lazy"
                               className="h-full w-full object-cover"
@@ -926,10 +946,10 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
                           {/* The same picture the till shows, so what you set
                               here is what the cashier will be hitting. */}
                           <span className="grid h-8 w-8 flex-none place-items-center overflow-hidden rounded-[8px] border border-[var(--border-soft)] bg-[var(--bg-soft)]">
-                            {item.image_data ? (
+                            {item.has_image ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
-                                src={item.image_data}
+                                src={`/api/inventory/${item.id}/image`}
                                 alt=""
                                 loading="lazy"
                                 className="h-full w-full object-cover"
@@ -1216,10 +1236,13 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
 
                 <div className="flex items-center gap-3 rounded-[14px] border border-[var(--border-soft)] bg-[var(--bg-soft)] p-3">
                   <span className="grid h-16 w-16 flex-none place-items-center overflow-hidden rounded-[12px] border border-[var(--border-soft)] bg-[var(--surface)]">
-                    {formImage ? (
+                    {/* A picture just chosen is previewed from its own bytes;
+                        one already stored comes from its address, because the
+                        form no longer holds it. */}
+                    {formImage || existingImageId ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={formImage}
+                        src={formImage || `/api/inventory/${existingImageId}/image`}
                         alt={formName ? `Photo of ${formName}` : "Product photo"}
                         className="h-full w-full object-cover"
                       />
@@ -1234,7 +1257,7 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
                     <div className="flex flex-wrap items-center gap-2">
                       <label className="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-1.5 text-[11.5px] font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]">
                         <ImagePlus className="h-3.5 w-3.5" />
-                        {imageBusy ? "Working…" : formImage ? "Replace" : "Choose photo"}
+                        {imageBusy ? "Working…" : formImage || existingImageId ? "Replace" : "Choose photo"}
                         <input
                           type="file"
                           accept="image/jpeg,image/png,image/webp"
@@ -1248,11 +1271,13 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
                         />
                       </label>
 
-                      {formImage && (
+                      {(formImage || existingImageId) && (
                         <button
                           type="button"
                           onClick={() => {
                             setFormImage("");
+                            setImageDirty(true);
+                            setExistingImageId(null);
                             setImageError("");
                           }}
                           className="focus-ring cursor-pointer rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-1.5 text-[11.5px] font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--error-strong)]"

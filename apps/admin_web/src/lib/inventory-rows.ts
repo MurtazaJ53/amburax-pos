@@ -24,7 +24,7 @@ export type ApiInventoryRow = {
   unit?: string;
   price_includes_tax?: boolean;
   /** A data URI holding a small product photo, or "" when none was set. */
-  image_data?: string | null;
+  has_image?: boolean | null;
   /** Was this item ever given stock? False for a row imported without any,
    *  which is not the same as a shelf that emptied. */
   has_stock_history?: boolean;
@@ -59,7 +59,14 @@ export type ProductRow = {
   unit: string;
   price_includes_tax: boolean;
   /** Empty string when there is no photo — the tiles fall back to an initial. */
-  image_data: string;
+  /** Whether there is a picture to fetch from /api/inventory/{id}/image.
+   *
+   *  The bytes no longer travel with the list: opening Stock, or the till,
+   *  used to download every photo of every product inside one response that
+   *  cannot be cached. This flag is what lets a row choose between an image
+   *  and the fallback initial without asking for a picture to find out there
+   *  is none. */
+  has_image: boolean;
   status: string;
   created_at: string;
   updated_at: string;
@@ -108,7 +115,7 @@ export function mapInventoryRow(row: ApiInventoryRow): ProductRow {
     hsn_code: row.hsn_code ?? "",
     unit: row.unit ?? "",
     price_includes_tax: row.price_includes_tax ?? true,
-    image_data: row.image_data ?? "",
+    has_image: row.has_image === true,
     status: row.status ?? "active",
     created_at: row.created_at || "",
     updated_at: row.updated_at || "",
