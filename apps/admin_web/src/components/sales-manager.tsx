@@ -187,6 +187,8 @@ function toSaleOrder(item: ApiSale): SaleOrder {
   } as SaleOrder;
 }
 
+const SALES_PAGE_SIZE = 100;
+
 export function SalesManager({
   initialSales,
   initialSummary: _initialSummary,
@@ -314,26 +316,60 @@ export function SalesManager({
     }
   };
 
+  /** One page of bills. `cursor` null means start again from the newest.
+   *
+   *  The history used to stop at five hundred rows with nothing to say about
+   *  it - on nineteen thousand sales, that is the last fortnight and no way
+   *  to reach the rest. It is keyset-paged now. */
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  async function fetchPage(cursor: string | null) {
+    const query = new URLSearchParams({ limit: String(SALES_PAGE_SIZE) });
+    // All time sends no window at all.
+    if (rangeIsBounded) {
+      query.set("date_from", range.from);
+      query.set("date_to", range.to);
+    }
+    if (cursor) query.set("cursor", cursor);
+    const res = await fetch(`/api/sales?${query.toString()}`);
+    if (!res.ok) throw new Error("Failed to load sales history");
+    const rows = await res.json();
+    return {
+      sales: (rows as ApiSale[]).map(toSaleOrder),
+      cursor: res.headers.get("X-Next-Cursor"),
+    };
+  }
+
   async function fetchSales() {
     try {
       setIsLoading(true);
-      const query = new URLSearchParams();
-      // All time sends no window at all.
-      if (rangeIsBounded) {
-        query.set("date_from", range.from);
-        query.set("date_to", range.to);
-      }
-      const suffix = query.toString() ? `?${query.toString()}` : "";
-      const res = await fetch(`/api/sales${suffix}`);
-      if (!res.ok) throw new Error("Failed to load sales history");
-      const data = await res.json();
-      
-      const mappedSales: SaleOrder[] = data.map(toSaleOrder);
-      setSales(mappedSales);
+      const page = await fetchPage(null);
+      setSales(page.sales);
+      setNextCursor(page.cursor);
     } catch (err) {
       setError(errorMessage(err, "Failed to load sales"));
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function loadMoreSales() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await fetchPage(nextCursor);
+      // Merged by id: a bill voided in another tab between two pages would
+      // otherwise arrive twice.
+      setSales((previous) => {
+        const seen = new Set(previous.map((sale) => sale.id));
+        return [...previous, ...page.sales.filter((sale) => !seen.has(sale.id))];
+      });
+      setNextCursor(page.cursor);
+    } catch (err) {
+      setError(errorMessage(err, "Could not load more bills."));
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -520,8 +556,24 @@ export function SalesManager({
               <span className="ml-auto shrink-0 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
                 {isLoading
                   ? "Loading..."
-                  : `${filteredSales.length} of ${sales.length} in ${range.label.toLowerCase()}`}
+                  : `${filteredSales.length} of ${sales.length}${
+                      // Said out loud: the filters above only search what has
+                      // been loaded, so a plain count would read as the whole
+                      // period and a search for an older bill look empty.
+                      nextCursor ? " loaded" : ""
+                    } in ${range.label.toLowerCase()}`}
               </span>
+
+              {nextCursor && !isLoading && (
+                <button
+                  type="button"
+                  onClick={() => void loadMoreSales()}
+                  disabled={loadingMore}
+                  className="focus-ring shrink-0 cursor-pointer rounded-[10px] border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-3 py-1.5 text-[11.5px] font-extrabold text-[var(--primary-dark)] transition-colors duration-200 hover:bg-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loadingMore ? "Loading…" : "Load older bills"}
+                </button>
+              )}
             </>
           )}
         </div>

@@ -82,7 +82,13 @@ export async function proxyToApi(
       );
     }
 
-    return NextResponse.json(text ? JSON.parse(text) : {});
+    const out = NextResponse.json(text ? JSON.parse(text) : {});
+    // The next-page cursor rides in a header so the body can stay the shape
+    // every existing client already parses. It has to be forwarded here or it
+    // stops at this hop and the screen never learns there is more to load.
+    const nextCursor = res.headers.get("X-Next-Cursor");
+    if (nextCursor) out.headers.set("X-Next-Cursor", nextCursor);
+    return out;
   } catch (error) {
     return NextResponse.json(
       { error: errorMessage(error, "Could not reach the Business Hub API.") },

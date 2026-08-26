@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from platform_apps.audit.services import create_workspace_audit_event, snapshot_inventory_item
 from platform_apps.common.migration import MigrationDomain
 from platform_apps.common.migration_guards import assert_postgres_primary_write_enabled
-from platform_apps.common.query import bounded_list_limit
+from platform_apps.common.cursor import CursorListMixin
 from platform_apps.inventory.models import InventoryItem, InventoryStockLedger
 from platform_apps.inventory.serializers import (
     InventoryAdjustmentSerializer,
@@ -67,7 +67,14 @@ class ShopScopedMixin:
         )
 
 
-class InventoryItemListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
+class InventoryItemListCreateView(
+    CursorListMixin, ShopScopedMixin, generics.ListCreateAPIView
+):
+    # Alphabetical, which is the order this list has always shown and the one
+    # a shopkeeper scans by eye. Ascending, so paging carries on down the
+    # alphabet rather than jumping.
+    cursor_field = "name"
+    cursor_descending = False
     serializer_class = InventoryItemSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = None
@@ -109,7 +116,9 @@ class InventoryItemListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
             queryset = queryset.filter(category__iexact=category)
         if status_value:
             queryset = queryset.filter(status=status_value)
-        return queryset[: bounded_list_limit(self.request.query_params.get("limit"))]
+        # No slice: CursorListMixin pages this now, so a catalogue past the
+        # old five-hundred ceiling is fully reachable instead of just ending.
+        return queryset
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

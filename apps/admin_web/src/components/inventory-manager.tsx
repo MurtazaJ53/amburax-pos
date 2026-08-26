@@ -164,18 +164,58 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
   const [adjustType, setAdjustType] = useState<"inward" | "damage" | "correction">("inward");
   const [adjustReason, setAdjustReason] = useState("");
 
+  /** The cursor for the next page, or null when the catalogue is exhausted.
+   *
+   *  The list used to stop dead at five hundred products with nothing to say
+   *  about it. It is keyset-paged now, and this is how the screen knows there
+   *  is more to fetch. */
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const PAGE_SIZE = 100;
+
+  /** One page of products. `cursor` null means start again from the top. */
+  const fetchPage = async (cursor: string | null) => {
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+    if (cursor) params.set("cursor", cursor);
+    const res = await fetch(`/api/inventory?${params.toString()}`);
+    if (!res.ok) throw new Error("Failed to fetch inventory from server");
+    const rows = await res.json();
+    return {
+      items: (rows as ApiInventoryRow[]).map(mapInventoryRow),
+      cursor: res.headers.get("X-Next-Cursor"),
+    };
+  };
+
   const fetchItems = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch("/api/inventory");
-      if (!res.ok) throw new Error("Failed to fetch inventory from server");
-      const data = await res.json();
-      const mapped = data.map(mapInventoryRow);
-      setItems(mapped);
+      const page = await fetchPage(null);
+      setItems(page.items);
+      setNextCursor(page.cursor);
     } catch (err) {
       setError(errorMessage(err, "Failed to load inventory"));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await fetchPage(nextCursor);
+      // Appended by id, because a product edited in another tab between two
+      // pages would otherwise appear twice.
+      setItems((previous) => {
+        const seen = new Set(previous.map((item) => item.id));
+        return [...previous, ...page.items.filter((item) => !seen.has(item.id))];
+      });
+      setNextCursor(page.cursor);
+    } catch (err) {
+      setError(errorMessage(err, "Could not load more products."));
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -1113,7 +1153,22 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
         <div className="flex flex-wrap items-center gap-3 border-t border-[var(--border-soft)] bg-[var(--bg-soft)] px-4 py-2.5 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
           <span>
             Showing {filteredItems.length} of {items.length}
+            {/* Said out loud, because filters only ever search what has been
+                loaded. Without this the count reads as the whole catalogue and
+                a search for something further down comes back empty. */}
+            {nextCursor ? " loaded so far" : ""}
           </span>
+
+          {nextCursor && (
+            <button
+              type="button"
+              onClick={() => void loadMore()}
+              disabled={loadingMore}
+              className="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-3 py-1.5 text-[11.5px] font-extrabold text-[var(--primary-dark)] transition-colors duration-200 hover:bg-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loadingMore ? "Loading…" : "Load more products"}
+            </button>
+          )}
           {canViewCosts && avgMargin !== null && (
             <span className="ml-auto">
               Average margin{" "}

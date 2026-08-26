@@ -12,7 +12,18 @@ import { proxyToApi } from "@/lib/proxy";
  *  Only the parameters the server understands are passed on, so a stray
  *  query string cannot be used to shape the request.
  */
-const FORWARDED = ["date_from", "date_to", "payment_mode", "status", "q", "limit"] as const;
+// cursor joins the list because sales are keyset-paged now. Without it this
+// route always asks for the first page, and "load more" returns what is
+// already on screen.
+const FORWARDED = [
+  "date_from",
+  "date_to",
+  "payment_mode",
+  "status",
+  "q",
+  "limit",
+  "cursor",
+] as const;
 
 export async function GET(req: NextRequest) {
   const query = new URLSearchParams();

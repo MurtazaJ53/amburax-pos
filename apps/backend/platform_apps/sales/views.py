@@ -18,7 +18,7 @@ from rest_framework.views import APIView
 
 from platform_apps.audit.services import create_workspace_audit_event, snapshot_sale
 from platform_apps.common.migration import MigrationDomain
-from platform_apps.common.query import bounded_list_limit
+from platform_apps.common.cursor import CursorListMixin
 from platform_apps.common.migration_guards import (
     assert_domain_epoch_current,
     assert_postgres_primary_write_enabled_multi,
@@ -57,7 +57,11 @@ class ShopScopedMixin:
         return self._membership_cache
 
 
-class SaleListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
+class SaleListCreateView(CursorListMixin, ShopScopedMixin, generics.ListCreateAPIView):
+    # occurred_at rather than sale_date: a keyset needs a column with real
+    # granularity, and sale_date is a day - thousands of rows share one.
+    # occurred_at is non-nullable, so every sale has a position in the order.
+    cursor_field = "occurred_at"
     serializer_class = SaleSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = None
@@ -98,9 +102,9 @@ class SaleListCreateView(ShopScopedMixin, generics.ListCreateAPIView):
             queryset = queryset.filter(customer_id=customer_id)
         # Voided (refunded) sales stay in the list so History can show them with
         # a REFUNDED badge (they're already excluded from gross/summary totals).
-        # Bound the unpaginated list so a huge shop never serializes every
-        # sale in one response. Clients read the most-recent slice.
-        return queryset[: bounded_list_limit(self.request.query_params.get("limit"))]
+        # No slice here any more: CursorListMixin pages this, so the rows past
+        # the first page are reachable instead of silently cut off.
+        return queryset
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
