@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Download, FileUp, Loader2, Upload } from "lucide-react";
 
 import { readXlsx, looksLikeXlsx, type XlsxSheet } from "@/lib/xlsx";
@@ -16,6 +16,20 @@ import {
   type ParsedTable,
 } from "@/lib/import";
 import { useServerRefresh } from "@/lib/use-server-refresh";
+import { contradicts, detectKind, findDuplicates } from "@/lib/import-detect";
+
+/** One past import, as the list endpoint returns it. */
+type ImportBatch = {
+  id: string;
+  kind: string;
+  filename: string;
+  row_count: number;
+  created_count: number;
+  created_at: string;
+  actor_name: string;
+  undone_at: string | null;
+  can_undo: boolean;
+};
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -88,6 +102,7 @@ export function SpreadsheetImport() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fields = IMPORT_SCHEMAS[kind];
+
 
   const reset = () => {
     setTable(null);
@@ -171,6 +186,70 @@ export function SpreadsheetImport() {
     return applyMapping(table, kind, mapping);
   }, [table, kind, mapping]);
 
+  /** What the file itself looks like, judged by its headers.
+   *
+   *  Both kinds require only a name, so a customer list imported as products
+   *  succeeds - every customer becomes a product and nothing warns. The file
+   *  gets a vote so that cannot happen quietly. */
+  const detection = useMemo(
+    () => detectKind(table?.headers ?? []),
+    [table],
+  );
+  const wrongKind = table !== null && contradicts(kind, detection);
+
+  const duplicates = useMemo(
+    () => (preview ? findDuplicates(preview.rows, kind) : []),
+    [preview, kind],
+  );
+
+  /** Two steps on purpose. The first click asks for a decision; the second
+   *  confirms it against a summary of exactly what is about to be written. */
+  const [confirming, setConfirming] = useState(false);
+
+  const [batches, setBatches] = useState<ImportBatch[]>([]);
+  const [undoing, setUndoing] = useState<string | null>(null);
+
+  const loadBatches = useCallback(async () => {
+    try {
+      const res = await fetch("/api/imports");
+      if (!res.ok) return;
+      const rows = await res.json();
+      setBatches(Array.isArray(rows) ? rows : []);
+    } catch {
+      // A missing history is not worth an error on this screen: the import
+      // itself still works, and this is the part that comes after.
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadBatches();
+  }, [loadBatches]);
+
+  const undoBatch = async (batch: ImportBatch) => {
+    setUndoing(batch.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/imports/${batch.id}/undo`, { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.error || `Could not undo that import (${res.status})`);
+      }
+      setUndoNotice(
+        body.kept > 0
+          ? `Removed ${body.removed}. Kept ${body.kept} that have been used since — a product that has sold or a customer who owes money is not safe to remove.`
+          : `Removed ${body.removed} row${body.removed === 1 ? "" : "s"}.`,
+      );
+      await loadBatches();
+      refreshServerData();
+    } catch (err) {
+      setError(errorMessage(err, "Could not undo that import."));
+    } finally {
+      setUndoing(null);
+    }
+  };
+
+  const [undoNotice, setUndoNotice] = useState<string | null>(null);
+
   const missingRequired = fields
     .filter((f) => f.required && !(f.key in mapping))
     .map((f) => f.label);
@@ -185,13 +264,14 @@ export function SpreadsheetImport() {
       const res = await fetch("/api/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, rows: preview.rows.map(shape) }),
+        body: JSON.stringify({ kind, filename: fileName ?? "", rows: preview.rows.map(shape) }),
       });
       const body = await res.json();
       if (!res.ok) {
         throw new Error(typeof body?.error === "string" ? body.error : `Import failed (${res.status})`);
       }
       setResult(body);
+      await loadBatches();
       // The rows went straight into stock and customers.
       refreshServerData();
     } catch (err) {
@@ -435,6 +515,43 @@ export function SpreadsheetImport() {
           )}
 
           {/* Preview */}
+          {/* The disaster this screen used to allow, stopped before it
+              happens. Both kinds require only a name, so a customer list
+              imported as products succeeds - every customer becomes a
+              product with no price and no stock, and nothing warns. */}
+          {wrongKind && (
+            <div className="rounded-[16px] border border-[var(--error)]/35 bg-[var(--error)]/10 p-4">
+              <p className="m-0 flex items-center gap-2 text-[13px] font-extrabold text-[var(--error-strong)]">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                This file looks like {detection.kind === "customers" ? "a customer list" : "a product list"}, not {kind === "products" ? "products" : "customers"}
+              </p>
+              <p className="m-0 mt-1.5 max-w-[68ch] text-[12px] font-semibold leading-relaxed text-[var(--text-secondary)]">
+                It has {(detection.kind === "customers" ? detection.customerSignals : detection.productSignals).slice(0, 4).join(", ")} in it.
+                Importing it as {kind === "products" ? "products" : "customers"} will
+                succeed and put the wrong thing in the wrong place. Switch the
+                type above, or carry on if you meant it.
+              </p>
+            </div>
+          )}
+
+          {duplicates.length > 0 && (
+            <div className="rounded-[16px] border border-[var(--warning)]/30 bg-[var(--warning)]/10 p-4">
+              <p className="m-0 text-[13px] font-extrabold text-[var(--warning-strong)]">
+                {duplicates.length} thing{duplicates.length === 1 ? "" : "s"} appear{duplicates.length === 1 ? "s" : ""} more than once in this file
+              </p>
+              <p className="m-0 mt-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">
+                {/* Reported, never removed. Two lines sharing a name can be a
+                    mistake or two real products - only the person who made
+                    the file knows which. */}
+                {duplicates
+                  .slice(0, 3)
+                  .map((d) => `${d.value} (rows ${d.rows.join(", ")})`)
+                  .join(" · ")}
+                {duplicates.length > 3 ? ` · and ${duplicates.length - 3} more` : ""}
+              </p>
+            </div>
+          )}
+
           {preview && preview.rows.length > 0 && (
             <div className="border-t border-border-soft">
               <p className="px-6 pt-5 text-[11px] font-extrabold uppercase tracking-wider text-text-tertiary">
@@ -485,15 +602,104 @@ export function SpreadsheetImport() {
                 </span>
               )}
             </p>
-            <button
-              type="button"
-              onClick={() => void runImport()}
-              disabled={busy || missingRequired.length > 0 || (preview?.rows.length ?? 0) === 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)]/12 px-5 py-2.5 text-xs font-extrabold text-[var(--primary-dark)] disabled:opacity-50 border border-[var(--primary)]/25"
-            >
-              {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {busy ? "Importing…" : `Import ${preview?.rows.length ?? 0} rows`}
-            </button>
+            {/* Two clicks, not one. The first asks for a decision; the
+                second confirms it against a summary of exactly what is about
+                to be written. A single button on a screen that writes three
+                hundred rows is not enough of a pause. */}
+            {!confirming ? (
+              <button
+                type="button"
+                onClick={() => setConfirming(true)}
+                disabled={busy || missingRequired.length > 0 || (preview?.rows.length ?? 0) === 0}
+                className="focus-ring inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-5 py-2.5 text-xs font-extrabold text-[var(--primary-dark)] transition-colors duration-200 hover:bg-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Review {preview?.rows.length ?? 0} rows
+              </button>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirming(false)}
+                  disabled={busy}
+                  className="focus-ring cursor-pointer rounded-xl border border-[var(--border-soft)] px-4 py-2.5 text-xs font-extrabold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirming(false);
+                    void runImport();
+                  }}
+                  disabled={busy}
+                  className="focus-ring inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-5 py-2.5 text-xs font-extrabold text-[var(--primary-dark)] transition-colors duration-200 hover:bg-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {busy
+                    ? "Importing…"
+                    : `Yes — import ${preview?.rows.length ?? 0} ${kind === "products" ? "products" : "customers"}`}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {undoNotice && (
+        <div className="rounded-[16px] border border-[var(--success)]/30 bg-[var(--success)]/10 px-5 py-4 text-[13px] font-semibold text-[var(--success-strong)]">
+          {undoNotice}
+        </div>
+      )}
+
+      {/* The answer to "I imported the wrong thing, how do I remove it".
+          Listed rather than a single "undo last", because the import that
+          went wrong is not always the most recent one. */}
+      {batches.length > 0 && (
+        <div className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5">
+          <h3 className="m-0 text-[13px] font-extrabold text-[var(--text-primary)]">
+            Recent imports
+          </h3>
+          <p className="m-0 mt-1 mb-3 max-w-[68ch] text-[12px] font-semibold leading-relaxed text-[var(--text-tertiary)]">
+            Undo removes only what an import added, and only rows nothing has
+            happened to since. A product that has sold or a customer who owes
+            money is kept — removing those would take a real record with them.
+          </p>
+          <div className="flex flex-col gap-2">
+            {batches.map((batch) => (
+              <div
+                key={batch.id}
+                className="flex flex-wrap items-center gap-3 rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] px-4 py-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="m-0 truncate text-[12.5px] font-extrabold text-[var(--text-primary)]">
+                    {batch.filename || "Untitled file"}
+                    <span className="ml-2 font-mono text-[10px] font-bold uppercase tracking-wide text-[var(--text-tertiary)]">
+                      {batch.kind}
+                    </span>
+                  </p>
+                  <p className="m-0 mt-0.5 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+                    {batch.created_count} added of {batch.row_count} row
+                    {batch.row_count === 1 ? "" : "s"}
+                    {batch.actor_name ? ` · ${batch.actor_name}` : ""}
+                    {batch.undone_at ? " · undone" : ""}
+                  </p>
+                </div>
+                {batch.can_undo ? (
+                  <button
+                    type="button"
+                    onClick={() => void undoBatch(batch)}
+                    disabled={undoing !== null}
+                    className="focus-ring shrink-0 cursor-pointer rounded-[10px] border border-[var(--error)]/30 bg-[var(--error)]/8 px-3.5 py-2 text-[11.5px] font-extrabold text-[var(--error-strong)] transition-colors duration-200 hover:bg-[var(--error)]/15 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {undoing === batch.id ? "Undoing…" : "Undo"}
+                  </button>
+                ) : (
+                  <span className="shrink-0 text-[11px] font-bold text-[var(--text-tertiary)]">
+                    {batch.undone_at ? "Already undone" : "Nothing to undo"}
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

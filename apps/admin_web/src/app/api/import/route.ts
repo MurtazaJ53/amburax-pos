@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const kind = body?.kind as keyof typeof TARGETS;
     const rows = body?.rows;
+    const filename = typeof body?.filename === "string" ? body.filename : "";
     const target = TARGETS[kind];
 
     if (!target) {
@@ -60,7 +61,11 @@ export async function POST(req: NextRequest) {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({ [target.key]: chunk }),
+        // Forwarded so each batch is recognisable as having come from this
+        // file. Note that a file over CHUNK_SIZE rows becomes several
+        // batches, and each is undone separately - the filename is what ties
+        // them together on screen.
+        body: JSON.stringify({ [target.key]: chunk, filename }),
       });
 
       const text = await res.text();
