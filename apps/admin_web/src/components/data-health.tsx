@@ -273,19 +273,53 @@ export function DataHealth() {
 
       <HeaderCard report={report} loading={loading} failed={error !== null} />
 
+      {/* Always on screen, clear or not. "No problems found" on its own asks
+          to be taken on trust; four named checks with their counts show what
+          was actually looked at, which is what makes the verdict believable.
+          It is also the answer to "why do I need this screen". */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {CHECKS.map((check) => (
+          <CheckTile
+            key={check.key}
+            label={check.label}
+            caption={check.caption}
+            why={check.why}
+            count={report[check.key].length}
+            unknown={loading || error !== null}
+          />
+        ))}
+      </div>
+
       {loading || error ? null : report.isHealthy ? (
-        <div className="rounded-[28px] border border-border-soft bg-surface px-6 py-12 text-center">
-          <BadgeCheck className="w-9 h-9 mx-auto text-[var(--success-strong)]" />
-          <p className="mt-3 text-sm font-black text-text-primary">
-            Your data looks healthy
-          </p>
-          <p className="mt-1 text-xs font-semibold text-text-secondary">
-            No duplicate products, impossible stock counts, free items or
-            unreachable debts.
+        // The four tiles above already name every check and show it clear, so
+        // a panel repeating them in prose said the same thing twice and took
+        // half the screen to do it.
+        <div className="flex items-center gap-3 rounded-[16px] border border-[var(--success)]/25 bg-[var(--success)]/8 px-5 py-4">
+          <BadgeCheck className="h-5 w-5 shrink-0 text-[var(--success-strong)]" />
+          <p className="m-0 text-[13px] font-semibold text-[var(--text-secondary)]">
+            All four checks came back clear. This re-runs every time you open
+            the screen, so it is worth a look after an import or a busy day.
           </p>
         </div>
       ) : (
         <>
+          {report.missingPrice.length > 0 && (
+            <Section
+              title="Items with no price"
+              count={report.missingPrice.length}
+              explanation="These will ring up as free at the till. Set a selling price from Stock."
+            >
+              {report.missingPrice.slice(0, 30).map((item) => (
+                <IssueRow
+                  key={item.id}
+                  icon={<WalletMinimal className="w-4 h-4 text-[var(--warning-strong)]" />}
+                  title={item.name}
+                  detail="No selling price"
+                />
+              ))}
+            </Section>
+          )}
+
           {report.duplicateGroups.length > 0 && (
             <Section
               title="Duplicate products"
@@ -348,23 +382,6 @@ export function DataHealth() {
             </Section>
           )}
 
-          {report.missingPrice.length > 0 && (
-            <Section
-              title="Items with no price"
-              count={report.missingPrice.length}
-              explanation="These will ring up as free at the till. Set a selling price from Stock."
-            >
-              {report.missingPrice.slice(0, 30).map((item) => (
-                <IssueRow
-                  key={item.id}
-                  icon={<WalletMinimal className="w-4 h-4 text-[var(--warning-strong)]" />}
-                  title={item.name}
-                  detail="No selling price"
-                />
-              ))}
-            </Section>
-          )}
-
           {report.customersWithoutPhone.length > 0 && (
             <Section
               title="Debts you cannot chase"
@@ -394,6 +411,100 @@ export function DataHealth() {
   );
 }
 
+/** The four things this scan looks for, worst first.
+ *
+ *  They are not equally urgent and the screen should not pretend otherwise.
+ *  A product with no price is losing money on every sale being rung up right
+ *  now. A duplicate is quietly splitting one product's stock in two, so the
+ *  reorder list is wrong but nothing is bleeding. Negative stock means the
+ *  books are already wrong and stay wrong. A debtor with no phone number is
+ *  stable - the money is owed either way, there is just no way to chase it.
+ *
+ *  Ordering by that, rather than alphabetically or by count, is the whole
+ *  difference between a list and a list worth reading top to bottom.
+ */
+const CHECKS = [
+  {
+    key: "missingPrice" as const,
+    label: "Free at the till",
+    caption: "Products with no price",
+    why: "These ring up as zero. Every one sold is money gone, today.",
+  },
+  {
+    key: "duplicateGroups" as const,
+    label: "Duplicates",
+    caption: "The same product twice",
+    why: "Two rows split one product's stock, so counts and reordering go wrong.",
+  },
+  {
+    key: "negativeStock" as const,
+    label: "Impossible stock",
+    caption: "Below zero on the shelf",
+    why: "Something sold that was never received. The books are already wrong.",
+  },
+  {
+    key: "customersWithoutPhone" as const,
+    label: "Unreachable debt",
+    caption: "Owes money, no number",
+    why: "The debt stands, but there is no way to chase it.",
+  },
+];
+
+/** One check, always shown - clear or not.
+ *
+ *  Shown even at zero on purpose. A screen that renders nothing when all is
+ *  well answers "is my data fine" but never "what did you actually look at",
+ *  and the second question is the one that makes the first believable.
+ */
+function CheckTile({
+  label,
+  caption,
+  why,
+  count,
+  unknown,
+}: {
+  label: string;
+  caption: string;
+  why: string;
+  count: number;
+  unknown: boolean;
+}) {
+  const clear = count === 0;
+  const tone = unknown
+    ? "border-[var(--border-soft)] bg-[var(--bg-base)]"
+    : clear
+      ? "border-[var(--success)]/25 bg-[var(--success)]/8"
+      : "border-[var(--warning)]/30 bg-[var(--warning)]/10";
+  const numberTone = unknown
+    ? "text-[var(--text-tertiary)]"
+    : clear
+      ? "text-[var(--success-strong)]"
+      : "text-[var(--warning-strong)]";
+  return (
+    <div
+      className={`flex flex-col gap-1 rounded-[16px] border p-4 transition-colors duration-200 ${tone}`}
+      title={why}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--text-tertiary)]">
+          {caption}
+        </span>
+        {/* Tabular, so four tiles side by side do not jiggle as counts change
+            after a fix. */}
+        <span className={`tnum font-mono text-lg font-black leading-none ${numberTone}`}>
+          {unknown ? "–" : count}
+        </span>
+      </div>
+      <p className="m-0 text-[13px] font-extrabold text-[var(--text-primary)]">
+        {label}
+      </p>
+      <p className="m-0 text-[11.5px] font-semibold leading-relaxed text-[var(--text-tertiary)]">
+        {why}
+      </p>
+    </div>
+  );
+}
+
 function HeaderCard({
   report,
   loading,
@@ -413,7 +524,7 @@ function HeaderCard({
       ? "border-[var(--success)]/30 bg-[var(--success)]/10"
       : "border-[var(--warning)]/30 bg-[var(--warning)]/10";
   return (
-    <div className={`rounded-[28px] border p-6 sm:p-7 flex items-center gap-4 ${tone}`}>
+    <div className={`rounded-[16px] border p-6 sm:p-7 flex items-center gap-4 ${tone}`}>
       {healthy ? (
         <BadgeCheck className="w-8 h-8 shrink-0 text-[var(--success-strong)]" />
       ) : (
