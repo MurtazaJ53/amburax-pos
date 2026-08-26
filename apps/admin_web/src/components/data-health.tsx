@@ -258,9 +258,9 @@ export function DataHealth() {
         </div>
       )}
 
-      <HeaderCard report={report} loading={loading} />
+      <HeaderCard report={report} loading={loading} failed={error !== null} />
 
-      {loading ? null : report.isHealthy ? (
+      {loading || error ? null : report.isHealthy ? (
         <div className="rounded-[28px] border border-border-soft bg-surface px-6 py-12 text-center">
           <BadgeCheck className="w-9 h-9 mx-auto text-[var(--success-strong)]" />
           <p className="mt-3 text-sm font-black text-text-primary">
@@ -381,11 +381,24 @@ export function DataHealth() {
   );
 }
 
-function HeaderCard({ report, loading }: { report: DataHealthReport; loading: boolean }) {
-  const healthy = report.isHealthy;
-  const tone = healthy
-    ? "border-[var(--success)]/30 bg-[var(--success)]/10"
-    : "border-[var(--warning)]/30 bg-[var(--warning)]/10";
+function HeaderCard({
+  report,
+  loading,
+  failed,
+}: {
+  report: DataHealthReport;
+  loading: boolean;
+  failed: boolean;
+}) {
+  // An empty report is the starting value, not a result. Reading it as
+  // "healthy" when the scan never returned is how this screen came to show
+  // "No problems found" directly beneath "Could not run the scan".
+  const healthy = !failed && report.isHealthy;
+  const tone = failed
+    ? "border-[var(--border-soft)] bg-[var(--bg-base)]"
+    : healthy
+      ? "border-[var(--success)]/30 bg-[var(--success)]/10"
+      : "border-[var(--warning)]/30 bg-[var(--warning)]/10";
   return (
     <div className={`rounded-[28px] border p-6 sm:p-7 flex items-center gap-4 ${tone}`}>
       {healthy ? (
@@ -397,14 +410,18 @@ function HeaderCard({ report, loading }: { report: DataHealthReport; loading: bo
         <p className="text-lg font-[900] tracking-tight text-text-primary">
           {loading
             ? "Scanning…"
-            : healthy
-              ? "No problems found"
-              : `${report.totalIssues} thing${report.totalIssues === 1 ? "" : "s"} to fix`}
+            : failed
+              ? "The scan did not run"
+              : healthy
+                ? "No problems found"
+                : `${report.totalIssues} thing${report.totalIssues === 1 ? "" : "s"} to fix`}
         </p>
         <p className="mt-0.5 text-xs font-semibold text-text-secondary">
-          {healthy
-            ? "Your products and customers look consistent."
-            : "Wrong data quietly corrupts every report built on it."}
+          {failed
+            ? "Nothing was checked, so this says nothing about your data."
+            : healthy
+              ? "Your products and customers look consistent."
+              : "Wrong data quietly corrupts every report built on it."}
         </p>
       </div>
     </div>
