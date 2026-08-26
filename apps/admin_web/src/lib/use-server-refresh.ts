@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 /** Pull this page's server-rendered figures again after a write.
  *
@@ -26,7 +26,20 @@ import { useCallback } from "react";
  */
 export function useServerRefresh(): () => void {
   const router = useRouter();
-  return useCallback(() => {
-    router.refresh();
+
+  // Held in a ref so the returned function never changes identity. It is put
+  // into dependency arrays - data-health lists it in a useCallback - and a
+  // new function on every render would rebuild that callback on every render,
+  // so anything keyed on it would re-run without end.
+  //
+  // Depending on `router` directly would borrow that guarantee from whatever
+  // next/navigation happens to return today rather than making it here.
+  const routerRef = useRef(router);
+  useEffect(() => {
+    routerRef.current = router;
   }, [router]);
+
+  return useCallback(() => {
+    routerRef.current.refresh();
+  }, []);
 }
