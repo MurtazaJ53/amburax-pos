@@ -7,6 +7,22 @@ const nextConfig: NextConfig = {
   // actually used. The Dockerfile copies it, and it keeps the runtime
   // image small enough to sit on a shared 2 GB droplet.
   output: "standalone",
+  // Hosts the dev server will serve /_next/* to.
+  //
+  // Next blocks cross-origin access to dev resources by default, which is
+  // right - but it means that over a tunnel the page loads while its
+  // JavaScript does not, so every form silently does nothing when clicked.
+  // Nothing in the browser explains it; the reason appears only in the dev
+  // server log.
+  //
+  // Development only. A production build serves these to anyone and ignores
+  // this list entirely, which is the better way to show somebody the app.
+  allowedDevOrigins: [
+    "*.ngrok-free.dev",
+    "*.ngrok-free.app",
+    "*.ngrok.io",
+    "*.trycloudflare.com",
+  ],
   turbopack: {
     root: path.resolve(__dirname),
   },
