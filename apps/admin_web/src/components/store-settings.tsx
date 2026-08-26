@@ -18,6 +18,7 @@ import {
   isOfferedBusinessType,
 } from "@/lib/business-types";
 import { useServerRefresh } from "@/lib/use-server-refresh";
+import { dataUriBytes, fileToProductImage, formatBytes } from "@/lib/product-image";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -55,6 +56,12 @@ export function StoreSettings({
   const [gstin, setGstin] = useState("");
   const [invoicePrefix, setInvoicePrefix] = useState("");
   const [footerNotes, setFooterNotes] = useState("");
+  // The receipt has been able to print a logo and a brand colour since they
+  // were added to the API; there has simply been no screen to set them.
+  const [logoData, setLogoData] = useState("");
+  const [brandColor, setBrandColor] = useState("");
+  const [logoError, setLogoError] = useState("");
+  const [logoBusy, setLogoBusy] = useState(false);
 
   // Hardware State
   const [paperWidth, setPaperWidth] = useState<"58mm" | "80mm">("80mm");
@@ -83,6 +90,8 @@ export function StoreSettings({
       setGstin(data.gstin ?? "");
       setInvoicePrefix(data.invoice_prefix ?? "");
       setFooterNotes(data.footer ?? "");
+      setLogoData(data.logo_data ?? "");
+      setBrandColor(data.brand_color ?? "");
       setBusinessType(data.business_type ?? "retail");
       // Resolved server-side from type + plan + any override, so the switches
       // show what is actually true rather than what has been explicitly set.
@@ -118,6 +127,8 @@ export function StoreSettings({
           gstin,
           invoice_prefix: invoicePrefix,
           footer: footerNotes,
+          logo_data: logoData,
+          brand_color: brandColor,
           business_type: businessType,
           features,
         }),
@@ -426,6 +437,145 @@ export function StoreSettings({
                 onChange={(e) => setFooterNotes(e.target.value)}
                 className="w-full px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none focus:border-[var(--primary)] resize-none"
               />
+            </div>
+
+            {/* The receipt has printed a logo and a brand colour since they
+                were added to the API. There has simply been nowhere to set
+                them, so every receipt has gone out plain. */}
+            <div className="border-t border-[var(--border-soft)] pt-4">
+              <h4 className="m-0 mb-1 text-xs font-bold text-text-primary">
+                How your receipt looks
+              </h4>
+              <p className="m-0 mb-3 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+                Both print on the paper receipt and on the PDF. Leave them empty
+                for a plain receipt.
+              </p>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]">
+                    Shop logo
+                  </label>
+                  <div className="flex items-center gap-3 rounded-xl border border-[var(--border-soft)] bg-bg-soft p-3">
+                    <span className="grid h-14 w-14 flex-none place-items-center overflow-hidden rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)]">
+                      {logoData ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={logoData}
+                          alt="Your shop logo"
+                          className="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-lg font-extrabold text-[var(--text-tertiary)] opacity-60">
+                          {(shopName || "?").trim().charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </span>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap gap-2">
+                        <label className="focus-ring inline-flex cursor-pointer items-center rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-1.5 text-[11.5px] font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]">
+                          {logoBusy ? "Working…" : logoData ? "Replace" : "Choose file"}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            className="sr-only"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              if (!file) return;
+                              setLogoBusy(true);
+                              setLogoError("");
+                              try {
+                                // Shrunk to receipt size here. A phone photo is
+                                // several megabytes and the server refuses
+                                // anything over 120 KB, so without this the save
+                                // fails on a file that looked perfectly fine.
+                                setLogoData(await fileToProductImage(file, 240));
+                              } catch (err) {
+                                setLogoError(
+                                  err instanceof Error
+                                    ? err.message
+                                    : "That image could not be used.",
+                                );
+                              } finally {
+                                setLogoBusy(false);
+                              }
+                            }}
+                          />
+                        </label>
+
+                        {logoData && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLogoData("");
+                              setLogoError("");
+                            }}
+                            className="focus-ring cursor-pointer rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-1.5 text-[11.5px] font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--error-strong)]"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <p className="m-0 mt-1.5 text-[11px] font-semibold text-[var(--text-tertiary)]">
+                        {logoError ? (
+                          <span className="text-[var(--error-strong)]">{logoError}</span>
+                        ) : logoData ? (
+                          `Stored at ${formatBytes(dataUriBytes(logoData))} — sized to print on a till roll.`
+                        ) : (
+                          "PNG, JPEG or WebP. Printed at the top of the receipt."
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="brand-colour"
+                    className="mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]"
+                  >
+                    Brand colour
+                  </label>
+                  <div className="flex items-center gap-3 rounded-xl border border-[var(--border-soft)] bg-bg-soft p-3">
+                    <input
+                      id="brand-colour"
+                      type="color"
+                      value={brandColor || "#0369A1"}
+                      onChange={(e) => setBrandColor(e.target.value.toUpperCase())}
+                      className="h-11 w-14 flex-none cursor-pointer rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] p-1"
+                    />
+                    <div className="min-w-0 flex-1">
+                      {/* Typed as well as picked: a shop with brand guidelines
+                          has the hex written down, and a colour wheel gives no
+                          way to enter it. */}
+                      <input
+                        type="text"
+                        value={brandColor}
+                        onChange={(e) => setBrandColor(e.target.value.toUpperCase())}
+                        placeholder="#0369A1"
+                        spellCheck={false}
+                        className="tnum w-full rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-1.5 font-mono text-[12px] font-bold uppercase text-text-primary outline-none focus:border-[var(--primary)]"
+                      />
+                      <p className="m-0 mt-1.5 text-[11px] font-semibold text-[var(--text-tertiary)]">
+                        {brandColor
+                          ? "Used for the shop name and totals."
+                          : "Empty prints a plain black receipt."}
+                      </p>
+                    </div>
+                    {brandColor && (
+                      <button
+                        type="button"
+                        onClick={() => setBrandColor("")}
+                        className="focus-ring shrink-0 cursor-pointer rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-1.5 text-[11.5px] font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--error-strong)]"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
