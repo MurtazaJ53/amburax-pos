@@ -8,7 +8,9 @@ import {
   Plus,
   RefreshCw,
   Trash2,
+  Store,
   TruckIcon,
+  Undo2,
   X,
 } from "lucide-react";
 
@@ -230,7 +232,11 @@ export function TransferManager({
     <div className="space-y-6">
       {/* Pending counts: the whole reason the feature exists is that stock in
           transit used to be invisible. */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 ${
+          otherShops.length === 0 ? "hidden" : ""
+        }`}
+      >
         <div className="flex flex-wrap gap-3">
           <PendingBadge
             label="Waiting for you to receive"
@@ -273,14 +279,11 @@ export function TransferManager({
       )}
 
       {otherShops.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-[var(--border-soft)] bg-[var(--bg-base)] px-5 py-6 text-center text-xs font-bold text-[var(--text-tertiary)]">
-          Transfers move stock between your shops. You currently have one shop,
-          so there is nowhere to send it yet.
-        </div>
+        <TransfersNotAvailableYet />
       )}
 
       {composing && (
-        <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 sm:p-6 shadow-sm space-y-4">
           <h3 className="text-base font-extrabold text-[var(--text-primary)]">
             Send stock to another shop
           </h3>
@@ -417,13 +420,27 @@ export function TransferManager({
         </div>
       )}
 
-      {loading && !data ? (
+      {otherShops.length === 0 ? null : loading && !data ? (
         <div className="py-12 text-center text-xs font-bold text-[var(--text-tertiary)]">
           Loading transfers…
         </div>
       ) : transfers.length === 0 ? (
-        <div className="py-12 text-center text-xs font-bold text-[var(--text-tertiary)] border border-dashed border-[var(--border-soft)] rounded-2xl bg-[var(--bg-base)]">
-          No transfers yet.
+        <div className="rounded-[16px] border border-dashed border-[var(--border-soft)] bg-[var(--bg-base)] px-6 py-12 text-center">
+          <p className="m-0 text-[13px] font-extrabold text-[var(--text-secondary)]">
+            Nothing has been sent between your shops yet.
+          </p>
+          <p className="m-0 mt-1.5 text-[12px] font-semibold text-[var(--text-tertiary)]">
+            Use <strong>Send stock</strong> when one shop runs short and another has spare.
+          </p>
+        </div>
+      ) : null}
+
+      {otherShops.length > 0 && transfers.length === 0 && !loading ? (
+        <div>
+          <p className="m-0 mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+            How it works
+          </p>
+          <TransferFlow />
         </div>
       ) : (
         <div className="space-y-3.5">
@@ -522,6 +539,108 @@ export function TransferManager({
   );
 }
 
+/** The three states a transfer passes through, said once and plainly.
+ *
+ *  The whole feature exists because the middle one used to be invisible: two
+ *  unrelated manual adjustments, and a forgotten second half left the numbers
+ *  wrong with nothing to point at. A screen that does not name that state
+ *  cannot explain why it is worth the extra step.
+ */
+const TRANSFER_STEPS = [
+  {
+    icon: Package,
+    title: "You send it",
+    body: "Stock leaves the sending shop straight away, so it cannot be sold twice.",
+  },
+  {
+    icon: TruckIcon,
+    title: "It is on its way",
+    body: "Both shops can see it in transit. Nowhere yet - counted out of one, not into the other.",
+  },
+  {
+    icon: Check,
+    title: "The other shop confirms",
+    body: "Only then does it land on their shelf. Their cost and selling price update with it.",
+  },
+];
+
+function TransferFlow() {
+  return (
+    <div className="grid gap-2.5 sm:grid-cols-3">
+      {TRANSFER_STEPS.map((step, index) => (
+        <div
+          key={step.title}
+          className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-4"
+        >
+          <div className="flex items-center gap-2">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--primary)]/12 text-[var(--primary-dark)]">
+              <step.icon className="h-3.5 w-3.5" />
+            </span>
+            {/* Numbered because the order is the point: a step skipped is the
+                bug this feature was built to stop. */}
+            <span className="font-mono text-[10px] font-bold tracking-[0.14em] text-[var(--text-tertiary)]">
+              STEP {index + 1}
+            </span>
+          </div>
+          <p className="m-0 mt-2.5 text-[13px] font-extrabold text-[var(--text-primary)]">
+            {step.title}
+          </p>
+          <p className="m-0 mt-1 text-[12px] font-semibold leading-relaxed text-[var(--text-tertiary)]">
+            {step.body}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** What this screen is, for a shop that cannot use it yet.
+ *
+ *  Two zero counters above an empty list read as a screen that is broken.
+ *  This one is not broken - it has nowhere to send stock, which is a
+ *  different thing and worth saying out loud.
+ */
+function TransfersNotAvailableYet() {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="rounded-[16px] border border-[var(--border-soft)] bg-[var(--surface)] p-5 sm:p-6">
+        <div className="flex items-start gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--primary)]/12 text-[var(--primary-dark)]">
+            <Store className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="m-0 text-[15px] font-extrabold text-[var(--text-primary)]">
+              You have one shop, so there is nowhere to send stock
+            </h3>
+            <p className="m-0 mt-1.5 max-w-[62ch] text-[13px] font-semibold leading-relaxed text-[var(--text-secondary)]">
+              Transfers move stock between two shops you own - when one runs
+              short and another has spare. Nothing here is broken; it switches
+              on by itself the moment you have a second shop.
+            </p>
+            <p className="m-0 mt-2 text-[12px] font-semibold text-[var(--text-tertiary)]">
+              Until then, use <strong>Stock</strong> to correct a count, and{" "}
+              <strong>Purchase orders</strong> to bring goods in from a supplier.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p className="m-0 mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+          How it will work
+        </p>
+        <TransferFlow />
+      </div>
+
+      <p className="m-0 flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-tertiary)]">
+        <Undo2 className="h-3.5 w-3.5 shrink-0" />
+        A transfer can be cancelled while it is still in transit, and the stock
+        goes straight back to the shop that sent it.
+      </p>
+    </div>
+  );
+}
+
 function PendingBadge({
   label,
   count,
@@ -537,11 +656,22 @@ function PendingBadge({
       ? "border-[var(--warning)]/30 bg-[var(--warning)]/10 text-[var(--warning-strong)]"
       : "border-[var(--border-soft)] bg-[var(--surface)] text-[var(--text-secondary)]";
   return (
-    <div className={`rounded-2xl border px-4 py-2.5 ${classes}`}>
-      <span className="text-lg font-black">{count}</span>
-      <span className="ml-2 text-[11px] font-extrabold uppercase tracking-wide">
+    <div
+      className={`flex items-baseline gap-2 rounded-[16px] border px-4 py-2.5 transition-colors duration-200 ${classes}`}
+    >
+      {/* Tabular, so two counters side by side do not shift as they change. */}
+      <span className="tnum text-lg font-black leading-none">{count}</span>
+      <span className="text-[11px] font-extrabold uppercase tracking-wide">
         {label}
       </span>
+      {/* Only when there is something to act on. A dot beside a zero is
+          decoration pretending to be a status. */}
+      {active && tone === "warning" && (
+        <span
+          aria-hidden="true"
+          className="motion-safe:animate-pulse ml-0.5 h-1.5 w-1.5 shrink-0 self-center rounded-full bg-[var(--warning-strong)]"
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
@@ -429,3 +430,49 @@ class StockTransferTests(TestCase):
         response = self.client.get(reverse("stock-transfer-list", args=[self.main.id]))
 
         self.assertEqual(response.data["transfers"], [])
+
+
+class TransfersRefreshTheDashboard(StockTransferTests):
+    """The homepage after stock moves between shops.
+
+    The dashboard is a stored snapshot. All three steps here move stock - out
+    of one shop, into another, or back on a cancel - and a step that does not
+    rebuild it leaves that shop's homepage stating a figure the stock screen
+    already disagrees with.
+    """
+
+    REFRESH = "platform_apps.inventory.transfer_views.refresh_projection_after_write"
+
+    def test_dispatch_rebuilds_the_sending_shop(self):
+        item = self._item(self.main, "Kurta", stock="10")
+        with patch(self.REFRESH) as refresh:
+            response = self._dispatch([{"item_id": str(item.id), "quantity": "4"}])
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertTrue(refresh.called, "dispatch left the dashboard stale")
+
+    def test_receiving_rebuilds_the_receiving_shop(self):
+        item = self._item(self.main, "Kurta", stock="10")
+        transfer_id = self._dispatch(
+            [{"item_id": str(item.id), "quantity": "4"}]
+        ).data["id"]
+
+        with patch(self.REFRESH) as refresh:
+            response = self.client.post(
+                reverse("stock-transfer-receive", args=[self.branch.id, transfer_id])
+            )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertTrue(refresh.called, "receiving left the dashboard stale")
+
+    def test_cancelling_rebuilds_the_shop_the_stock_returns_to(self):
+        """A cancel puts the goods back, which is a stock movement like any other."""
+        item = self._item(self.main, "Kurta", stock="10")
+        transfer_id = self._dispatch(
+            [{"item_id": str(item.id), "quantity": "4"}]
+        ).data["id"]
+
+        with patch(self.REFRESH) as refresh:
+            response = self.client.post(
+                reverse("stock-transfer-cancel", args=[self.main.id, transfer_id])
+            )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertTrue(refresh.called, "cancelling left the dashboard stale")

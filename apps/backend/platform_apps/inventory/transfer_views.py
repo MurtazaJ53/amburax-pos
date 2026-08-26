@@ -31,6 +31,7 @@ from rest_framework import exceptions, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from platform_apps.projections.services import refresh_projection_after_write
 from platform_apps.inventory.models import (
     InventoryItem,
     InventoryStockLedger,
@@ -252,6 +253,10 @@ class StockTransferListCreateView(APIView):
             )
 
         transfer.refresh_from_db()
+        # The goods have left this shop, so its low-stock and out-of-stock
+        # counts and its shelf value all moved. The dashboard is a stored
+        # snapshot and would otherwise keep quoting the pre-dispatch figures.
+        refresh_projection_after_write(source, context="a stock transfer sent")
         return Response(_serialize(transfer), status=status.HTTP_201_CREATED)
 
 
@@ -370,6 +375,11 @@ class StockTransferReceiveView(APIView):
         transfer.received_at = now
         transfer.received_by = request.user
         transfer.save(update_fields=["status", "received_at", "received_by", "updated_at"])
+        # It arrived here, so this shop's figures moved - and an item that was
+        # out of stock is the very reason someone sent it.
+        refresh_projection_after_write(
+            transfer.destination_shop, context="a stock transfer received"
+        )
 
         return Response(_serialize(transfer))
 
@@ -413,5 +423,10 @@ class StockTransferCancelView(APIView):
         transfer.status = StockTransfer.Status.CANCELLED
         transfer.cancelled_at = now
         transfer.save(update_fields=["status", "cancelled_at", "updated_at"])
+        # A cancel puts the goods back, which is a stock movement like any
+        # other and moves the same three figures.
+        refresh_projection_after_write(
+            transfer.source_shop, context="a stock transfer cancelled"
+        )
 
         return Response(_serialize(transfer))
