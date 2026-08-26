@@ -19,6 +19,8 @@ from platform_apps.common.blind_index import generate_blind_index
 from platform_apps.common.migration import MigrationDomain
 from platform_apps.common.migration_guards import assert_postgres_primary_write_enabled
 from platform_apps.common.cursor import CursorListMixin
+from platform_apps.common.import_undo import tag_for
+from platform_apps.common.models import ImportBatch
 from platform_apps.customers.models import Customer, CustomerLedgerEntry
 from platform_apps.customers.serializers import (
     CustomerLedgerEntrySerializer,
@@ -130,6 +132,16 @@ class CustomerBulkCreateView(ShopScopedMixin, APIView):
         created = 0
         updated = 0
         errors = []
+        # Only rows this import CREATES are tagged. A row it merely refreshes
+        # existed beforehand - undoing the import must not delete a customer
+        # who was already on the books.
+        batch = ImportBatch.objects.create(
+            shop=membership.shop,
+            kind=ImportBatch.Kind.CUSTOMERS,
+            filename=str(request.data.get("filename") or "")[:255],
+            row_count=len(rows),
+            actor_user=request.user,
+        )
         from django.db import transaction
 
         with transaction.atomic():
@@ -156,10 +168,25 @@ class CustomerBulkCreateView(ShopScopedMixin, APIView):
                     existing.save(update_fields=["name", "balance", "updated_at"])
                     updated += 1
                 else:
-                    serializer.save()
+                    customer = serializer.save()
+                    # Set after saving, not through the serializer: these are
+                    # not fields a caller may supply, or anyone could claim a
+                    # row belongs to somebody else's import.
+                    for field, value in tag_for(batch, idx + 1).items():
+                        setattr(customer, field, value)
+                    customer.save(
+                        update_fields=["source_system", "source_path", "source_id"]
+                    )
                     created += 1
+        batch.created_count = created
+        batch.save(update_fields=["created_count", "updated_at"])
+
         return Response(
             {
+                # Handed back so the screen can undo this exact import
+                # rather than "the last one", which is ambiguous the moment
+                # two people import at the same time.
+                "batch_id": str(batch.id),
                 "created": created,
                 "updated": updated,
                 "skipped": len(errors),

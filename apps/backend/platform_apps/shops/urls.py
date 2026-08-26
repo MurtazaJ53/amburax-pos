@@ -45,6 +45,7 @@ from platform_apps.inventory.stocktake_views import (
     StocktakeListCreateView,
 )
 from platform_apps.inventory.image_views import InventoryItemImageView
+from platform_apps.common.import_views import ImportBatchListView, ImportBatchUndoView
 from platform_apps.inventory.sku_views import GenerateSkusView
 from platform_apps.inventory.transfer_views import (
     StockTransferCancelView,
@@ -177,6 +178,16 @@ urlpatterns = [
     ),
     path("<uuid:shop_id>/customers/", CustomerListCreateView.as_view(), name="customer-list"),
     path("<uuid:shop_id>/customers/bulk/", CustomerBulkCreateView.as_view(), name="customer-bulk"),
+    path(
+        "<uuid:shop_id>/imports/",
+        ImportBatchListView.as_view(),
+        name="import-batch-list",
+    ),
+    path(
+        "<uuid:shop_id>/imports/<uuid:batch_id>/undo/",
+        ImportBatchUndoView.as_view(),
+        name="import-batch-undo",
+    ),
     path("<uuid:shop_id>/customers/debtors/", DebtorListView.as_view(), name="customer-debtors"),
     path("<uuid:shop_id>/loyalty/", LoyaltySettingsView.as_view(), name="shop-loyalty"),
     path(

@@ -23,6 +23,8 @@ from platform_apps.inventory.serializers import (
     InventorySummarySerializer,
 )
 from platform_apps.shops.models import ShopMembership
+from platform_apps.common.import_undo import tag_for
+from platform_apps.common.models import ImportBatch
 from platform_apps.projections.services import refresh_projection_after_write
 from platform_apps.shops.permissions import (
     ROLE_ORDER,
@@ -240,6 +242,16 @@ class InventoryItemBulkCreateView(ShopScopedMixin, APIView):
         created = 0
         updated = 0
         errors = []
+        # Recorded before the rows so every one of them can point at it. Only
+        # rows this import CREATES get tagged - a row it merely updates existed
+        # beforehand, and undoing the import must not delete it.
+        batch = ImportBatch.objects.create(
+            shop=membership.shop,
+            kind=ImportBatch.Kind.PRODUCTS,
+            filename=str(request.data.get("filename") or "")[:255],
+            row_count=len(rows),
+            actor_user=request.user,
+        )
         with transaction.atomic():
             for idx, raw in enumerate(rows):
                 serializer = InventoryItemSerializer(data=raw, context=context)
@@ -283,14 +295,28 @@ class InventoryItemBulkCreateView(ShopScopedMixin, APIView):
                     existing.save()
                     updated += 1
                 else:
-                    serializer.save()
+                    item = serializer.save()
+                    # Tagged after saving rather than through the serializer:
+                    # these are not fields a caller may set, and letting them
+                    # arrive in a payload would let anyone claim a row belongs
+                    # to somebody else's import.
+                    for field, value in tag_for(batch, idx + 1).items():
+                        setattr(item, field, value)
+                    item.save(update_fields=["source_system", "source_path", "source_id"])
                     created += 1
         if created or updated:
             refresh_projection_after_write(
                 membership.shop, context="an inventory import"
             )
+        batch.created_count = created
+        batch.save(update_fields=["created_count", "updated_at"])
+
         return Response(
             {
+                # Handed back so the screen can offer to undo this exact
+                # import rather than "the last one", which is ambiguous the
+                # moment two people import at once.
+                "batch_id": str(batch.id),
                 "created": created,
                 "updated": updated,
                 "skipped": len(errors),
