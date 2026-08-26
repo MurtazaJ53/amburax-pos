@@ -19,7 +19,7 @@ from platform_apps.common.blind_index import generate_blind_index
 from platform_apps.common.migration import MigrationDomain
 from platform_apps.common.migration_guards import assert_postgres_primary_write_enabled
 from platform_apps.common.cursor import CursorListMixin
-from platform_apps.common.import_undo import tag_for
+from platform_apps.common.import_undo import batch_for, record_rows, tag_for
 from platform_apps.common.models import ImportBatch
 from platform_apps.customers.models import Customer, CustomerLedgerEntry
 from platform_apps.customers.serializers import (
@@ -135,12 +135,11 @@ class CustomerBulkCreateView(ShopScopedMixin, APIView):
         # Only rows this import CREATES are tagged. A row it merely refreshes
         # existed beforehand - undoing the import must not delete a customer
         # who was already on the books.
-        batch = ImportBatch.objects.create(
-            shop=membership.shop,
-            kind=ImportBatch.Kind.CUSTOMERS,
-            filename=str(request.data.get("filename") or "")[:255],
-            row_count=len(rows),
-            actor_user=request.user,
+        batch = batch_for(
+            membership.shop,
+            ImportBatch.Kind.CUSTOMERS,
+            str(request.data.get("filename") or "")[:255],
+            request.user,
         )
         from django.db import transaction
 
@@ -178,8 +177,11 @@ class CustomerBulkCreateView(ShopScopedMixin, APIView):
                         update_fields=["source_system", "source_path", "source_id"]
                     )
                     created += 1
-        batch.created_count = created
-        batch.save(update_fields=["created_count", "updated_at"])
+        # Added to, not overwritten: a large file arrives as several chunks
+        # that all belong to the same batch, and the last one must not wipe
+        # what the earlier ones recorded.
+        record_rows(batch, rows=len(rows), created=created)
+        batch.refresh_from_db()
 
         return Response(
             {

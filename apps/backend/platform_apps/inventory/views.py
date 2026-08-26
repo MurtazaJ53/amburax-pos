@@ -23,7 +23,7 @@ from platform_apps.inventory.serializers import (
     InventorySummarySerializer,
 )
 from platform_apps.shops.models import ShopMembership
-from platform_apps.common.import_undo import tag_for
+from platform_apps.common.import_undo import batch_for, record_rows, tag_for
 from platform_apps.common.models import ImportBatch
 from platform_apps.projections.services import refresh_projection_after_write
 from platform_apps.shops.permissions import (
@@ -245,12 +245,11 @@ class InventoryItemBulkCreateView(ShopScopedMixin, APIView):
         # Recorded before the rows so every one of them can point at it. Only
         # rows this import CREATES get tagged - a row it merely updates existed
         # beforehand, and undoing the import must not delete it.
-        batch = ImportBatch.objects.create(
-            shop=membership.shop,
-            kind=ImportBatch.Kind.PRODUCTS,
-            filename=str(request.data.get("filename") or "")[:255],
-            row_count=len(rows),
-            actor_user=request.user,
+        batch = batch_for(
+            membership.shop,
+            ImportBatch.Kind.PRODUCTS,
+            str(request.data.get("filename") or "")[:255],
+            request.user,
         )
         with transaction.atomic():
             for idx, raw in enumerate(rows):
@@ -308,8 +307,11 @@ class InventoryItemBulkCreateView(ShopScopedMixin, APIView):
             refresh_projection_after_write(
                 membership.shop, context="an inventory import"
             )
-        batch.created_count = created
-        batch.save(update_fields=["created_count", "updated_at"])
+        # Added to, not overwritten: a large file arrives as several chunks
+        # that all belong to the same batch, and the last one must not wipe
+        # what the earlier ones recorded.
+        record_rows(batch, rows=len(rows), created=created)
+        batch.refresh_from_db()
 
         return Response(
             {

@@ -61,10 +61,9 @@ export async function POST(req: NextRequest) {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        // Forwarded so each batch is recognisable as having come from this
-        // file. Note that a file over CHUNK_SIZE rows becomes several
-        // batches, and each is undone separately - the filename is what ties
-        // them together on screen.
+        // Forwarded with every chunk because the server groups them by it:
+        // one file becomes one batch however many requests it takes, so a
+        // large import is still undone in a single click.
         body: JSON.stringify({ [target.key]: chunk, filename }),
       });
 

@@ -23,9 +23,11 @@ app removes things, and it leaves the door open if somebody wants them back.
 """
 from __future__ import annotations
 
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
 from platform_apps.common.models import ImportBatch
@@ -133,3 +135,56 @@ def undo(batch: ImportBatch) -> dict:
         # they are" is something a shopkeeper can act on.
         "kept_rows": kept[:50],
     }
+
+
+#: How long a batch stays open to further chunks of the same file.
+#:
+#: The web proxy splits a large file into requests of five hundred rows, so a
+#: twelve-hundred-row import arrives as three separate calls seconds apart.
+#: Each used to record its own batch, which meant undoing that one mistake
+#: took three clicks and nothing said so.
+CHUNK_WINDOW_SECONDS = 300
+
+
+def batch_for(shop, kind, filename, actor):
+    """The batch these rows belong to - reusing an open one where it fits.
+
+    Grouping is decided here rather than by the caller passing a batch id.
+    A caller-supplied id would let anyone attach rows to somebody else's
+    import, and then undo somebody else's data; the same shop, kind, file and
+    person within a few minutes is enough to recognise chunks of one upload
+    without trusting anything from outside.
+
+    An undone batch is never reused. Adding rows to something already taken
+    back would leave them tagged as removed while sitting in the shop.
+    """
+    from django.utils import timezone
+
+    cutoff = timezone.now() - timedelta(seconds=CHUNK_WINDOW_SECONDS)
+    existing = (
+        ImportBatch.objects.filter(
+            shop=shop,
+            kind=kind,
+            filename=filename,
+            actor_user=actor,
+            undone_at__isnull=True,
+            created_at__gte=cutoff,
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    # A file with no name cannot be told apart from the next one, so those
+    # each get their own batch rather than being lumped together.
+    if existing is not None and filename:
+        return existing
+    return ImportBatch.objects.create(
+        shop=shop, kind=kind, filename=filename, actor_user=actor
+    )
+
+
+def record_rows(batch, *, rows: int, created: int) -> None:
+    """Add this chunk's counts to the batch it belongs to."""
+    ImportBatch.objects.filter(pk=batch.pk).update(
+        row_count=F("row_count") + rows,
+        created_count=F("created_count") + created,
+    )
