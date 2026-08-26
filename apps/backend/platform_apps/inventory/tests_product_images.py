@@ -12,13 +12,20 @@ photo every time somebody corrected a price.
 from __future__ import annotations
 
 import base64
+import shutil
+import tempfile
 from decimal import Decimal
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from platform_apps.inventory.image_views import MAX_IMAGE_BYTES, parse_data_uri
+from platform_apps.common.blob import reset_store
+from platform_apps.inventory.image_views import (
+    MAX_IMAGE_BYTES,
+    load_image,
+    parse_data_uri,
+)
 from platform_apps.inventory.models import InventoryItem
 from platform_apps.shops.models import Shop, ShopMembership
 from platform_apps.users.models import PlatformUser
@@ -49,6 +56,17 @@ class ParseDataUriTests(TestCase):
 
 class ProductImageTests(TestCase):
     def setUp(self):
+        # Photos are objects now, so a test that saves one writes a file.
+        # Pointed at a temp directory that is removed afterwards, rather than
+        # leaving images in the repo.
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        settings_patch = override_settings(BLOB_STORE="filesystem", BLOB_ROOT=root)
+        settings_patch.enable()
+        self.addCleanup(settings_patch.disable)
+        reset_store()
+        self.addCleanup(reset_store)
+
         self.owner = PlatformUser.objects.create_user(
             email="owner@example.com", password="secret", full_name="Owner"
         )
@@ -149,10 +167,15 @@ class ProductImageTests(TestCase):
         self.assertEqual(self.item.image_data, "")
 
     def test_a_new_picture_replaces_the_old_one(self):
+        # The bytes go to the object store, so what changes is the key. The
+        # row itself is left carrying nothing - which is the point: a photo in
+        # the column travels with every backup of the table the till reads.
         other = "data:image/png;base64," + base64.b64encode(b"different").decode()
         self.client.patch(self.detail_url, {"image_data": other}, format="json")
         self.item.refresh_from_db()
-        self.assertEqual(self.item.image_data, other)
+        self.assertTrue(self.item.image_key)
+        self.assertEqual(self.item.image_data, "")
+        self.assertEqual(load_image(self.item), ("image/png", b"different"))
 
     def test_something_that_is_not_an_image_is_refused(self):
         response = self.client.patch(

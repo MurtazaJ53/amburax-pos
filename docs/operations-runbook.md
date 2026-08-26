@@ -189,3 +189,63 @@ breakdown, and — where the law requires it — the composition-dealer wording.
 The closing line comes from the shop's own footer note. If a shop wants
 "Exchange within 7 days with the bill", they set it; nothing is printed on a
 shop's paper that the shop did not agree to.
+
+## Moving product photos out of the database
+
+Photos used to be base64 text in a column on the product, so they travelled
+with every backup and every replica of the table the till reads. New photos go
+to object storage automatically. This moves the ones written before that.
+
+### Choose where they live
+
+`BLOB_STORE=filesystem` (the default) keeps them in the `media_data` Docker
+volume at `/var/lib/bhub/media`. No vendor, no cost, no extra dependency —
+but **that volume must be in your backups.** Unlike the database it has no
+dump, and losing it loses every picture. It also dies with the droplet.
+
+`BLOB_STORE=s3` puts them in DigitalOcean Spaces, Cloudflare R2 or AWS S3 —
+all three speak the same protocol and differ only by endpoint. Set:
+
+```
+BLOB_STORE=s3
+BLOB_S3_BUCKET=business-hub-media
+BLOB_S3_ENDPOINT=https://blr1.digitaloceanspaces.com
+BLOB_S3_REGION=blr1
+BLOB_S3_ACCESS_KEY=...
+BLOB_S3_SECRET_KEY=...
+```
+
+This needs `boto3` installed. It is imported only when the S3 backend is
+built, so a filesystem deployment never needs it.
+
+### Run the move
+
+Always dry-run first. It writes nothing and tells you how much would move:
+
+```
+docker compose -f docker-compose.prod.yml exec api \
+  python manage.py migrate_product_images --dry-run
+```
+
+Then for real:
+
+```
+docker compose -f docker-compose.prod.yml exec api \
+  python manage.py migrate_product_images
+```
+
+Safe to interrupt and safe to re-run. A product is only cleared from the
+column once its bytes are confirmed readable back out of the store, and the
+image endpoint reads the store first and falls back to the column — so while
+it runs, moved and unmoved products both show their pictures.
+
+Rows whose text will not decode are skipped and left untouched, and named on
+stderr. They were already broken; the command moves pictures, it does not
+decide something is rubbish and delete it.
+
+### If you switch stores later
+
+Set the new `BLOB_*` values and run the command again. It only picks up rows
+still holding a photo in the column, so **it will not copy objects from one
+store to another** — move those with the vendor's own tooling (`rclone`, `aws
+s3 sync`) before switching.

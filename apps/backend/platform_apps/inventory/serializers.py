@@ -6,6 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
+from platform_apps.common.blob import content_key, get_store
 from platform_apps.inventory.image_views import MAX_IMAGE_BYTES, parse_data_uri
 from platform_apps.inventory.models import InventoryItem, InventoryItemPrivate, InventoryStockLedger
 
@@ -109,7 +110,10 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         initial, and asking for the picture just to find out there is none
         would undo the point of moving it out of the list.
         """
-        return bool((getattr(obj, "image_data", "") or "").strip())
+        return bool(
+            (getattr(obj, "image_key", "") or "").strip()
+            or (getattr(obj, "image_data", "") or "").strip()
+        )
 
     def get_has_stock_history(self, obj) -> bool:
         """Was this item ever given stock?
@@ -214,7 +218,42 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         return private.last_purchase_date if private and not private.tombstone else None
 
     @transaction.atomic
+    def _store_image(self, validated_data: dict) -> None:
+        """Move a submitted picture into object storage, in place.
+
+        Rewrites image_data into image_key so the bytes never reach the
+        product row. The column is cleared rather than left alongside: keeping
+        both would mean every backup still carried the picture, which is the
+        whole thing this was meant to stop.
+        """
+        if "image_data" not in validated_data:
+            return  # Untouched. Leave whatever is stored exactly as it is.
+
+        candidate = (validated_data.pop("image_data") or "").strip()
+        if not candidate:
+            # Deliberately cleared. Both places have to be emptied, or the
+            # fallback would keep serving the picture that was just removed.
+            validated_data["image_data"] = ""
+            validated_data["image_key"] = ""
+            return
+
+        parsed = parse_data_uri(candidate)
+        if parsed is None:
+            # validate_image_data already refused anything unusable, so this
+            # is unreachable in practice - and if it ever is reached, storing
+            # nothing beats storing something that will not render.
+            validated_data["image_data"] = ""
+            validated_data["image_key"] = ""
+            return
+
+        media_type, payload = parsed
+        key = content_key(payload, media_type)
+        get_store().put(key, payload, media_type)
+        validated_data["image_key"] = key
+        validated_data["image_data"] = ""
+
     def create(self, validated_data):
+        self._store_image(validated_data)
         opening_stock = Decimal(str(validated_data.pop("opening_stock", 0)))
         cost_price = validated_data.pop("cost_price_input", None)
         supplier_id = validated_data.pop("supplier_id_input", "")
@@ -265,6 +304,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def update(self, instance, validated_data):
+        self._store_image(validated_data)
         validated_data.pop("opening_stock", None)
         cost_price = validated_data.pop("cost_price_input", None)
         supplier_id = validated_data.pop("supplier_id_input", None)

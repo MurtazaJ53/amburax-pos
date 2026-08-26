@@ -27,6 +27,7 @@ from django.http import HttpResponse, HttpResponseNotModified
 from rest_framework import exceptions, permissions
 from rest_framework.views import APIView
 
+from platform_apps.common.blob import get_store
 from platform_apps.inventory.models import InventoryItem
 from platform_apps.shops.permissions import get_membership_or_403
 
@@ -36,6 +37,15 @@ _DATA_URI = re.compile(r"^data:(image/[a-zA-Z0-9.+-]+);base64,(.+)$", re.DOTALL)
 #: Only formats a browser renders inline. An SVG is a document that can carry
 #: script, so it is not served back even if one somehow got stored.
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+
+#: The extension each type is stored under, so a key can be read back to a
+#: media type without a second lookup.
+_EXTENSION_BY_TYPE = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+}
 
 #: A product photo is resized to about 60 KB before upload. The cap sits well
 #: above that so a real picture is never refused, while still bounding what one
@@ -63,6 +73,35 @@ def parse_data_uri(value: str) -> tuple[str, bytes] | None:
         return None
 
 
+def media_type_for(key: str) -> str:
+    """The media type a stored key implies, from its extension."""
+    extension = key.rsplit(".", 1)[-1].lower() if "." in key else ""
+    for media_type, suffix in _EXTENSION_BY_TYPE.items():
+        if suffix == extension:
+            return media_type
+    return "application/octet-stream"
+
+
+def load_image(item) -> tuple[str, bytes] | None:
+    """A product's picture, from wherever it happens to live.
+
+    Reads the object store first and falls back to the old base64 column. Both
+    paths exist on purpose: the migration moves rows in batches over minutes,
+    and during that window some products have been moved and some have not.
+    Without the fallback, every unmoved product would show no picture until
+    the command finished.
+    """
+    key = (getattr(item, "image_key", "") or "").strip()
+    if key:
+        payload = get_store().get(key)
+        if payload is not None:
+            return media_type_for(key), payload
+        # A key that resolves to nothing means the object is gone while the row
+        # still points at it. Fall through rather than showing a broken image:
+        # the column may still hold the picture.
+    return parse_data_uri(item.image_data or "")
+
+
 class InventoryItemImageView(APIView):
     """One product's photo, as an image the browser can cache."""
 
@@ -74,13 +113,13 @@ class InventoryItemImageView(APIView):
             InventoryItem.objects.filter(
                 shop=membership.shop, pk=item_id, tombstone=False
             )
-            .only("id", "image_data")
+            .only("id", "image_data", "image_key")
             .first()
         )
         if item is None:
             raise exceptions.NotFound("Product not found.")
 
-        parsed = parse_data_uri(item.image_data or "")
+        parsed = load_image(item)
         if parsed is None:
             raise exceptions.NotFound("That product has no picture.")
         media_type, payload = parsed

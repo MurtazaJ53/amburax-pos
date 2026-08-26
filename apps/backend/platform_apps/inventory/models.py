@@ -45,7 +45,13 @@ class InventoryItem(SourceTrackedModel):
     # because the single-node Docker deploy only persists the database volume —
     # files written into the container are lost on every redeploy. Clients send
     # a downscaled/compressed copy, so rows stay small.
+    # Kept for rows not yet moved to object storage, and as the fallback the
+    # image view reads when image_key is empty. New writes go to the store.
     image_data = models.TextField(blank=True)
+    #: Where the photo actually lives now. Content-addressed, so the same
+    #: picture on two products is stored once and a changed picture is a new
+    #: key rather than an invalidation problem.
+    image_key = models.CharField(max_length=255, blank=True)
 
     class Meta:
         indexes = [

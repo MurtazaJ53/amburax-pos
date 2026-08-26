@@ -408,6 +408,25 @@ CACHES = {
     }
 }
 
+# --- Stored files (product photos) ---------------------------------------
+# Photos used to live as base64 in a column on the product, so they travelled
+# with every backup and every query that touched the row. They are objects
+# now, behind platform_apps.common.blob.
+#
+# "filesystem" is the default because it needs no vendor and no dependency.
+# The operational catch: BLOB_ROOT must sit on a volume that survives a
+# rebuild AND be included in backups - a container's own disk is neither.
+#
+# "s3" covers DigitalOcean Spaces, Cloudflare R2 and AWS, which differ only by
+# endpoint. It needs boto3, which is imported only when that backend is built.
+BLOB_STORE = os.getenv("BLOB_STORE", "filesystem")
+BLOB_ROOT = os.getenv("BLOB_ROOT", str(BASE_DIR / "media"))
+BLOB_S3_BUCKET = os.getenv("BLOB_S3_BUCKET", "")
+BLOB_S3_ENDPOINT = os.getenv("BLOB_S3_ENDPOINT", "")
+BLOB_S3_REGION = os.getenv("BLOB_S3_REGION", "")
+BLOB_S3_ACCESS_KEY = os.getenv("BLOB_S3_ACCESS_KEY", "")
+BLOB_S3_SECRET_KEY = os.getenv("BLOB_S3_SECRET_KEY", "")
+
 # --- Subscription billing (Razorpay) -------------------------------------
 # Left blank until real keys are issued; the billing module stays inert and the
 # app keeps working, so nothing breaks before the merchant account exists.
