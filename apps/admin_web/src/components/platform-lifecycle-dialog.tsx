@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 type Props = {
   shopId: string;
@@ -22,6 +23,7 @@ export function PlatformLifecycleDialog({
   buttonStyle,
   currentPlan,
 }: Props) {
+  const refreshServerData = useServerRefresh();
   const [isOpen, setIsOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [planTier, setPlanTier] = useState(currentPlan || "starter");
@@ -47,7 +49,7 @@ export function PlatformLifecycleDialog({
         throw new Error(data.error || "Failed to execute action");
       }
       setIsOpen(false);
-      window.location.reload();
+      refreshServerData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       setLoading(false);

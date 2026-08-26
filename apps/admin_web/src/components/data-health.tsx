@@ -12,6 +12,7 @@ import {
 
 import type { DataHealthReport, DuplicateGroup } from "@/lib/data-health";
 import { formatCurrency } from "@/lib/utils";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -84,6 +85,7 @@ function toReport(body: ApiHealthReport): DataHealthReport {
 }
 
 export function DataHealth() {
+  const refreshServerData = useServerRefresh();
   const [report, setReport] = useState<DataHealthReport>(EMPTY_REPORT);
   const [scanned, setScanned] = useState({ items: 0, customers: 0 });
   const [loading, setLoading] = useState(true);
@@ -206,8 +208,9 @@ export function DataHealth() {
       }
       if (failure) setError(failure);
       await load();
+      refreshServerData();
     },
-    [mergeGroup, load]
+    [mergeGroup, load, refreshServerData]
   );
 
   const confirmAndMerge = useCallback(

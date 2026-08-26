@@ -11,6 +11,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 export type NotificationItem = {
   id: string;
@@ -23,6 +24,7 @@ export type NotificationItem = {
 };
 
 export function NotificationsPopover() {
+  const refreshServerData = useServerRefresh();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [filter, setFilter] = useState<"all" | "unread">("all");
@@ -76,6 +78,7 @@ export function NotificationsPopover() {
       await fetch("/api/notifications/read-all", { method: "POST" });
     } finally {
       await load();
+      refreshServerData();
     }
   };
 
@@ -89,6 +92,7 @@ export function NotificationsPopover() {
       await fetch(`/api/notifications/${id}/read`, { method: "POST" });
     } catch {
       await load();
+      refreshServerData();
     }
   };
 

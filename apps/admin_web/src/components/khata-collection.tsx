@@ -5,6 +5,7 @@ import { CheckCircle2, MessageCircle, PhoneOff, RefreshCw, Send } from "lucide-r
 
 import { buildKhataReminder, whatsAppLink } from "@/lib/khata-reminder";
 import { formatCurrency } from "@/lib/utils";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -53,6 +54,7 @@ export function KhataCollection({
   shopName: string;
   upiVpa: string;
 }) {
+  const refreshServerData = useServerRefresh();
   const [data, setData] = useState<DebtorPayload | null>(null);
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -164,6 +166,7 @@ export function KhataCollection({
     if (next >= round.queue.length) {
       setRound(null);
       await load();
+      refreshServerData();
     } else {
       setRound({ ...round, at: next });
     }
@@ -228,6 +231,7 @@ export function KhataCollection({
       const res = await fetch(`/api/khata/remind/${debtor.id}`, { method: "POST" });
       if (!res.ok) throw new Error(`Could not record the reminder (${res.status})`);
       await load();
+      refreshServerData();
     } catch (err) {
       // The message did go out, so say exactly that rather than implying it
       // failed — otherwise the owner sends it twice.

@@ -15,6 +15,7 @@ import {
   type ImportKind,
   type ParsedTable,
 } from "@/lib/import";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -74,6 +75,7 @@ const KINDS: { key: ImportKind; label: string; hint: string }[] = [
 ];
 
 export function SpreadsheetImport() {
+  const refreshServerData = useServerRefresh();
   const [kind, setKind] = useState<ImportKind>("products");
   const [fileName, setFileName] = useState<string | null>(null);
   const [table, setTable] = useState<ParsedTable | null>(null);
@@ -190,6 +192,8 @@ export function SpreadsheetImport() {
         throw new Error(typeof body?.error === "string" ? body.error : `Import failed (${res.status})`);
       }
       setResult(body);
+      // The rows went straight into stock and customers.
+      refreshServerData();
     } catch (err) {
       setError(errorMessage(err, "Could not import that file."));
     } finally {

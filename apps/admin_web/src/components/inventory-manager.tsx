@@ -33,6 +33,7 @@ import {
   stockFacets,
 } from "@/lib/inventory-filters";
 import type { SortKey, StockFilter } from "@/lib/inventory-filters";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -68,6 +69,7 @@ interface InventoryManagerProps {
 }
 
 export function InventoryManager({ initialInventory, canViewCosts = false }: InventoryManagerProps) {
+  const refreshServerData = useServerRefresh();
   const t = useT();
   const mappedInitial = React.useMemo(
     () => (initialInventory ?? []).map(mapInventoryRow),
@@ -402,6 +404,7 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
       }
       setIsProductModalOpen(false);
       await fetchItems();
+      refreshServerData();
     } catch (err) {
       alert(errorMessage(err, "An error occurred while saving the product"));
     } finally {
@@ -436,6 +439,7 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
       setAdjustQty("");
       setAdjustReason("");
       await fetchItems();
+      refreshServerData();
     } catch (err) {
       alert(errorMessage(err, "An error occurred while adjusting the stock level."));
     } finally {

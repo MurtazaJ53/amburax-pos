@@ -18,6 +18,7 @@ import {
   validateLines,
 } from "@/lib/item-lines";
 import { ItemLinesEditor } from "@/components/ui/item-lines-editor";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -112,6 +113,7 @@ function toPurchase(row: Record<string, unknown>): PurchaseOrderRecord {
 }
 
 export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: "purchases" | "suppliers" } = {}) {
+  const refreshServerData = useServerRefresh();
   const [suppliers, setSuppliers] = useState<SupplierRecord[]>([]);
   const [purchases, setPurchases] = useState<PurchaseOrderRecord[]>([]);
   const [outstandingPayable, setOutstandingPayable] = useState<number | null>(null);
@@ -296,6 +298,7 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
       // Re-read rather than patch local state: the supplier's payable balance
       // is recalculated server-side from its ledger.
       await load();
+      refreshServerData();
     } catch (err) {
       setSaveError(errorMessage(err, "Could not save the purchase."));
     } finally {
@@ -386,6 +389,7 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
       setSupGstin("");
       setSupAddress("");
       await load();
+      refreshServerData();
     } catch (err) {
       setSaveError(errorMessage(err, "Could not save the supplier."));
     } finally {

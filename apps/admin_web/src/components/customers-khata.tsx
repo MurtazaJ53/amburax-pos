@@ -19,6 +19,7 @@ import type { Customer, CustomerSummaryPayload } from "@/lib/types";
 import { useT } from "@/lib/i18n";
 import { formatQuantity, linesSummary, saleLines } from "@/lib/ledger-items";
 import type { LedgerSale } from "@/lib/ledger-items";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -61,6 +62,7 @@ function readTimelineEntries(payload: unknown): TimelineEntry[] {
 }
 
 export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKhataProps) {
+  const refreshServerData = useServerRefresh();
   const t = useT();
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers ?? []);
   const [summary, setSummary] = useState<CustomerSummaryPayload>(initialSummary ?? { total_customers: 0, active_credit_customers: 0, total_outstanding_balance: "0.00", total_lifetime_spend: null });
@@ -206,6 +208,7 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
       setCustomers((previous) => previous.map((c) => (c.id === updated.id ? updated : c)));
       setIsAddCustomerOpen(false);
       setEditingCustomer(null);
+      refreshServerData();
     } catch (err) {
       setSubmitError(errorMessage(err, "Could not save those changes."));
     } finally {
@@ -258,6 +261,7 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
       
       setCustomers(updatedList);
       setSummary(updatedSummary);
+      refreshServerData();
       setSelectedCustomerId(newCust.id);
     } catch (err) {
       setSubmitError(errorMessage(err, "An error occurred while creating customer."));
@@ -314,6 +318,9 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
       setCustomers(updatedList);
       setSummary(updatedSummary);
       setTimeline(readTimelineEntries(updatedTimeline));
+      // A khata entry changes what the shop is owed, which is a figure the
+      // page header renders from the server.
+      refreshServerData();
     } catch (err) {
       setSubmitError(errorMessage(err, "An error occurred while saving ledger entry."));
     } finally {

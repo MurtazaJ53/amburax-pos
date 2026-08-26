@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import type { ShopMembership } from "@/lib/types";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -98,6 +99,7 @@ export function TransferManager({
   memberships: ShopMembership[];
   canMove: boolean;
 }) {
+  const refreshServerData = useServerRefresh();
   const [data, setData] = useState<TransferPayload | null>(null);
   const [items, setItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,6 +179,7 @@ export function TransferManager({
         throw new Error(body.error || `Could not ${verb} this transfer.`);
       }
       await load();
+      refreshServerData();
     } catch (err) {
       setError(errorMessage(err, `Could not ${verb} this transfer.`));
     } finally {
@@ -213,6 +216,7 @@ export function TransferManager({
       setNote("");
       setDraftLines([{ itemId: "", quantity: "" }]);
       await load();
+      refreshServerData();
     } catch (err) {
       setError(errorMessage(err, "Could not send the stock."));
     } finally {

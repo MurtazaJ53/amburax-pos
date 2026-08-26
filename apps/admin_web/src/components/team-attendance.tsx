@@ -24,6 +24,7 @@ import type {
   WorkspaceAccessSessionPayload,
   WorkspaceTeamMemberPayload,
 } from "@/lib/types";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -59,6 +60,7 @@ export function TeamAttendance({
   defaultTab = "team",
   initialDevices = [],
 }: TeamAttendanceProps) {
+  const refreshServerData = useServerRefresh();
   const devices = initialDevices;
   /** The month the pay sheet is showing. Defaults to the most recent month
    *  that has any records, not to today - a shop opening the sheet on the 1st
@@ -226,7 +228,9 @@ export function TeamAttendance({
       setIsInviteOpen(false);
       setInviteEmail("");
       setInviteName("");
+      refreshServerData();
       await refreshData();
+      refreshServerData();
     } catch (err) {
       setSubmitError(errorMessage(err, "Failed to send invitation."));
     } finally {
@@ -264,6 +268,7 @@ export function TeamAttendance({
         if (!res.ok) throw new Error("Failed to clock in");
       }
       await refreshData();
+      refreshServerData();
     } catch (err) {
       alert(errorMessage(err, "Failed to record attendance shift."));
     } finally {
@@ -300,6 +305,7 @@ export function TeamAttendance({
       setSelectedMemberId("");
       setAttendanceNote("");
       await refreshData();
+      refreshServerData();
     } catch (err) {
       setSubmitError(errorMessage(err, "Failed to save attendance."));
     } finally {

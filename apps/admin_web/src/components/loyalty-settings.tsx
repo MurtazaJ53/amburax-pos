@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Gift, Loader2 } from "lucide-react";
 
 import { formatCurrency } from "@/lib/utils";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -30,6 +31,7 @@ function num(value: string | number | null | undefined): number {
  * two numbers to set.
  */
 export function LoyaltySettings() {
+  const refreshServerData = useServerRefresh();
   const [config, setConfig] = useState<LoyaltyConfig | null>(null);
   const [perHundred, setPerHundred] = useState("1");
   const [pointValue, setPointValue] = useState("1.00");
@@ -94,6 +96,7 @@ export function LoyaltySettings() {
       // Put the inputs back to what is actually stored, so the screen never
       // shows a rate the shop is not honouring.
       await load();
+      refreshServerData();
     } finally {
       setSaving(false);
     }

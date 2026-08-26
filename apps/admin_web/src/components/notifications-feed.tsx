@@ -8,6 +8,7 @@ import {
   CheckCheck,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -25,6 +26,7 @@ export interface NotificationItem {
 }
 
 export function NotificationsFeed() {
+  const refreshServerData = useServerRefresh();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +65,7 @@ export function NotificationsFeed() {
       setError(errorMessage(err, "Could not mark all as read."));
     } finally {
       await load();
+      refreshServerData();
     }
   };
 
@@ -81,6 +84,7 @@ export function NotificationsFeed() {
     } catch (err) {
       setError(errorMessage(err, "Could not mark as read."));
       await load();
+      refreshServerData();
     }
   };
 

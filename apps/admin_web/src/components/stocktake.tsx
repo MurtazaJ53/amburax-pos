@@ -5,6 +5,7 @@ import { ClipboardCheck, Play, Search, TriangleAlert, X } from "lucide-react";
 
 import { resolveScan, searchItems } from "@/lib/stock-search";
 import { formatCurrency } from "@/lib/formatters";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -86,6 +87,7 @@ export function StocktakeScreen({
   canApply: boolean;
   currencyCode?: string;
 }) {
+  const refreshServerData = useServerRefresh();
   const [current, setCurrent] = useState<Stocktake | null>(null);
   const [history, setHistory] = useState<Stocktake[]>([]);
   const [items, setItems] = useState<StockItem[]>([]);
@@ -181,6 +183,7 @@ export function StocktakeScreen({
     try {
       await post("/api/stocktakes");
       await load();
+      refreshServerData();
     } catch (err) {
       setError(errorMessage(err, "Could not start a stocktake."));
     } finally {
@@ -204,6 +207,7 @@ export function StocktakeScreen({
       setSelected(null);
       setCounted("");
       await load();
+      refreshServerData();
       // Straight back to search so the next scan needs no tap.
       setTimeout(() => searchRef.current?.focus(), 0);
     } catch (err) {
@@ -220,6 +224,7 @@ export function StocktakeScreen({
     try {
       await post(`/api/stocktakes/${current.id}/apply`);
       await load();
+      refreshServerData();
     } catch (err) {
       setError(errorMessage(err, "Could not apply this stocktake."));
     } finally {
@@ -234,6 +239,7 @@ export function StocktakeScreen({
     try {
       await post(`/api/stocktakes/${current.id}/cancel`);
       await load();
+      refreshServerData();
     } catch (err) {
       setError(errorMessage(err, "Could not cancel this stocktake."));
     } finally {

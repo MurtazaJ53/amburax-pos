@@ -13,6 +13,7 @@ import {
 import { formatCurrency } from "@/lib/formatters";
 import { BLANK_LINE, type DraftLine, type StockItem } from "@/lib/item-lines";
 import { ItemLinesEditor } from "@/components/ui/item-lines-editor";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -78,6 +79,7 @@ function qty(value: string): string {
 }
 
 export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
+  const refreshServerData = useServerRefresh();
   const [data, setData] = useState<OrdersPayload | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [pickerError, setPickerError] = useState<string | null>(null);
@@ -295,6 +297,7 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
       setNote("");
       setDraftLines([{ ...BLANK_LINE }]);
       await load();
+      refreshServerData();
     } catch (err) {
       setError(errorMessage(err, "Could not place the order."));
     } finally {
@@ -327,6 +330,7 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
       }
       setReceiving((prev) => ({ ...prev, [order.id]: {} }));
       await load();
+      refreshServerData();
     } catch (err) {
       setError(errorMessage(err, "Could not book in this delivery."));
     } finally {
@@ -359,6 +363,7 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
           : `Not sent — ${body.detail || "email is not configured on the server."}`,
       );
       await load();
+      refreshServerData();
     } catch (err) {
       setError(errorMessage(err, "Could not send this order."));
     } finally {
@@ -376,6 +381,7 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
         throw new Error(body.error || "Could not cancel this order.");
       }
       await load();
+      refreshServerData();
     } catch (err) {
       setError(errorMessage(err, "Could not cancel this order."));
     } finally {

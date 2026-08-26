@@ -31,6 +31,7 @@ import { findExistingCustomer } from "@/lib/customer-match";
 import type { NewCustomerDetails } from "@/lib/customer-match";
 import { computeCartTotals } from "@/lib/cart-totals";
 import { stateCodeFromGstin } from "@/lib/gst-states";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -85,6 +86,7 @@ export function PosTerminal({
   initialInventory,
   initialCustomers,
 }: PosTerminalProps) {
+  const refreshServerData = useServerRefresh();
   const t = useT();
   const mappedInitialProducts = React.useMemo(() => {
     return (initialInventory ?? []).map(mapInventoryRow);
@@ -604,6 +606,9 @@ Press Pay again to retry — ` +
         const mappedProducts: ProductItem[] = invData.map(mapInventoryRow);
         setProducts(mappedProducts);
       }
+      // The sale also moved takings and the day's figures, which the shell
+      // and the dashboard render from the server.
+      refreshServerData();
     } catch (err) {
       alert(`Error submitting sale: ${errorMessage(err, "Unknown error")}`);
     } finally {

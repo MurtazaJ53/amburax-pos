@@ -17,6 +17,7 @@ import {
   businessTypeLabel,
   isOfferedBusinessType,
 } from "@/lib/business-types";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -32,6 +33,7 @@ export function StoreSettings({
   currentShopName?: string;
   planTier?: string;
 }) {
+  const refreshServerData = useServerRefresh();
   const [activeTab, setActiveTab] = useState<"general" | "tax" | "hardware" | "plan">("general");
 
   // Form State
@@ -131,6 +133,7 @@ export function StoreSettings({
       // Re-read so the form shows exactly what was stored (the server trims and
       // uppercases the GSTIN).
       await load();
+      refreshServerData();
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err) {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Undo2, X } from "lucide-react";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -84,6 +85,7 @@ export function SaleReturnSheet({
   onClose: () => void;
   onDone?: () => void;
 }) {
+  const refreshServerData = useServerRefresh();
   const [data, setData] = useState<Returnable | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,6 +162,9 @@ export function SaleReturnSheet({
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || "Could not process this return.");
+      // A return puts stock back and takes money out - both are figures the
+      // page renders from the server.
+      refreshServerData();
       onDone?.();
       onClose();
     } catch (err) {

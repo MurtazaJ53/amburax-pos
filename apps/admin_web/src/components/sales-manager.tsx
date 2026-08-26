@@ -31,6 +31,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { SaleReturnSheet } from "@/components/sale-return-sheet";
 import { ThermalReceiptModal } from "@/components/thermal-receipt-modal";
 import type { CartItem, SplitPaymentTender } from "@/lib/types";
+import { useServerRefresh } from "@/lib/use-server-refresh";
 
 /** The payment slices worth a single click. "All" first, then the tenders in
  *  the order a counter sees them. */
@@ -198,6 +199,7 @@ export function SalesManager({
   shopLogo = "",
   brandColor = "",
 }: SalesManagerProps) {
+  const refreshServerData = useServerRefresh();
   const t = useT();
   const mappedInitial = React.useMemo(() => {
     return (initialSales ?? []).map(toSaleOrder);
@@ -304,6 +306,7 @@ export function SalesManager({
       const read = readRegisterPayload(body, next.date);
       setRegisterClose(read.close);
       setRegisterCash(read.cashSales);
+      refreshServerData();
     } catch (err) {
       setCloseError(errorMessage(err, "Could not save the day close."));
     } finally {
@@ -351,6 +354,9 @@ export function SalesManager({
         throw new Error(text || "Failed to void transaction");
       }
       await fetchSales();
+      // Voiding takes the bill out of the day's takings and puts its stock
+      // back, neither of which this list shows.
+      refreshServerData();
     } catch (err) {
       alert(errorMessage(err, "An error occurred while voiding sale."));
     }
