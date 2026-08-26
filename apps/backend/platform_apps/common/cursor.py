@@ -36,7 +36,14 @@ from typing import Any, Sequence
 from django.db.models import Q, QuerySet
 
 #: How many rows one page holds when the caller does not say.
-DEFAULT_PAGE_SIZE = 50
+#:
+#: Deliberately the same as the old hard cap. The mobile client asks for this
+#: endpoint with no limit at all and takes what it is given, so lowering the
+#: default would have quietly cut it from two hundred products to fifty on the
+#: day this deployed - a regression nobody would have connected to paging.
+#: Callers that follow cursors ask for a smaller page explicitly; the web app
+#: asks for a hundred.
+DEFAULT_PAGE_SIZE = 200
 
 #: The most one request may ask for, whatever it asks for.
 MAX_PAGE_SIZE = 200

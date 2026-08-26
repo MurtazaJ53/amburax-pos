@@ -26,16 +26,20 @@ from platform_apps.shops.models import Shop
 
 class PageSizeTests(TestCase):
     def test_a_missing_size_falls_back_to_the_default(self):
-        self.assertEqual(page_size(None), 50)
-        self.assertEqual(page_size(""), 50)
+        # 200, matching the cap that was there before paging existed. The
+        # mobile client sends no limit and takes what it is given, so a
+        # smaller default would silently cut it from two hundred products to
+        # fifty the day this deployed.
+        self.assertEqual(page_size(None), 200)
+        self.assertEqual(page_size(""), 200)
 
     def test_a_size_is_honoured(self):
         self.assertEqual(page_size("20"), 20)
 
     def test_nonsense_falls_back_rather_than_failing(self):
-        self.assertEqual(page_size("twenty"), 50)
-        self.assertEqual(page_size("-5"), 50)
-        self.assertEqual(page_size("0"), 50)
+        self.assertEqual(page_size("twenty"), 200)
+        self.assertEqual(page_size("-5"), 200)
+        self.assertEqual(page_size("0"), 200)
 
     def test_no_caller_may_ask_for_the_whole_table(self):
         self.assertEqual(page_size("100000"), MAX_PAGE_SIZE)
