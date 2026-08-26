@@ -38,6 +38,18 @@ export interface SupplierRecord {
   created_at: string;
 }
 
+export interface BillLine {
+  id: string;
+  name: string;
+  sku: string;
+  quantity: number;
+  unit_cost: number;
+  line_total: number;
+  /** False for a bill booked before lines named real products - those moved
+   *  no stock, and saying so is more use than showing a blank. */
+  linked: boolean;
+}
+
 export interface PurchaseOrderRecord {
   id: string;
   shop?: string;
@@ -113,6 +125,14 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
   // Modals
   const [isNewPoOpen, setIsNewPoOpen] = useState(false);
   const [isNewSupplierOpen, setIsNewSupplierOpen] = useState(false);
+  // The id being corrected, or null when adding. One dialog serves both: a
+  // separate edit form is a second place for the field list to go stale.
+  const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
+  // What was actually on a bill. The list only ever carried a count, so a
+  // delivery entered line by line could never be read back - and a wrong
+  // line is only ever spotted by reading it back.
+  const [openBill, setOpenBill] = useState<string | null>(null);
+  const [billLines, setBillLines] = useState<Record<string, BillLine[] | "loading" | "error">>({});
 
   // New PO form
   const [poSupplierId, setPoSupplierId] = useState(suppliers[0]?.id || "");
@@ -283,13 +303,55 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
     }
   };
 
+  const toggleBill = async (id: string) => {
+    if (openBill === id) {
+      setOpenBill(null);
+      return;
+    }
+    setOpenBill(id);
+    if (billLines[id] && billLines[id] !== "error") return;
+    setBillLines((prev) => ({ ...prev, [id]: "loading" }));
+    try {
+      const res = await fetch(`/api/purchases/${id}`);
+      if (!res.ok) throw new Error(String(res.status));
+      const body = await res.json();
+      const rows = Array.isArray(body?.items) ? body.items : [];
+      setBillLines((prev) => ({
+        ...prev,
+        [id]: rows.map((raw: Record<string, unknown>) => ({
+          id: String(raw.id),
+          name: String(raw.name ?? ""),
+          sku: String(raw.sku ?? ""),
+          quantity: Number(raw.quantity ?? 0),
+          unit_cost: Number(raw.unit_cost ?? 0),
+          line_total: Number(raw.line_total ?? 0),
+          linked: raw.inventory_item_id != null,
+        })),
+      }));
+    } catch {
+      setBillLines((prev) => ({ ...prev, [id]: "error" }));
+    }
+  };
+
+  const closeSupplierDialog = () => {
+    setIsNewSupplierOpen(false);
+    setEditingSupplierId(null);
+    setSaveError(null);
+  };
+
   const handleCreateSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     setSaveError(null);
     try {
-      const res = await fetch("/api/suppliers", {
-        method: "POST",
+      // Correcting a vendor rather than adding one. Without this the only
+      // way past a mistyped number was a second record for the same vendor,
+      // which splits their balance and their price history in two.
+      const editing = editingSupplierId !== null;
+      const res = await fetch(
+        editing ? `/api/suppliers/${editingSupplierId}` : "/api/suppliers",
+        {
+        method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         // email was never sent, and "Contact Person" was collected into a
         // field with nowhere to go - typed at the counter and dropped on
@@ -301,7 +363,8 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
           gstin: supGstin.trim(),
           address: supAddress.trim(),
         }),
-      });
+      },
+      );
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.error || `Could not save the supplier (${res.status})`);
@@ -310,12 +373,13 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
       // new supplier already selected.
       const created = await res.json().catch(() => null);
       setIsNewSupplierOpen(false);
-      if (created?.id) {
+      if (!editing && created?.id) {
         setPoSupplierId(String(created.id));
         setSupplierQuery("");
         setSupplierListOpen(false);
         setIsNewPoOpen(true);
       }
+      setEditingSupplierId(null);
       setSupName("");
       setSupEmail("");
       setSupPhone("");
@@ -414,9 +478,18 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
               <tbody className="divide-y divide-[var(--border-soft)]">
                 {purchases.map((po) => {
                   const due = po.total_amount - po.paid_amount;
+                  const lines = billLines[po.id];
+                  const isOpen = openBill === po.id;
                   return (
-                    <tr key={po.id} className="hover:bg-bg-base transition-colors">
+                    <React.Fragment key={po.id}>
+                    <tr
+                      className="cursor-pointer transition-colors hover:bg-bg-base"
+                      onClick={() => void toggleBill(po.id)}
+                    >
                       <td className="py-3 px-4 font-mono font-semibold text-text-primary">
+                        <span className="mr-1.5 inline-block text-[var(--text-tertiary)]">
+                          {isOpen ? "−" : "+"}
+                        </span>
                         {po.invoice_number}
                       </td>
                       <td className="py-3 px-4 text-[var(--text-tertiary)]">
@@ -440,6 +513,62 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
                         </span>
                       </td>
                     </tr>
+
+                    {isOpen && (
+                      <tr>
+                        <td colSpan={7} className="bg-[var(--bg-soft)] px-4 py-3">
+                          {lines === "loading" && (
+                            <p className="m-0 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+                              Reading the bill…
+                            </p>
+                          )}
+                          {lines === "error" && (
+                            <p className="m-0 text-[11.5px] font-semibold text-[var(--error-strong)]">
+                              Could not read what was on this bill.
+                            </p>
+                          )}
+                          {Array.isArray(lines) && lines.length === 0 && (
+                            <p className="m-0 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+                              No lines were recorded on this bill.
+                            </p>
+                          )}
+                          {Array.isArray(lines) && lines.length > 0 && (
+                            <div className="space-y-1.5">
+                              {lines.map((line) => (
+                                <div
+                                  key={line.id}
+                                  className="flex flex-wrap items-baseline gap-x-3 gap-y-1"
+                                >
+                                  <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-text-primary">
+                                    {line.name || "Unnamed"}
+                                    {line.sku ? (
+                                      <span className="ml-1.5 font-mono text-[10px] font-semibold text-[var(--text-tertiary)]">
+                                        {line.sku}
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                  {/* Said out loud, because it is the whole
+                                      difference: a line with no product moved
+                                      no stock and set no cost price. */}
+                                  {!line.linked && (
+                                    <span className="rounded border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-[var(--warning-strong)]">
+                                      No stock moved
+                                    </span>
+                                  )}
+                                  <span className="tnum font-mono text-[11.5px] font-semibold text-[var(--text-secondary)]">
+                                    {line.quantity} × {formatCurrency(line.unit_cost)}
+                                  </span>
+                                  <span className="tnum font-mono text-[12px] font-bold text-text-primary">
+                                    {formatCurrency(line.line_total)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
@@ -451,7 +580,16 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
         <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-xl space-y-4 p-4">
           <div className="flex justify-end">
             <button
-              onClick={() => setIsNewSupplierOpen(true)}
+              onClick={() => {
+                setEditingSupplierId(null);
+                setSupName("");
+                setSupEmail("");
+                setSupPhone("");
+                setSupGstin("");
+                setSupAddress("");
+                setSaveError(null);
+                setIsNewSupplierOpen(true);
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-bg-base hover:bg-[var(--surface)] border border-[var(--border-soft)] text-xs text-text-primary rounded-xl"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -484,9 +622,27 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
 
                 <div className="text-xs text-[var(--text-secondary)] space-y-1 pt-2 border-t border-[var(--border-soft)]">
                   {sup.phone && <div>Phone: {sup.phone}</div>}
+                  {sup.email && <div>Email: {sup.email}</div>}
                   {sup.gstin && <div>GSTIN: {sup.gstin}</div>}
                   {sup.address && <div>Address: {sup.address}</div>}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingSupplierId(sup.id);
+                    setSupName(sup.name ?? "");
+                    setSupEmail(sup.email ?? "");
+                    setSupPhone(sup.phone ?? "");
+                    setSupGstin(sup.gstin ?? "");
+                    setSupAddress(sup.address ?? "");
+                    setSaveError(null);
+                    setIsNewSupplierOpen(true);
+                  }}
+                  className="focus-ring cursor-pointer text-[11.5px] font-bold text-[var(--primary-hover)] hover:underline"
+                >
+                  Edit details
+                </button>
               </div>
             ))}
           </div>
@@ -592,6 +748,9 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
                       <button
                         type="button"
                         onClick={() => {
+                          // Adding, never editing: this path exists so a new
+                          // vendor does not mean abandoning the invoice.
+                          setEditingSupplierId(null);
                           setSupName(supplierQuery.trim());
                           setIsNewPoOpen(false);
                           setIsNewSupplierOpen(true);
@@ -714,7 +873,7 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
           role="dialog"
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150"
-          onClick={() => setIsNewSupplierOpen(false)}
+          onClick={closeSupplierDialog}
         >
           <div
             className="w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden"
@@ -723,10 +882,12 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
             <div className="p-4 border-b border-[var(--border-soft)] flex items-center justify-between bg-[var(--bg-soft)]">
               <div className="flex items-center gap-2">
                 <Building className="w-5 h-5 text-[var(--primary-light)]" />
-                <span className="font-semibold text-sm text-text-primary">Add New Supplier</span>
+                <span className="font-semibold text-sm text-text-primary">
+                    {editingSupplierId ? "Edit supplier" : "Add new supplier"}
+                  </span>
               </div>
               <button
-                onClick={() => setIsNewSupplierOpen(false)}
+                onClick={closeSupplierDialog}
                 className="p-1 text-[var(--text-tertiary)] hover:text-text-primary"
               >
                 <X className="w-4 h-4" />
@@ -805,7 +966,7 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
               <div className="pt-3 border-t border-[var(--border-soft)] flex items-center justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setIsNewSupplierOpen(false)}
+                  onClick={closeSupplierDialog}
                   className="px-4 py-2 text-xs text-[var(--text-secondary)] hover:text-text-primary bg-bg-base rounded-xl"
                 >
                   Cancel
@@ -815,7 +976,7 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
                   disabled={isSaving}
                   className="px-5 py-2 text-xs font-semibold text-[var(--primary-dark)] bg-[var(--primary)]/12/12 hover:bg-[var(--primary)]/12/20 rounded-xl shadow-md disabled:opacity-50 border border-[var(--primary)]/25"
                 >
-                  {isSaving ? "Saving…" : "Save Supplier"}
+                  {isSaving ? "Saving…" : editingSupplierId ? "Save changes" : "Add supplier"}
                 </button>
               </div>
             </form>
