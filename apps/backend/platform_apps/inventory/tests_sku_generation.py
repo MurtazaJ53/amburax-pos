@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -249,4 +250,58 @@ class AutoCodeAtSaveTests(TestCase):
         self._create("Rice", "__auto__")
         self.assertFalse(
             InventoryItem.objects.filter(shop=self.shop, sku="__auto__").exists()
+        )
+
+
+class DuplicateCodeConstraintTests(TestCase):
+    """A code means one product, enforced by the database.
+
+    Everything above stops the app creating a duplicate. This is the layer
+    under that: the mobile app syncs, and data predates both. The till
+    resolves a scan by taking the first match, so a duplicate that slips past
+    the app still rings up the wrong product.
+    """
+
+    def setUp(self):
+        self.shop = Shop.objects.create(name="Codes Shop", slug="codes-shop")
+        self.other = Shop.objects.create(name="Other", slug="other-codes-shop")
+
+    def _item(self, name, *, sku="", shop=None, tombstone=False):
+        return InventoryItem.objects.create(
+            shop=shop or self.shop, name=name, sku=sku,
+            tombstone=tombstone, sell_price=Decimal("10"),
+        )
+
+    def test_the_same_code_twice_is_refused(self):
+        self._item("Rice", sku="R-1")
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._item("Dal", sku="R-1")
+
+    def test_a_difference_of_case_is_not_a_difference(self):
+        """The index is case-folded because the scan is. Without that, ABC-1
+        and abc-1 would both be stored and resolve to one another."""
+        self._item("Rice", sku="ABC-1")
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._item("Dal", sku="abc-1")
+
+    def test_two_shops_may_use_the_same_code(self):
+        # They are different businesses. One shop's codes are its own.
+        self._item("Rice", sku="R-1")
+        self._item("Rice", sku="R-1", shop=self.other)
+        self.assertEqual(InventoryItem.objects.filter(sku="R-1").count(), 2)
+
+    def test_any_number_of_products_may_have_no_code(self):
+        """Most shops leave it empty on most products. A unique index over
+        blanks would permit exactly one of them."""
+        for n in range(5):
+            self._item(f"No code {n}")
+        self.assertEqual(InventoryItem.objects.filter(sku="").count(), 5)
+
+    def test_an_archived_product_does_not_hold_its_code_for_ever(self):
+        self._item("Old Rice", sku="R-1", tombstone=True)
+        self._item("New Rice", sku="R-1")
+        self.assertEqual(
+            InventoryItem.objects.filter(sku="R-1", tombstone=False).count(), 1
         )

@@ -96,14 +96,21 @@ real answer to "what happens at a hundred times the shops", and it is far
 easier to switch on while the data is small. Carrying it unused is the one
 option with no upside either way.
 
-### A `UNIQUE` constraint on `sku`
+### ~~A `UNIQUE` constraint on `sku`~~ — done
 
-There is none. Generated codes cannot collide — every candidate is checked
-against existing SKUs *and* barcodes — but a hand-typed or imported duplicate
-still can, and the till resolves a scan by taking the **first** match. That is
-the wrong product rung up, silently, at the counter.
+Added on 27 August 2026 as `uniq_active_sku_per_shop`, on
+`(shop, Lower(sku))` — case-folded, because a plain unique index in Postgres
+is case sensitive while the till resolves a scan with `iexact`, and an index
+that permits the collision it exists to prevent is worse than none.
 
-Needs a migration and a decision about any existing duplicates.
+Partial: blank codes are excluded (most shops leave most products without
+one) and so are archived rows (they should not hold a code for ever).
+
+Migration `0010` separates any duplicates already in the data before building
+the index. The oldest row keeps its code — its labels are the ones already
+printed — and the rest take a `-2`, `-3` suffix. **Watch the deploy output**:
+it prints how many it had to separate, and those products now carry a
+different code from the one on their shelf label.
 
 ---
 

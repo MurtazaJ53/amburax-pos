@@ -10,6 +10,13 @@ worse than no scan.
 The matching rules mirror `core/health/data_health.dart` and `lib/data-health.ts`
 exactly: SKU when there is one, otherwise name + size. Size matters — a garment
 shop's S and XL are different products, not duplicates.
+
+The SKU branch is now a safety net rather than the common case. A unique index
+on (shop, Lower(sku)) means two active products can no longer share a code, so
+what this finds in practice is the other kind: rows with no code at all,
+matched on name and size. That is what a re-imported spreadsheet produces, and
+it is the kind a database constraint cannot prevent — "Cotton Shirt" and
+"cotton shirt (new)" are the same product only to a person.
 """
 from __future__ import annotations
 

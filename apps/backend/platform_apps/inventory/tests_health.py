@@ -60,7 +60,7 @@ class DataHealthTests(TestCase):
         # full sweep. Build more than the cap, all duplicates of one product.
         count = DEFAULT_LIST_LIMIT + 40
         for _ in range(count):
-            self._item("Chadda", sku="CHD-1", stock=1)
+            self._item("Chadda", stock=1)
 
         body = self._scan()
         self.assertEqual(body["scanned_items"], count)
@@ -69,10 +69,17 @@ class DataHealthTests(TestCase):
 
     # --- duplicate rules ---------------------------------------------------
 
-    def test_matches_on_sku_regardless_of_name(self):
+    def test_two_products_can_no_longer_share_a_code(self):
+        """This used to be a duplicate for the scan to find. It is now
+        impossible to create, which is the better outcome - and the case
+        differs on purpose, because the index is case-folded and a scan
+        resolves ABC-1 and abc-1 to the same thing."""
+        from django.db import IntegrityError, transaction
+
         self._item("Cotton Shirt", sku="ABC-1")
-        self._item("cotton shirt (new)", sku="abc-1")
-        self.assertEqual(len(self._scan()["duplicate_groups"]), 1)
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._item("cotton shirt (new)", sku="abc-1")
 
     def test_does_not_merge_different_sizes_of_one_garment(self):
         # S and XL are different products. Merging them destroys the size
@@ -97,29 +104,29 @@ class DataHealthTests(TestCase):
         self.assertEqual(self._scan()["duplicate_groups"], [])
 
     def test_keeps_the_copy_with_the_most_stock(self):
-        thin = self._item("Cap", sku="C1", stock=2)
-        fat = self._item("Cap", sku="C1", stock=40)
+        thin = self._item("Cap", stock=2)
+        fat = self._item("Cap", stock=40)
         group = self._scan()["duplicate_groups"][0]
         self.assertEqual(group["keeper"]["id"], str(fat.id))
         self.assertEqual([d["id"] for d in group["duplicates"]], [str(thin.id)])
 
     def test_combines_stock_across_every_copy(self):
         for qty in (3, 4, 5):
-            self._item("Cap", sku="C1", stock=qty)
+            self._item("Cap", stock=qty)
         group = self._scan()["duplicate_groups"][0]
         self.assertEqual(Decimal(group["combined_stock"]), Decimal("12.000"))
         self.assertEqual(group["copies"], 3)
 
     def test_worst_group_first(self):
         for _ in range(2):
-            self._item("Pair", sku="PAIR")
+            self._item("Pair")
         for _ in range(3):
-            self._item("Triple", sku="TRIPLE")
+            self._item("Triple")
         self.assertEqual(self._scan()["duplicate_groups"][0]["name"], "Triple")
 
     def test_counts_extra_rows_not_groups(self):
         for _ in range(3):
-            self._item("Cap", sku="C1")
+            self._item("Cap")
         body = self._scan()
         self.assertEqual(body["duplicate_row_count"], 2)
         self.assertEqual(body["total_issues"], 2)
@@ -172,6 +179,6 @@ class DataHealthTests(TestCase):
 
     def test_another_shops_data_is_not_scanned(self):
         other = Shop.objects.create(name="Other", slug="other-health")
-        InventoryItem.objects.create(shop=other, name="Theirs", sku="X")
-        InventoryItem.objects.create(shop=other, name="Theirs", sku="X")
+        InventoryItem.objects.create(shop=other, name="Theirs")
+        InventoryItem.objects.create(shop=other, name="Theirs")
         self.assertEqual(self._scan()["duplicate_groups"], [])

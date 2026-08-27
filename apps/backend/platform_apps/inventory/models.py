@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
+from django.db.models.functions import Lower
 
 from platform_apps.common.managers import TenantAwareManager
 from platform_apps.common.models import SourceTrackedModel
@@ -54,6 +55,27 @@ class InventoryItem(SourceTrackedModel):
     image_key = models.CharField(max_length=255, blank=True)
 
     class Meta:
+        constraints = [
+            # A code has to mean one product. The till resolves a scan by
+            # taking the first item whose code matches, so a duplicate rings
+            # up the wrong product, silently, at the counter.
+            #
+            # On Lower(sku), not sku: a plain unique index in Postgres is case
+            # sensitive, so ABC-1 and abc-1 would both be allowed while a scan
+            # treats them as one. That would read as protection while allowing
+            # the exact collision it exists to prevent.
+            #
+            # Partial, and both conditions matter. Blank is excluded because
+            # most shops leave the code empty on most products. Tombstoned
+            # rows are excluded so an archived product does not hold a code
+            # for ever.
+            models.UniqueConstraint(
+                models.F("shop"),
+                Lower("sku"),
+                condition=models.Q(tombstone=False) & ~models.Q(sku=""),
+                name="uniq_active_sku_per_shop",
+            ),
+        ]
         indexes = [
             models.Index(fields=["shop", "name"]),
             models.Index(fields=["shop", "sku"]),
