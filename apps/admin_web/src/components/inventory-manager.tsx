@@ -69,6 +69,29 @@ interface InventoryManagerProps {
   canViewCosts?: boolean;
 }
 
+/** A heading inside a long form.
+ *
+ *  This one asks for twelve things in a scrolling box, and it used to be a
+ *  flat list of them. Scrolling had nothing to orient by, so a label caught
+ *  half-way under the header read as a broken screen rather than as the top
+ *  of a section - which is exactly what a shopkeeper reported.
+ *
+ *  Three groups, each answering a different question: what the thing is, what
+ *  it costs, and how many there are.
+ */
+function FormSection({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div className="border-t border-[var(--border-soft)] pt-4 first:border-0 first:pt-0">
+      <p className="m-0 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+        {title}
+      </p>
+      <p className="m-0 mt-0.5 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+        {hint}
+      </p>
+    </div>
+  );
+}
+
 export function InventoryManager({ initialInventory, canViewCosts = false }: InventoryManagerProps) {
   const { say } = useDialog();
   const refreshServerData = useServerRefresh();
@@ -1193,10 +1216,10 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
           onClick={() => setIsProductModalOpen(false)}
         >
           <div
-            className="w-full max-w-lg bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            className="w-full max-w-lg bg-[var(--surface)] border border-[var(--border)] rounded-[16px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-4 border-b border-[var(--border-soft)] flex items-center justify-between bg-[var(--bg-soft)]">
+            <div className="p-4 border-b border-[var(--border-soft)] flex items-center justify-between bg-[var(--bg-soft)] shadow-sm relative z-10">
               <div className="flex items-center gap-2">
                 <Package className="w-5 h-5 text-[var(--primary-light)]" />
                 <span className="font-semibold text-sm text-text-primary">
@@ -1212,6 +1235,8 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
             </div>
 
             <form onSubmit={handleSaveProduct} className="p-6 space-y-4 overflow-y-auto">
+              <FormSection title="What it is" hint="The name is the only part a customer sees on a receipt." />
+
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
                   Product Name *
@@ -1291,8 +1316,8 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
                   Product photo
                 </label>
 
-                <div className="flex items-center gap-3 rounded-[14px] border border-[var(--border-soft)] bg-[var(--bg-soft)] p-3">
-                  <span className="grid h-16 w-16 flex-none place-items-center overflow-hidden rounded-[12px] border border-[var(--border-soft)] bg-[var(--surface)]">
+                <div className="flex items-center gap-3 rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-soft)] p-2.5">
+                  <span className="grid h-12 w-12 flex-none place-items-center overflow-hidden rounded-[12px] border border-[var(--border-soft)] bg-[var(--surface)]">
                     {/* A picture just chosen is previewed from its own bytes;
                         one already stored comes from its address, because the
                         form no longer holds it. */}
@@ -1304,7 +1329,7 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <span className="text-2xl font-extrabold text-[var(--primary-hover)] opacity-50">
+                      <span className="text-lg font-extrabold text-[var(--primary-hover)] opacity-50">
                         {(formName || "?").trim().charAt(0).toUpperCase()}
                       </span>
                     )}
@@ -1357,6 +1382,8 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
                 </div>
               </div>
 
+              <FormSection title="Price and tax" hint="Cost is never shown to a customer. Selling price is what they pay." />
+
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
                   HSN / SAC Code
@@ -1404,52 +1431,59 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
                     className="w-full px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none"
                   />
 
-                  {/* Immediately under the price, because the person typing the
-                      price is the person who has to answer this, at that
-                      moment. A distant setting in another screen would not get
-                      used. */}
-                  {parseFloat(formTaxRate) > 0 && (
-                    <div className="mt-2">
-                      <div className="flex gap-1 p-0.5 bg-bg-soft border border-[var(--border-soft)] rounded-xl">
-                        {[
-                          { value: true, label: "Includes GST" },
-                          { value: false, label: "GST extra" },
-                        ].map((option) => (
-                          <button
-                            key={String(option.value)}
-                            type="button"
-                            onClick={() => setFormPriceIncludesTax(option.value)}
-                            className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
-                              formPriceIncludesTax === option.value
-                                ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20"
-                                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                      {/* The whole feature, really. A shopkeeper who has never
-                          met the phrase "inclusive of tax" can still see which
-                          answer matches the number they meant. */}
-                      <p className="mt-1.5 text-[11px] font-semibold text-[var(--text-tertiary)]">
-                        {(() => {
-                          const price = parseFloat(formSellingPrice) || 0;
-                          const rate = (parseFloat(formTaxRate) || 0) / 100;
-                          if (price <= 0) return "Customer pays the price above.";
-                          const taxable = formPriceIncludesTax
-                            ? price / (1 + rate)
-                            : price;
-                          const tax = formPriceIncludesTax
-                            ? price - taxable
-                            : price * rate;
-                          return `Customer pays ₹${(taxable + tax).toFixed(2)} = ₹${taxable.toFixed(2)} + ₹${tax.toFixed(2)} GST`;
-                        })()}
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
+
+              {/* Its own row rather than tucked under Selling Price. Nested
+                  there it made the two-column row lopsided - a short field on
+                  the left beside a tall stack on the right - and the question
+                  it asks is about the price, not about that one box. */}
+                  {/* Immediately under the price, because the person typing the
+                  price is the person who has to answer this, at that
+                  moment. A distant setting in another screen would not get
+                  used. */}
+              {parseFloat(formTaxRate) > 0 && (
+                <div className="mt-2">
+                  <div className="flex gap-1 p-0.5 bg-bg-soft border border-[var(--border-soft)] rounded-xl">
+                    {[
+                      { value: true, label: "Includes GST" },
+                      { value: false, label: "GST extra" },
+                    ].map((option) => (
+                      <button
+                        key={String(option.value)}
+                        type="button"
+                        onClick={() => setFormPriceIncludesTax(option.value)}
+                        className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
+                          formPriceIncludesTax === option.value
+                            ? "bg-[var(--primary)]/12 text-[var(--primary-dark)] border border-[var(--primary)]/25 hover:bg-[var(--primary)]/20"
+                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* The whole feature, really. A shopkeeper who has never
+                      met the phrase "inclusive of tax" can still see which
+                      answer matches the number they meant. */}
+                  <p className="mt-1.5 text-[11px] font-semibold text-[var(--text-tertiary)]">
+                    {(() => {
+                      const price = parseFloat(formSellingPrice) || 0;
+                      const rate = (parseFloat(formTaxRate) || 0) / 100;
+                      if (price <= 0) return "Customer pays the price above.";
+                      const taxable = formPriceIncludesTax
+                        ? price / (1 + rate)
+                        : price;
+                      const tax = formPriceIncludesTax
+                        ? price - taxable
+                        : price * rate;
+                      return `Customer pays ₹${(taxable + tax).toFixed(2)} = ₹${taxable.toFixed(2)} + ₹${tax.toFixed(2)} GST`;
+                    })()}
+                  </p>
+                </div>
+              )}
+
+              <FormSection title="Stock" hint="What is on the shelf now, and when to reorder." />
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
