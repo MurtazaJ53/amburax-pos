@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 from platform_apps.audit.services import create_workspace_audit_event, snapshot_sale
 from platform_apps.common.migration import MigrationDomain
 from platform_apps.common.cursor import CursorListMixin
+from platform_apps.common.import_preview import annotate, discard, wants_preview
 from platform_apps.common.import_undo import batch_for, record_rows
 from platform_apps.common.models import ImportBatch
 from platform_apps.common.migration_guards import (
@@ -922,12 +923,7 @@ class SaleHistoryBulkImportView(ShopScopedMixin, APIView):
             raise exceptions.ValidationError({"sales": "Send at most 1000 sales per request."})
 
         valid_modes = set(Sale.PaymentMode.values)
-        batch = batch_for(
-            membership.shop,
-            ImportBatch.Kind.SALES,
-            str(request.data.get("filename") or "")[:255],
-            request.user,
-        )
+        preview = wants_preview(request)
         created = 0
         skipped = 0
         # Row-level reasons, not just a count. "340 skipped" tells a shopkeeper
@@ -948,6 +944,14 @@ class SaleHistoryBulkImportView(ShopScopedMixin, APIView):
                 errors.append({"row": index + 1, "reason": reason})
 
         with transaction.atomic():
+            # Inside the transaction so a preview leaves no record of an
+            # import that never happened.
+            batch = batch_for(
+                membership.shop,
+                ImportBatch.Kind.SALES,
+                str(request.data.get("filename") or "")[:255],
+                request.user,
+            )
             for index, raw in enumerate(rows):
                 try:
                     total = Decimal(str(raw.get("total") or "0"))
@@ -1005,18 +1009,22 @@ class SaleHistoryBulkImportView(ShopScopedMixin, APIView):
                 sale.receipt_number = f"H-{str(sale.id).replace('-', '')[:8].upper()}"
                 sale.save(update_fields=["receipt_number", "updated_at"])
                 created += 1
-        record_rows(batch, rows=len(rows), created=created)
-        batch.refresh_from_db()
-        if created:
+            record_rows(batch, rows=len(rows), created=created)
+            batch.refresh_from_db()
+            discard(preview)
+
+        # Skipped rather than undone: a dashboard rebuild is not a database
+        # write and would not roll back with the rest.
+        if created and not preview:
             refresh_projection_after_write(membership.shop, context="a bulk import")
         return Response(
-            {
+            annotate({
                 "created": created,
                 "batch_id": str(batch.id),
                 "skipped": skipped,
                 "errors": errors,
                 "error_count": skipped,
-            },
+            }, preview),
             status=status.HTTP_201_CREATED,
         )
 

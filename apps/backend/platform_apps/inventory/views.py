@@ -23,6 +23,7 @@ from platform_apps.inventory.serializers import (
     InventorySummarySerializer,
 )
 from platform_apps.shops.models import ShopMembership
+from platform_apps.common.import_preview import annotate, discard, wants_preview
 from platform_apps.common.import_undo import batch_for, record_rows, tag_for
 from platform_apps.common.models import ImportBatch
 from platform_apps.projections.services import refresh_projection_after_write
@@ -245,13 +246,14 @@ class InventoryItemBulkCreateView(ShopScopedMixin, APIView):
         # Recorded before the rows so every one of them can point at it. Only
         # rows this import CREATES get tagged - a row it merely updates existed
         # beforehand, and undoing the import must not delete it.
-        batch = batch_for(
-            membership.shop,
-            ImportBatch.Kind.PRODUCTS,
-            str(request.data.get("filename") or "")[:255],
-            request.user,
-        )
+        preview = wants_preview(request)
         with transaction.atomic():
+            batch = batch_for(
+                membership.shop,
+                ImportBatch.Kind.PRODUCTS,
+                str(request.data.get("filename") or "")[:255],
+                request.user,
+            )
             for idx, raw in enumerate(rows):
                 serializer = InventoryItemSerializer(data=raw, context=context)
                 if not serializer.is_valid():
@@ -303,18 +305,22 @@ class InventoryItemBulkCreateView(ShopScopedMixin, APIView):
                         setattr(item, field, value)
                     item.save(update_fields=["source_system", "source_path", "source_id"])
                     created += 1
-        if created or updated:
+            # Added to, not overwritten: a large file arrives as several
+            # chunks that all belong to the same batch, and the last one must
+            # not wipe what the earlier ones recorded.
+            record_rows(batch, rows=len(rows), created=created)
+            batch.refresh_from_db()
+            discard(preview)
+
+        # Skipped rather than undone on a preview: a dashboard rebuild is not
+        # a database write and would not roll back with everything else.
+        if (created or updated) and not preview:
             refresh_projection_after_write(
                 membership.shop, context="an inventory import"
             )
-        # Added to, not overwritten: a large file arrives as several chunks
-        # that all belong to the same batch, and the last one must not wipe
-        # what the earlier ones recorded.
-        record_rows(batch, rows=len(rows), created=created)
-        batch.refresh_from_db()
 
         return Response(
-            {
+            annotate({
                 # Handed back so the screen can offer to undo this exact
                 # import rather than "the last one", which is ambiguous the
                 # moment two people import at once.
@@ -327,7 +333,7 @@ class InventoryItemBulkCreateView(ShopScopedMixin, APIView):
                 # is actionable, "20 errors" when there were 340 is a lie.
                 "errors": errors[:MAX_REPORTED_ERRORS],
                 "error_count": len(errors),
-            },
+            }, preview),
             status=status.HTTP_201_CREATED,
         )
 

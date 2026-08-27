@@ -38,6 +38,9 @@ export async function POST(req: NextRequest) {
     const kind = body?.kind as keyof typeof TARGETS;
     const rows = body?.rows;
     const filename = typeof body?.filename === "string" ? body.filename : "";
+    // Only a real boolean. A truthy string would turn an import the shopkeeper
+    // meant into a rehearsal that reports success and writes nothing.
+    const dryRun = body?.dry_run === true;
     const target = TARGETS[kind];
 
     if (!target) {
@@ -68,7 +71,7 @@ export async function POST(req: NextRequest) {
         // Forwarded with every chunk because the server groups them by it:
         // one file becomes one batch however many requests it takes, so a
         // large import is still undone in a single click.
-        body: JSON.stringify({ [target.key]: chunk, filename }),
+        body: JSON.stringify({ [target.key]: chunk, filename, dry_run: dryRun }),
       });
 
       const text = await res.text();

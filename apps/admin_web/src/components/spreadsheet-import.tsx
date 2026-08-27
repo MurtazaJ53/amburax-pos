@@ -211,6 +211,8 @@ export function SpreadsheetImport() {
   /** Two steps on purpose. The first click asks for a decision; the second
    *  confirms it against a summary of exactly what is about to be written. */
   const [confirming, setConfirming] = useState(false);
+  /** What a rehearsal said would happen, shown before the real run. */
+  const [rehearsal, setRehearsal] = useState<ImportResult | null>(null);
 
   const [batches, setBatches] = useState<ImportBatch[]>([]);
   const [undoing, setUndoing] = useState<string | null>(null);
@@ -260,7 +262,12 @@ export function SpreadsheetImport() {
     .filter((f) => f.required && !(f.key in mapping))
     .map((f) => f.label);
 
-  const runImport = async () => {
+  /** Runs the import, or rehearses it.
+   *
+   *  A rehearsal is the real import rolled back on the server, so what it
+   *  reports is what will happen - not a second guess at the matching rules
+   *  that could drift from them. */
+  const runImport = async (dryRun = false) => {
     if (!preview || preview.rows.length === 0) return;
     setBusy(true);
     setError(null);
@@ -275,14 +282,19 @@ export function SpreadsheetImport() {
       const res = await fetch("/api/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, filename: fileName ?? "", rows: preview.rows.map(shape) }),
+        body: JSON.stringify({ kind, filename: fileName ?? "", dry_run: dryRun, rows: preview.rows.map(shape) }),
       });
       const body = await res.json();
       if (!res.ok) {
         throw new Error(typeof body?.error === "string" ? body.error : `Import failed (${res.status})`);
       }
-      setResult(body);
-      await loadBatches();
+      if (dryRun) {
+        setRehearsal(body);
+      } else {
+        setRehearsal(null);
+        setResult(body);
+        await loadBatches();
+      }
       // The rows went straight into stock and customers.
       refreshServerData();
     } catch (err) {
@@ -613,14 +625,54 @@ export function SpreadsheetImport() {
                 </span>
               )}
             </p>
-            {/* Two clicks, not one. The first asks for a decision; the
-                second confirms it against a summary of exactly what is about
-                to be written. A single button on a screen that writes three
-                hundred rows is not enough of a pause. */}
+            {/* What the rehearsal found. Not a guess at the matching rules
+                but the result of running them: the server did the real
+                import and rolled it back, so these numbers are what will
+                happen rather than what ought to. */}
+            {confirming && rehearsal && (
+              <div className="w-full rounded-[16px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-4">
+                <p className="m-0 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                  What this will do
+                </p>
+                <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
+                  <span className="text-[13px] font-extrabold text-[var(--text-primary)]">
+                    <span className="tnum font-mono text-[var(--success-strong)]">
+                      {rehearsal.created}
+                    </span>{" "}
+                    added
+                  </span>
+                  {rehearsal.updated > 0 && (
+                    <span className="text-[13px] font-extrabold text-[var(--text-primary)]">
+                      <span className="tnum font-mono text-[var(--primary-dark)]">
+                        {rehearsal.updated}
+                      </span>{" "}
+                      already here, will be updated
+                    </span>
+                  )}
+                  {rehearsal.skipped > 0 && (
+                    <span className="text-[13px] font-extrabold text-[var(--warning-strong)]">
+                      <span className="tnum font-mono">{rehearsal.skipped}</span>{" "}
+                      cannot be read, will be skipped
+                    </span>
+                  )}
+                </div>
+                <p className="m-0 mt-2 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
+                  Nothing has been saved yet.
+                </p>
+              </div>
+            )}
+
+            {/* Two clicks, not one. The first rehearses; the second confirms
+                against what that rehearsal actually found. A single button on
+                a screen that writes three hundred rows is not enough of a
+                pause. */}
             {!confirming ? (
               <button
                 type="button"
-                onClick={() => setConfirming(true)}
+                onClick={() => {
+                  setConfirming(true);
+                  void runImport(true);
+                }}
                 disabled={busy || missingRequired.length > 0 || (preview?.rows.length ?? 0) === 0}
                 className="focus-ring inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-5 py-2.5 text-xs font-extrabold text-[var(--primary-dark)] transition-colors duration-200 hover:bg-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -630,7 +682,10 @@ export function SpreadsheetImport() {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setConfirming(false)}
+                  onClick={() => {
+                    setConfirming(false);
+                    setRehearsal(null);
+                  }}
                   disabled={busy}
                   className="focus-ring cursor-pointer rounded-xl border border-[var(--border-soft)] px-4 py-2.5 text-xs font-extrabold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                 >

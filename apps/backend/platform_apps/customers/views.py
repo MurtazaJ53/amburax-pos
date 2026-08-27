@@ -19,6 +19,7 @@ from platform_apps.common.blind_index import generate_blind_index
 from platform_apps.common.migration import MigrationDomain
 from platform_apps.common.migration_guards import assert_postgres_primary_write_enabled
 from platform_apps.common.cursor import CursorListMixin
+from platform_apps.common.import_preview import annotate, discard, wants_preview
 from platform_apps.common.import_undo import batch_for, record_rows, tag_for
 from platform_apps.common.models import ImportBatch
 from platform_apps.customers.models import Customer, CustomerLedgerEntry
@@ -135,15 +136,18 @@ class CustomerBulkCreateView(ShopScopedMixin, APIView):
         # Only rows this import CREATES are tagged. A row it merely refreshes
         # existed beforehand - undoing the import must not delete a customer
         # who was already on the books.
-        batch = batch_for(
-            membership.shop,
-            ImportBatch.Kind.CUSTOMERS,
-            str(request.data.get("filename") or "")[:255],
-            request.user,
-        )
+        preview = wants_preview(request)
         from django.db import transaction
 
         with transaction.atomic():
+            # Inside the transaction so a preview leaves no record of an
+            # import that never happened.
+            batch = batch_for(
+                membership.shop,
+                ImportBatch.Kind.CUSTOMERS,
+                str(request.data.get("filename") or "")[:255],
+                request.user,
+            )
             for idx, raw in enumerate(rows):
                 serializer = CustomerSerializer(data=raw, context=context)
                 if not serializer.is_valid():
@@ -177,14 +181,15 @@ class CustomerBulkCreateView(ShopScopedMixin, APIView):
                         update_fields=["source_system", "source_path", "source_id"]
                     )
                     created += 1
-        # Added to, not overwritten: a large file arrives as several chunks
-        # that all belong to the same batch, and the last one must not wipe
-        # what the earlier ones recorded.
-        record_rows(batch, rows=len(rows), created=created)
-        batch.refresh_from_db()
+            # Added to, not overwritten: a large file arrives as several
+            # chunks that all belong to the same batch, and the last one must
+            # not wipe what the earlier ones recorded.
+            record_rows(batch, rows=len(rows), created=created)
+            batch.refresh_from_db()
+            discard(preview)
 
         return Response(
-            {
+            annotate({
                 # Handed back so the screen can undo this exact import
                 # rather than "the last one", which is ambiguous the moment
                 # two people import at the same time.
@@ -194,7 +199,7 @@ class CustomerBulkCreateView(ShopScopedMixin, APIView):
                 "skipped": len(errors),
                 "errors": errors[:MAX_REPORTED_ERRORS],
                 "error_count": len(errors),
-            },
+            }, preview),
             status=201,
         )
 
