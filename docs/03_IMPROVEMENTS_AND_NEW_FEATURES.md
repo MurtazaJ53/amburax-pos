@@ -1,5 +1,9 @@
 # Business Hub — Improvements & New-Feature Suggestions
 
+> **Superseded by `/FUTURE.md` (27 August 2026).** This file is kept for
+> its history and is no longer maintained; roughly forty commits of work
+> landed after it was last updated.
+
 _2026-07-19. Ideas, prioritized by value vs. effort. These are proposals for discussion, not committed work._
 
 Legend: **Effort** S/M/L · **Impact** ⭐–⭐⭐⭐ · tagged _[quick win]_ where value/effort is best.

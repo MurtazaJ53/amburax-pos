@@ -27,7 +27,7 @@ function errorMessage(error: unknown, fallback: string): string {
 
 type AuthPanelMode = "login" | "register" | "join" | "pin";
 
-export function AuthLogin() {
+export function AuthLogin({ notice }: { notice?: string } = {}) {
   const router = useRouter();
   const t = useT();
   const [panelMode, setPanelMode] = useState<AuthPanelMode>("login");
@@ -331,6 +331,19 @@ export function AuthLogin() {
                   </>
                 )}
               </button>
+
+              {/* Why the visitor was sent here, said where they are looking.
+                  It used to render above the whole page - a strip of text by
+                  the top edge, a screen away from the form it is about. On a
+                  tall window somebody could sign in without ever seeing it. */}
+              {notice && (
+                <p
+                  role="status"
+                  className="m-0 mt-3 rounded-2xl border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-4 py-3 text-center text-[12px] font-bold text-[var(--warning-strong)]"
+                >
+                  {notice}
+                </p>
+              )}
 
               {/* The other three ways in. These were 12px text links, which put
                   the most frequent action on this screen — a cashier punching a

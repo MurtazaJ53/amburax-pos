@@ -33,17 +33,7 @@ export default async function LoginPage({
   const { reason } = await searchParams;
   const notice = reason ? REASONS[reason] : undefined;
 
-  return (
-    <>
-      {notice && (
-        <div
-          role="status"
-          className="mx-auto mt-4 max-w-md rounded-2xl border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-4 py-3 text-xs font-bold text-[var(--warning-strong)]"
-        >
-          {notice}
-        </div>
-      )}
-      <AuthLogin />
-    </>
-  );
+  // Handed to the form rather than rendered above it. Sitting at the top of
+  // the page put the reason a screen away from the button it is about.
+  return <AuthLogin notice={notice} />;
 }

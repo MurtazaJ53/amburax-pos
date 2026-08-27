@@ -1,5 +1,9 @@
 # Business Hub — Roadmap & Remaining Work
 
+> **Superseded by `/REMAINING.md` (27 August 2026).** This file is kept for
+> its history and is no longer maintained; roughly forty commits of work
+> landed after it was last updated.
+
 _Last updated 2026-07-19. Companion to `01_ARCHITECTURE_AND_CAPABILITIES.md`._
 
 Everything currently **built and tested** is in the capabilities doc. This file is the honest "what's left" — grouped by who has to do it and how big it is.
