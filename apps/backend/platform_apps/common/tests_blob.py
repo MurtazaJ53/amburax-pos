@@ -250,3 +250,90 @@ class StorageFailureTests(TestCase):
             )
         item = InventoryItem.objects.get(shop=self.shop, name="Mustard Oil")
         self.assertEqual(load_image(item), ("image/jpeg", RAW))
+
+
+class ImageAuditTests(TestCase):
+    """--check has to distinguish a photo that moved from one that vanished.
+
+    Both leave image_data empty, so the products table alone cannot tell them
+    apart. These tests pin the difference, because getting it wrong in the
+    reassuring direction means telling a shopkeeper their photos are fine
+    while the store holds nothing.
+    """
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        reset_store()
+        self.addCleanup(reset_store)
+        self.shop = Shop.objects.create(name="Audit Shop", slug="audit-shop")
+
+    def _item(self, name, **fields):
+        return InventoryItem.objects.create(
+            shop=self.shop, name=name, sell_price=Decimal("10"), **fields
+        )
+
+    def _audit(self):
+        out, err = StringIO(), StringIO()
+        with override_settings(BLOB_STORE="filesystem", BLOB_ROOT=self.root):
+            reset_store()
+            call_command("migrate_product_images", check=True, stdout=out, stderr=err)
+        return out.getvalue() + err.getvalue()
+
+    def test_a_photo_that_moved_reads_back(self):
+        self._item("Rice", image_data=JPEG)
+        with override_settings(BLOB_STORE="filesystem", BLOB_ROOT=self.root):
+            reset_store()
+            call_command("migrate_product_images", stdout=StringIO(), stderr=StringIO())
+
+        report = self._audit()
+        self.assertIn("1 photo(s) in the store, readable", report)
+        self.assertIn("Nothing outstanding", report)
+
+    def test_a_key_with_nothing_behind_it_is_reported_by_name(self):
+        # The dangerous state: the row still promises a photo, and the store
+        # has none. Silence here would be the whole bug.
+        self._item("Woolen Caps Kids", image_key="products/ab/abcdef.jpg")
+
+        report = self._audit()
+        self.assertIn("Woolen Caps Kids", report)
+        self.assertIn("does not have", report)
+        self.assertIn("0 photo(s) in the store, readable", report)
+
+    def test_a_photo_still_in_the_row_is_counted_separately(self):
+        self._item("Sugar", image_data=JPEG)
+
+        report = self._audit()
+        self.assertIn("1 photo(s) still in the products table", report)
+        self.assertNotIn("Nothing outstanding", report)
+
+    def test_a_product_that_never_had_a_photo_raises_nothing(self):
+        # Most products have no photo. If that read as loss the report would
+        # be noise, and nobody would look at the line that matters.
+        self._item("Salt")
+
+        report = self._audit()
+        self.assertIn("Nothing outstanding", report)
+        self.assertNotIn("Salt", report)
+
+    def test_it_writes_nothing(self):
+        item = self._item("Rice", image_data=JPEG)
+        self._audit()
+        item.refresh_from_db()
+        self.assertEqual(item.image_data, JPEG)
+        self.assertEqual(item.image_key, "")
+
+    def test_a_store_that_cannot_be_reached_is_not_reported_as_readable(self):
+        # A store that raises must never be counted as holding the photo.
+        # Treating an error as "present" is how an audit reassures wrongly.
+        self._item("Rice", image_key="products/ab/abcdef.jpg")
+
+        with patch(
+            "platform_apps.common.blob.FilesystemBlobStore.get",
+            side_effect=OSError("volume gone"),
+        ):
+            report = self._audit()
+
+        self.assertIn("volume gone", report)
+        self.assertIn("Rice", report)
+        self.assertIn("0 photo(s) in the store, readable", report)

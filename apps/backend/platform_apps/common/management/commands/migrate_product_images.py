@@ -12,6 +12,9 @@ and some not, which is a state the image view already handles: it reads the
 store first and falls back to the column.
 
 Run with --dry-run first. It reports what would move and touches nothing.
+Run with --check to audit where every photo currently is, which is the
+only way to tell a photo that moved from a photo that went missing - both
+leave the column empty, and only one of them is fine.
 """
 from __future__ import annotations
 
@@ -32,6 +35,11 @@ class Command(BaseCommand):
             help="Report what would move without writing anything.",
         )
         parser.add_argument(
+            "--check",
+            action="store_true",
+            help="Audit where every photo is. Writes nothing.",
+        )
+        parser.add_argument(
             "--batch",
             type=int,
             default=200,
@@ -45,6 +53,9 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        if options["check"]:
+            return self.audit()
+
         dry_run = options["dry_run"]
         batch = max(1, options["batch"])
         limit = max(0, options["limit"])
@@ -140,3 +151,64 @@ class Command(BaseCommand):
             f"{freed_bytes / 1_000_000:.1f} MB of base64 "
             f"{'would leave' if dry_run else 'left'} the products table."
         )
+
+    def audit(self) -> None:
+        """Say where every product photo actually is.
+
+        This exists because the two possible endings look identical from the
+        products table. A photo that moved to the store and a photo that was
+        destroyed both leave image_data empty; the first also sets image_key,
+        but a key proves only that something was written, not that it is still
+        readable. So every key is resolved against the store rather than
+        trusted.
+
+        Written after a migration run reported one photo outstanding and then,
+        minutes later, reported none - having moved nothing in between. That
+        is either a save that worked or a photo that vanished, and reasoning
+        from the counts alone could not tell which.
+        """
+        store = get_store()
+        self.stdout.write(f"store: {type(store).__name__}")
+
+        keyed = list(
+            InventoryItem.objects.exclude(image_key="")
+            .order_by("name")
+            .values_list("name", "image_key")
+        )
+        unreadable = []
+        for name, key in keyed:
+            try:
+                present = store.get(key) is not None
+            except Exception as error:  # A store that cannot be reached at all.
+                self.stderr.write(self.style.ERROR(f"  {name}: store error: {error}"))
+                unreadable.append(name)
+                continue
+            if not present:
+                unreadable.append(name)
+
+        inline = InventoryItem.objects.filter(image_key="").exclude(image_data="").count()
+
+        self.stdout.write("")
+        self.stdout.write(f"{len(keyed) - len(unreadable)} photo(s) in the store, readable.")
+        self.stdout.write(f"{inline} photo(s) still in the products table.")
+
+        if unreadable:
+            # The one genuinely bad outcome: the row still points at a photo,
+            # and the photo is not there. Named, because the shopkeeper has to
+            # be told which products to photograph again.
+            self.stdout.write("")
+            self.stdout.write(
+                self.style.ERROR(
+                    f"{len(unreadable)} product(s) point at a photo the store "
+                    "does not have:"
+                )
+            )
+            for name in unreadable:
+                self.stdout.write(self.style.ERROR(f"  {name}"))
+            self.stdout.write(
+                "Check the store is the same one that was written to - a "
+                "changed BHUB_MEDIA_ROOT or bucket looks exactly like this. "
+                "If it is, those photos need taking again."
+            )
+        elif not inline:
+            self.stdout.write(self.style.SUCCESS("Nothing outstanding."))

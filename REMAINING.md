@@ -64,6 +64,17 @@ Nothing was lost by the failure: the command moves a row only after reading
 the bytes back out of the store, so a failed write leaves the photo in the
 database exactly as it was.
 
+**Then audit it**, because the products table cannot tell you on its own
+whether a photo moved or vanished — both leave the column empty:
+
+```bash
+docker compose -f docker-compose.demo.yml exec api   python manage.py migrate_product_images --check
+```
+
+It resolves every stored key against the store rather than trusting that a
+key exists, and names any product pointing at a photo the store does not
+have. `Nothing outstanding` is the answer you want.
+
 **Confirm `bhub_media` is in your backups** — unlike the database it has no
 dump.
 
