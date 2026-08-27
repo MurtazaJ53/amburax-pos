@@ -103,19 +103,45 @@ say "5/6  Product photos"
 # dump; they now live in a volume, so a database restore alone returns every
 # product with a broken picture. Counting rows would not notice - the rows are
 # all there, each pointing at a file nothing has saved.
-PHOTO_KEYS="$("${COMPOSE[@]}" exec -T db psql -U "$PG_USER" -d "$DRILL_DB" -tAc \n  "SELECT count(*) FROM inventory_inventoryitem WHERE image_key <> '';" 2>/dev/null \n  | tr -dc '0-9' || echo 0)"
-PHOTO_KEYS="${PHOTO_KEYS:-0}"
+PHOTO_SQL="SELECT count(*) FROM inventory_inventoryitem WHERE image_key <> '';"
+# Errors are NOT discarded. The first version sent this query with a broken
+# argument, psql failed, the failure was swallowed and the empty result read
+# as "no photos" - so the check reported nothing to verify on a backup that
+# had a photo in it. A check that cannot tell must say so, not reassure.
+if PHOTO_KEYS="$("${COMPOSE[@]}" exec -T db psql -U "$PG_USER" -d "$DRILL_DB" -tAc "$PHOTO_SQL" 2>&1 | tr -dc '0-9')" && [[ -n "$PHOTO_KEYS" ]]; then
+  PHOTO_QUERY_OK=1
+else
+  PHOTO_QUERY_OK=0
+  PHOTO_KEYS=0
+fi
 
 MEDIA_ARCHIVE="$(ls -1t "$BACKUP_DIR"/daily/bhub-media-*.tar.gz 2>/dev/null | head -1 || true)"
-if [[ "$PHOTO_KEYS" -eq 0 ]]; then
-  echo "    no product photos in this backup - nothing to check"
+FILES=0
+if [[ -n "$MEDIA_ARCHIVE" ]]; then
+  FILES="$(tar tzf "$MEDIA_ARCHIVE" 2>/dev/null | grep -c '[^/]$' || true)"
+  FILES="${FILES:-0}"
+fi
+
+if [[ "$PHOTO_QUERY_OK" -eq 0 ]]; then
+  echo "    could not count product photos in the restored database"
+  warn "This check could not run, which is not the same as passing."
+  warn "Query used: $PHOTO_SQL"
+  FAILED=1
+elif [[ "$PHOTO_KEYS" -eq 0 ]]; then
+  # Still worth saying when an archive exists anyway: photos nothing points
+  # at are usually a migration half-done, not an empty catalogue.
+  if [[ "$FILES" -gt 0 ]]; then
+    echo "    no product references a photo, but $FILES file(s) are archived"
+    warn "Expected if photos were only just migrated. Otherwise, check why."
+  else
+    echo "    no product photos in this backup - nothing to check"
+  fi
 elif [[ -z "$MEDIA_ARCHIVE" ]]; then
   echo "    $PHOTO_KEYS product(s) reference a photo, and no media archive exists"
   warn "Restoring this backup would give every one of them a broken picture."
   warn "Check scripts/backup_db.sh is archiving the media volume."
   FAILED=1
 else
-  FILES="$(tar tzf "$MEDIA_ARCHIVE" 2>/dev/null | grep -c '\.' || echo 0)"
   echo "    $PHOTO_KEYS product(s) reference a photo; $FILES file(s) in $(basename "$MEDIA_ARCHIVE")"
   if [[ "$FILES" -eq 0 ]]; then
     warn "The media archive is empty. The photos are not being saved."
