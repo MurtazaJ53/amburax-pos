@@ -44,26 +44,25 @@ can find by reading.**
 
 ### Run the product image migration
 
-Photos are still in the database. New ones go to storage; the existing ones
-have not moved. Nothing is broken — the image endpoint falls back to the
-column — but the payload saving is not realised until this runs.
+Measured on the droplet on 27 August 2026: **one photo, 0.2 MB**. Run it and
+it is done:
 
 ```bash
-docker compose -f docker-compose.demo.yml exec api \
-  python manage.py migrate_product_images --dry-run   # writes nothing
-
-docker compose -f docker-compose.demo.yml exec api \
-  python manage.py migrate_product_images
+docker compose -f docker-compose.demo.yml exec api   python manage.py migrate_product_images
 ```
 
-**Before running it**, confirm the droplet has been redeployed since commit
-`804964a`. That commit added the `bhub_media` volume to
-`docker-compose.demo.yml` — the file `deploy.sh` actually uses. Without it,
-`BLOB_ROOT` falls back inside the container and the migration would move
-every photo somewhere the next deploy throws away.
+The `bhub_media` volume is deployed, so this is safe now. **Confirm the volume
+is in your backups** — unlike the database it has no dump.
 
-**Also confirm `bhub_media` is in your backups.** Unlike the database it has
-no dump, and losing it loses every product photo.
+> **Correction to the scale review.** It ranked photos-in-the-database as the
+> dominant cause of slow page loads, reasoning from the 60 KB client cap times
+> a 200-row page: roughly 12 MB per load. This shop has one photo. The
+> mechanism was real — the column shipped with every list and could not be
+> cached — but the magnitude was hypothetical, and the measured cause of the
+> slow loads was something else entirely: Turbopack compiling each route on
+> first visit in `next dev`, which a production build removes. The image work
+> still stands on its own (a photo does not belong in the row the till reads),
+> it was simply not the thing making the app feel slow.
 
 ### Rebuild and ship the mobile app
 
