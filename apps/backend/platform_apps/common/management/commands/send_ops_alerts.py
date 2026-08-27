@@ -18,9 +18,11 @@ import logging
 import os
 import shutil
 import time
+from datetime import timedelta
 from pathlib import Path
 
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 from django.db import connection
 
 from platform_apps.common.emailer import resend_api_key, send_email
@@ -40,6 +42,10 @@ BACKUP_MIN_BYTES = 10_000
 #: tighter fires because cron ran late or the box was rebooted, and an
 #: alert that cries wolf on a schedule is worse than no alert at all.
 DRILL_STALE_DAYS = 35
+#: How far back the money reconciliation looks. Two days covers last
+#: night's jobs and today's trading without re-reading a shop's history
+#: every hour.
+MONEY_CHECK_DAYS = 2
 DISK_WARN_PERCENT = 85
 
 
@@ -135,6 +141,49 @@ def _check_restore_drill() -> str | None:
     return None
 
 
+def _check_money_agrees() -> str | None:
+    """Do the stored money figures still agree with each other?
+
+    Deliberately a DATA check rather than a report check. A GST table that
+    disagrees with its own headline is a code bug: both are computed at read
+    time, so it cannot appear without a deploy and `smoke:money` catches it on
+    the way out. A customer whose balance stops matching their ledger is a
+    data bug, and that can appear at three in the morning from a half-finished
+    import or a job that died between two writes - with no deploy involved for
+    any check to hang off.
+
+    Recent sales only. This runs hourly against live data, and a shop with
+    twenty thousand bills must not be re-read every hour to answer a question
+    about today. Anything older has already been examined many times over, and
+    a discrepancy that has survived a week is not going to be caught sooner by
+    looking again.
+    """
+    from platform_apps.common import reconcile
+    from platform_apps.shops.models import Shop
+
+    since = timezone.localdate() - timedelta(days=MONEY_CHECK_DAYS)
+    findings: list[str] = []
+
+    for shop in Shop.objects.all():
+        problems = reconcile.shop_problems(shop, since=since, max_reported=5)
+        for problem in problems:
+            findings.append(f"{shop.name}: {problem}")
+        if len(findings) >= 15:
+            break
+
+    if not findings:
+        return None
+
+    listed = "".join(f"\n  {finding}" for finding in findings[:15])
+    return (
+        "Stored money figures disagree with each other:"
+        + listed
+        + "\n\nThese are records contradicting other records, not a report "
+        "formatting problem. Each one is a bill or a customer balance that "
+        "will be wrong on a screen somebody trusts."
+    )
+
+
 def _check_disk() -> str | None:
     usage = shutil.disk_usage("/")
     percent = usage.used / usage.total * 100
@@ -170,6 +219,7 @@ CHECKS = {
     "backups": _check_backups,
     "disk": _check_disk,
     "restore_drill": _check_restore_drill,
+    "money": _check_money_agrees,
     "billing": _check_billing_drift,
 }
 

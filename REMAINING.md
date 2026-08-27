@@ -40,6 +40,32 @@ can find by reading.**
 
 ---
 
+## 1a. The weekly half hour
+
+**Put it in the calendar. It is the highest-yield thing on this page.**
+
+Every money bug in this project was found by a person using the app. None came
+from the 1,382 tests, and one test asserted a bug was correct for months.
+
+Once a week, spend thirty minutes as a shopkeeper rather than as the person
+who wrote it: ring up a sale, put one on khata, take a payment, return an
+item, close the till, read the day book. Do the boring path, not the clever
+one.
+
+Two rules, both of which are why it works:
+
+- **Use the deployed site, not a dev server.** Three separate times a green
+  test run and a server running last week's code were indistinguishable from
+  outside.
+- **Write down anything that felt wrong**, including "this number looks odd"
+  and "I could not find the button". Those are the findings tests cannot
+  produce, and half of them turn out to be real.
+
+Thirty minutes of this out-finds any sprint that can be planned in advance. It
+has done so every time so far.
+
+---
+
 ## 2. Only you can do these
 
 ### Run the product image migration

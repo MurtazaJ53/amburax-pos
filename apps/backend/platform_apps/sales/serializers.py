@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
+from platform_apps.common import reconcile
 from platform_apps.customers.loyalty import (
     clamp_redemption,
     points_for_sale,
@@ -20,6 +22,8 @@ from platform_apps.inventory.models import InventoryItem, InventoryStockLedger
 from platform_apps.payments.models import SalePayment
 from platform_apps.sales.gst import apportion_discount, compute_line_gst
 from platform_apps.sales.models import Sale, SaleItem
+
+logger = logging.getLogger(__name__)
 
 
 class SaleSummarySerializer(serializers.Serializer):
@@ -672,6 +676,22 @@ class SaleSerializer(serializers.ModelSerializer):
                     "updated_at",
                 ]
             )
+
+        # Check the bill against itself, at the moment it is written.
+        #
+        # Every money bug found so far was a stored number disagreeing with
+        # another stored number, and each sat there for weeks because the only
+        # thing that would have noticed was a person comparing them. The
+        # original khata bug was exactly this shape: a bill recorded as fully
+        # received while the customer was never billed for the part they had
+        # not paid.
+        #
+        # Logged, never raised. A shopkeeper with a customer at the counter has
+        # to be able to finish the bill; an inconsistency is a reason to tell
+        # the operator, not a reason to refuse a sale. The nightly sweep reads
+        # the same rules, so this is early warning rather than the only guard.
+        for problem in reconcile.sale_problems(sale):
+            logger.error("Sale written with inconsistent money: %s", problem)
 
         return sale
 
