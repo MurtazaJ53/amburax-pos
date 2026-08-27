@@ -36,6 +36,10 @@ REPEAT_AFTER_SECONDS = 24 * 60 * 60
 #: Backups run daily. Two days without one means yesterday's failed silently.
 BACKUP_STALE_HOURS = 48
 BACKUP_MIN_BYTES = 10_000
+#: A missed month plus a few days. The drill runs monthly, so anything
+#: tighter fires because cron ran late or the box was rebooted, and an
+#: alert that cries wolf on a schedule is worse than no alert at all.
+DRILL_STALE_DAYS = 35
 DISK_WARN_PERCENT = 85
 
 
@@ -88,6 +92,49 @@ def _check_backups() -> str | None:
     return None
 
 
+def _check_restore_drill() -> str | None:
+    """Has anyone proved a backup restores lately?
+
+    A backup that exists and a backup that restores are different claims, and
+    only the second one matters on the day it is needed. The drill proves the
+    second, writes a stamp, and runs monthly from cron.
+
+    Watched here because a monthly manual task is a task that gets done once.
+    Without this, the honest description of the drill would be "we ran it in
+    August 2026" - and nobody would know that was the description.
+
+    The threshold allows a full missed month plus a few days: this must fire
+    when the job has genuinely stopped, not because a cron ran late or the
+    droplet was rebooted on the wrong day. A monthly check that alarms
+    spuriously gets filtered, and then the real one goes unread too.
+    """
+    backup_dir = Path(os.getenv("BACKUP_DIR", "/var/backups/bhub"))
+    stamp = backup_dir / ".last_drill"
+
+    if not stamp.exists():
+        return (
+            "No backup restore has ever been verified. Run "
+            "scripts/go-live/restore-drill.sh - it restores into a throwaway "
+            "database and never touches production."
+        )
+
+    try:
+        last = float(stamp.read_text().strip())
+    except (OSError, ValueError):
+        # An unreadable stamp is not proof of a recent drill, and must not be
+        # read as one. Failing toward "check it" is the whole point of this.
+        return f"The restore drill stamp at {stamp} could not be read."
+
+    age_days = (time.time() - last) / 86400
+    if age_days > DRILL_STALE_DAYS:
+        return (
+            f"No backup restore has been verified for {age_days:.0f} days. "
+            "The monthly restore drill has stopped running, so nobody knows "
+            "whether these backups still restore."
+        )
+    return None
+
+
 def _check_disk() -> str | None:
     usage = shutil.disk_usage("/")
     percent = usage.used / usage.total * 100
@@ -122,6 +169,7 @@ CHECKS = {
     "database": _check_database,
     "backups": _check_backups,
     "disk": _check_disk,
+    "restore_drill": _check_restore_drill,
     "billing": _check_billing_drift,
 }
 

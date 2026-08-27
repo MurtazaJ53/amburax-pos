@@ -190,3 +190,71 @@ class BackupCheckLayoutTests(TestCase):
         self._write("daily/new.dump", age_hours=1)
 
         self.assertIsNone(self._check())
+
+
+class RestoreDrillCheckTests(TestCase):
+    """Nobody knows whether a backup restores until somebody restores one.
+
+    The drill proves it, writes a stamp, and runs monthly from cron. This check
+    watches the stamp, because a monthly manual task is a task that happens
+    once - and the failure is invisible by construction: the backups keep
+    being written, they just stop being proven.
+
+    Every assertion here is about failing toward "go and check", never toward
+    silence.
+    """
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+
+        self.root = Path(tempfile.mkdtemp())
+
+    def _check(self):
+        from platform_apps.common.management.commands import send_ops_alerts
+
+        with patch.dict("os.environ", {"BACKUP_DIR": str(self.root)}):
+            return send_ops_alerts._check_restore_drill()
+
+    def _stamp(self, age_days: float):
+        (self.root / ".last_drill").write_text(
+            str(time.time() - age_days * 86400), encoding="utf-8"
+        )
+
+    def test_a_recent_drill_is_quiet(self):
+        self._stamp(age_days=3)
+        self.assertIsNone(self._check())
+
+    def test_a_drill_that_has_stopped_is_reported(self):
+        self._stamp(age_days=90)
+        message = self._check()
+        self.assertIsNotNone(message)
+        self.assertIn("90 days", message)
+
+    def test_a_late_cron_run_does_not_cry_wolf(self):
+        # Monthly means the stamp is routinely a month old. Alerting at 31 days
+        # would fire most months, the operator would filter the sender, and the
+        # real alert would go unread with it.
+        self._stamp(age_days=33)
+        self.assertIsNone(self._check())
+
+    def test_never_having_run_is_reported(self):
+        # The state every deployment starts in, and the one most likely to be
+        # mistaken for health: no alert has ever fired, so nothing looks wrong.
+        message = self._check()
+        self.assertIsNotNone(message)
+        self.assertIn("never", message.lower())
+
+    def test_an_unreadable_stamp_is_not_treated_as_proof(self):
+        # A stamp that cannot be parsed says nothing about when the drill last
+        # ran. Reading it as "recent" would be the reassuring answer, which is
+        # the failure this whole check exists to prevent.
+        (self.root / ".last_drill").write_text("not a timestamp", encoding="utf-8")
+        self.assertIsNotNone(self._check())
+
+    def test_the_check_is_registered_so_it_actually_runs(self):
+        # A check nobody calls is a comment. This is the assertion that would
+        # have caught it being written and never wired in.
+        from platform_apps.common.management.commands import send_ops_alerts
+
+        self.assertIn("restore_drill", send_ops_alerts.CHECKS)

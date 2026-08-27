@@ -153,10 +153,19 @@ say "6/6  Result"
 if [[ "$FAILED" -eq 1 ]]; then
   die "The backup restored incompletely. Treat that as an incident, not a warning."
 fi
+# Success stamp, written only here - after the restore worked and every check
+# passed. send_ops_alerts watches its age, so a drill that stops running is
+# reported the same way a backup that stops running already is. Silence stops
+# meaning "probably fine" and starts meaning "checked recently".
+date '+%s' > "$BACKUP_DIR/.last_drill"
+
 cat <<TXT
     The backup restores, in ${ELAPSED}s, with the expected tables present.
 
-    Run this monthly, and after any change to the schema or the backup job.
+    Recorded in $BACKUP_DIR/.last_drill. This runs monthly from cron; the
+    hourly ops check emails if it ever stops. Run it by hand after any change
+    to the schema or the backup job rather than waiting for the next one.
+
     Knowing the file exists is not the same as knowing it restores — and an
     incident is a bad time to find out which one you had.
 TXT

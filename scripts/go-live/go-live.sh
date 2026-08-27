@@ -194,6 +194,24 @@ else
   echo "    Hourly ops alerts installed."
 fi
 
+# Monthly, at 03:20 on the 1st - after the nightly backup at 02:00, so the
+# drill exercises a fresh dump rather than yesterday's.
+#
+# Scheduled rather than written down as a monthly habit, because a manual
+# monthly task is a task that happens once. Without this, the honest
+# description of the restore drill would be "we ran it in August 2026", and
+# nobody would know that was the description until they needed a restore.
+#
+# The drill restores into a throwaway database and drops it. Production is
+# never touched, which is what makes it safe to run unattended.
+DRILL_CRON_LINE="20 3 1 * * cd $PROJECT_DIR && bash scripts/go-live/restore-drill.sh >> /var/log/bhub-drill.log 2>&1"
+if crontab -l 2>/dev/null | grep -qF "restore-drill.sh"; then
+  echo "    Restore drill already scheduled."
+else
+  (crontab -l 2>/dev/null || true; echo "$DRILL_CRON_LINE") | crontab -
+  echo "    Monthly restore drill installed."
+fi
+
 # ---------------------------------------------------------------------------
 say "6/6  Issuing certificates"
 # ---------------------------------------------------------------------------
