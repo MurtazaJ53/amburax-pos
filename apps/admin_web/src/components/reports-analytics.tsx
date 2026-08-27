@@ -378,8 +378,9 @@ export function ReportsAnalytics() {
             </div>
 
             <p className="text-xs font-semibold text-text-tertiary">
-              Refunded bills are excluded. Check these figures against your books
-              before filing — this is a summary of what was billed, not tax advice.
+              Voided bills are excluded and returns are deducted, including part
+              returns. Check these figures against your books before filing — this
+              is a summary of what was billed, not tax advice.
             </p>
           </div>
         )

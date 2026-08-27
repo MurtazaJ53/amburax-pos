@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from platform_apps.expenses.models import Expense
 from platform_apps.purchases.models import Purchase
+from platform_apps.sales import returns_summary
 from platform_apps.sales.models import Sale, SaleItem
 from platform_apps.shops.models import ShopMembership
 from platform_apps.shops.permissions import ensure_feature_enabled_or_403, get_membership_or_403
@@ -119,6 +120,20 @@ class ProfitAndLossView(APIView):
         ).aggregate(
             value=Coalesce(Sum("total_amount"), Decimal("0.00"), output_field=_MONEY)
         )["value"]
+
+        # Goods that came back. Reversed on all four figures at once, which
+        # is why they arrive as one object: subtracting the revenue of a
+        # return without also removing its cost from COGS would report the
+        # refund as an improvement in margin.
+        #
+        # Reversed whatever the refund method. Cash, card, khata or
+        # exchange, the sale of those goods is undone; only whether money
+        # left the till differs, and the P&L is not asking that.
+        refunds = returns_summary.for_range(shop, start, end)
+        revenue = revenue - refunds.gross
+        tax_collected = tax_collected - refunds.tax
+        net_revenue = net_revenue - refunds.taxable
+        cogs = cogs - refunds.cost
 
         # Net revenue against net cost.
         #

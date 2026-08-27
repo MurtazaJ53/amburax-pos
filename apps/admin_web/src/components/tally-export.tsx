@@ -82,7 +82,9 @@ export function TallyExport() {
             <p className="text-sm font-black text-text-primary">Tally export</p>
             <p className="mt-1 text-xs font-semibold text-text-secondary">
               A voucher XML your accountant can import straight into Tally.
-              Refunded bills are left out — importing them would overstate revenue.
+              Voided bills are left out. Returns are not exported yet, so a bill
+              with goods returned against it still appears in full — tell your
+              accountant, or they will file revenue the shop gave back.
             </p>
           </div>
         </div>

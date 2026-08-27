@@ -23,6 +23,7 @@ from rest_framework.views import APIView
 
 from platform_apps.customers.models import CustomerLedgerEntry
 from platform_apps.expenses.models import Expense
+from platform_apps.sales import returns_summary
 from platform_apps.sales.models import Sale
 from platform_apps.shops.models import ShopMembership
 from platform_apps.shops.permissions import get_membership_or_403
@@ -117,9 +118,15 @@ class DayBookView(APIView):
             _sum(Expense.objects.filter(shop=shop, expense_date=day), "amount")
         )
 
+        # Refunds are money out too, and were counted nowhere. A cash refund
+        # left the drawer while this report still said the drawer was full,
+        # which is the one number a shopkeeper checks against the notes in
+        # their hand at close.
+        refunds = returns_summary.for_day(shop, day)
+
         # Cash that should physically be in the drawer, before any opening
         # float. Only cash counts: a UPI collection does not change the drawer.
-        cash_in_hand = _money(by_mode["cash"] - expenses)
+        cash_in_hand = _money(by_mode["cash"] - expenses - refunds.cash_paid_out)
 
         sales_count = sales.count()
         currency = getattr(shop, "currency_code", "INR")
@@ -139,6 +146,8 @@ class DayBookView(APIView):
         lines.append(f"Udhaar (given): {currency} {fmt(credit_given)}")
         if expenses > _ZERO:
             lines.append(f"Expenses: {currency} {fmt(expenses)}")
+        if refunds.total_paid_out > _ZERO:
+            lines.append(f"Refunds paid out: {currency} {fmt(refunds.total_paid_out)}")
         lines.append(f"Cash in hand: {currency} {fmt(cash_in_hand)}")
         lines.append(f"{sales_count} bill{'' if sales_count == 1 else 's'}")
 
@@ -157,7 +166,15 @@ class DayBookView(APIView):
                     "credit_given": str(credit_given),
                     "customers": credit_customers,
                 },
-                "money_out": {"expenses": str(expenses)},
+                "money_out": {
+                    "expenses": str(expenses),
+                    # Split, because only the cash part changes the drawer -
+                    # a UPI refund is money out of the business but not out
+                    # of the till being counted.
+                    "refunds": str(refunds.total_paid_out),
+                    "cash_refunds": str(refunds.cash_paid_out),
+                    "returns_count": refunds.count,
+                },
                 "cash_in_hand": str(cash_in_hand),
                 "sales_count": sales_count,
                 # Ready to paste into a message, so the caller does not have to

@@ -28,7 +28,8 @@ from platform_apps.common.migration_guards import (
 )
 from platform_apps.payments.models import SalePayment
 from platform_apps.projections.services import refresh_projection_after_write
-from platform_apps.sales.models import Sale, SaleItem
+from platform_apps.sales import returns_summary
+from platform_apps.sales.models import Sale, SaleItem, SaleReturn
 from platform_apps.sales.models import SaleCommandReceipt
 from platform_apps.sales.tally import build_tally_xml
 from platform_apps.inventory.models import InventoryStockLedger
@@ -442,13 +443,34 @@ class SaleGstSummaryView(ShopScopedMixin, APIView):
             igst_amount=Coalesce(Sum("items__igst_amount"), Decimal("0.00")),
         ).order_by("items__hsn_snapshot")
 
+        # Goods that came back are no longer sold, so the tax on them is no
+        # longer collected. Voided bills were already excluded; a PARTLY
+        # returned bill is still completed and was counted in full, so the
+        # screen claiming "refunded bills are excluded" was true only of the
+        # all-or-nothing case.
+        #
+        # Apportioned from the original line rather than recomputed at today's
+        # rate - a return has to reverse exactly what that line contributed.
+        start = date_from or None
+        end = date_to or None
+        refunds = returns_summary.totals_for(
+            SaleReturn.objects.filter(
+                shop=membership.shop
+            ).filter(
+                **{k: v for k, v in {
+                    "occurred_at__date__gte": start,
+                    "occurred_at__date__lte": end,
+                }.items() if v}
+            )
+        )
+
         payload = {
-            "taxable_amount": aggregates["total_taxable"],
-            "tax_amount": aggregates["total_tax"],
-            "cgst_amount": aggregates["total_cgst"],
-            "sgst_amount": aggregates["total_sgst"],
-            "igst_amount": aggregates["total_igst"],
-            "gross_amount": aggregates["total_gross"],
+            "taxable_amount": aggregates["total_taxable"] - refunds.taxable,
+            "tax_amount": aggregates["total_tax"] - refunds.tax,
+            "cgst_amount": aggregates["total_cgst"] - refunds.cgst,
+            "sgst_amount": aggregates["total_sgst"] - refunds.sgst,
+            "igst_amount": aggregates["total_igst"] - refunds.igst,
+            "gross_amount": aggregates["total_gross"] - refunds.gross,
             "b2c_small": list(b2c_rates),
             "hsn_summary": list(hsn_summary),
         }
