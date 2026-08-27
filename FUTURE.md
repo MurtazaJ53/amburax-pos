@@ -46,6 +46,29 @@ themselves**. Copy them across with `rclone` or `aws s3 sync` first.
 
 ---
 
+## Credit notes for returns
+
+The highest-value item on this list, because it is the only one a real client
+hits on their own without being told.
+
+Returns are now handled correctly everywhere money is counted - the day book,
+the P&L, the GST summary and its rate and HSN tables, the drawer, takings and
+best sellers. Two exports are still not: the Tally voucher XML and the GSTR-1
+CSV both describe invoices as they were issued, so a bill with goods returned
+against it appears at its original value.
+
+That is deliberate rather than unfinished. Quietly shrinking an invoice the
+customer holds a copy of would be a worse error than the one it fixes; under
+GST a return is a credit note, a separate document with its own number. So
+the work is to emit those documents - a CDNR section for GSTR-1, a credit
+note voucher for Tally - not to change the invoice rows.
+
+Both screens now say plainly that the gap exists and that the accountant must
+enter them. That holds for one shop with a few returns a month. It stops
+holding as soon as returns are routine or there is more than one shop.
+
+---
+
 ## Citus, or plain Postgres
 
 Decide, then act on the decision. Distributing the big tables by shop id
