@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import "./globals.css";
 import { LocaleProvider } from "@/lib/i18n";
 import { LOCALE_COOKIE, isLocale } from "@/lib/i18n/shared";
+import { DialogProvider } from "@/components/ui/dialog-provider";
 
 // Downloaded at build time and served from our own origin, so the strict
 // Content-Security-Policy in next.config.ts needs no third-party allowance.
@@ -76,7 +77,9 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-full">
-        <LocaleProvider initialLocale={locale}>{children}</LocaleProvider>
+        <LocaleProvider initialLocale={locale}>
+          <DialogProvider>{children}</DialogProvider>
+        </LocaleProvider>
       </body>
     </html>
   );

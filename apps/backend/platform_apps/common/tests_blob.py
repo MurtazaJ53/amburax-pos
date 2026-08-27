@@ -12,6 +12,7 @@ from __future__ import annotations
 import base64
 import shutil
 import tempfile
+from unittest.mock import patch
 from decimal import Decimal
 from io import StringIO
 
@@ -176,3 +177,76 @@ class ImageMigrationTests(TestCase):
             self._item(f"Item {n}")
         self._run(limit=2)
         self.assertEqual(InventoryItem.objects.exclude(image_key="").count(), 2)
+
+
+class StorageFailureTests(TestCase):
+    """A photo that cannot be stored must not lose the product.
+
+    The screen reported "Failed to update item: an internal server error
+    occurred" when the store was unwritable - a volume that was never
+    mounted. The shopkeeper had typed a product and attached a picture, and
+    got a stack trace's worth of nothing back.
+    """
+
+    def setUp(self):
+        from platform_apps.shops.models import ShopMembership
+        from platform_apps.users.models import PlatformUser
+        from rest_framework.test import APIClient
+        from django.urls import reverse
+
+        self.owner = PlatformUser.objects.create_user(
+            email="store@example.com", password="secret", full_name="Owner"
+        )
+        self.shop = Shop.objects.create(name="Store Shop", slug="store-fail-shop")
+        ShopMembership.objects.create(
+            user=self.owner, shop=self.shop,
+            role=ShopMembership.Role.OWNER,
+            status=ShopMembership.Status.ACTIVE,
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.owner)
+        self.url = reverse("inventory-list", args=[self.shop.id])
+
+    def test_a_product_still_saves_when_storage_is_broken(self):
+        with patch(
+            "platform_apps.inventory.serializers.get_store",
+            side_effect=OSError("read-only file system"),
+        ):
+            response = self.client.post(
+                self.url,
+                {"name": "Mustard Oil", "sell_price": "80.00", "image_data": JPEG},
+                format="json",
+            )
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertTrue(
+            InventoryItem.objects.filter(shop=self.shop, name="Mustard Oil").exists()
+        )
+
+    def test_the_photo_is_kept_rather_than_dropped(self):
+        """Falling back to the column costs a bloated row. Losing the picture
+        the shopkeeper just attached costs their trust."""
+        with patch(
+            "platform_apps.inventory.serializers.get_store",
+            side_effect=OSError("read-only file system"),
+        ):
+            self.client.post(
+                self.url,
+                {"name": "Mustard Oil", "sell_price": "80.00", "image_data": JPEG},
+                format="json",
+            )
+        item = InventoryItem.objects.get(shop=self.shop, name="Mustard Oil")
+        self.assertEqual(item.image_key, "")
+        self.assertNotEqual(item.image_data, "")
+
+    def test_the_picture_still_renders_from_the_fallback(self):
+        with patch(
+            "platform_apps.inventory.serializers.get_store",
+            side_effect=OSError("read-only file system"),
+        ):
+            self.client.post(
+                self.url,
+                {"name": "Mustard Oil", "sell_price": "80.00", "image_data": JPEG},
+                format="json",
+            )
+        item = InventoryItem.objects.get(shop=self.shop, name="Mustard Oil")
+        self.assertEqual(load_image(item), ("image/jpeg", RAW))

@@ -25,6 +25,7 @@ import type {
   WorkspaceTeamMemberPayload,
 } from "@/lib/types";
 import { useServerRefresh } from "@/lib/use-server-refresh";
+import { useDialog } from "@/components/ui/dialog-provider";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -60,6 +61,7 @@ export function TeamAttendance({
   defaultTab = "team",
   initialDevices = [],
 }: TeamAttendanceProps) {
+  const { say } = useDialog();
   const refreshServerData = useServerRefresh();
   const devices = initialDevices;
   /** The month the pay sheet is showing. Defaults to the most recent month
@@ -270,7 +272,7 @@ export function TeamAttendance({
       await refreshData();
       refreshServerData();
     } catch (err) {
-      alert(errorMessage(err, "Failed to record attendance shift."));
+      say("Could not record that shift", errorMessage(err, "Something went wrong."), "danger");
     } finally {
       setIsSubmitting(false);
     }

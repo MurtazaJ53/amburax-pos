@@ -6,9 +6,14 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
+import logging
+
 from platform_apps.common.blob import content_key, get_store
 from platform_apps.inventory.image_views import MAX_IMAGE_BYTES, parse_data_uri
 from platform_apps.inventory.models import InventoryItem, InventoryItemPrivate, InventoryStockLedger
+
+
+logger = logging.getLogger(__name__)
 
 
 class InventoryItemSerializer(serializers.ModelSerializer):
@@ -248,7 +253,23 @@ class InventoryItemSerializer(serializers.ModelSerializer):
 
         media_type, payload = parsed
         key = content_key(payload, media_type)
-        get_store().put(key, payload, media_type)
+        try:
+            get_store().put(key, payload, media_type)
+        except Exception:
+            # Storage unreachable, unwritable or misconfigured - a volume that
+            # was never mounted being the likeliest. None of that is the
+            # shopkeeper's problem, and it must not lose the product they just
+            # typed or answer them with "an internal server error occurred".
+            #
+            # So the picture falls back to the column it used to live in. The
+            # product saves, the photo is kept, and the image view already
+            # reads that column when there is no key. It costs one bloated row
+            # until somebody fixes the storage, which is a far better failure
+            # than a lost photo or a five hundred.
+            logger.exception("Blob store rejected a product photo; keeping it inline")
+            validated_data["image_key"] = ""
+            validated_data["image_data"] = candidate
+            return
         validated_data["image_key"] = key
         validated_data["image_data"] = ""
 

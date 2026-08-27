@@ -32,6 +32,7 @@ import type { NewCustomerDetails } from "@/lib/customer-match";
 import { computeCartTotals } from "@/lib/cart-totals";
 import { stateCodeFromGstin } from "@/lib/gst-states";
 import { useServerRefresh } from "@/lib/use-server-refresh";
+import { useDialog } from "@/components/ui/dialog-provider";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -86,6 +87,7 @@ export function PosTerminal({
   initialInventory,
   initialCustomers,
 }: PosTerminalProps) {
+  const { say } = useDialog();
   const refreshServerData = useServerRefresh();
   const t = useT();
   const mappedInitialProducts = React.useMemo(() => {
@@ -554,11 +556,17 @@ export function PosTerminal({
         // Safe to say "try again" now: the bill carries a command_id, so a
         // retry that reaches a server which already recorded it returns the
         // original sale instead of ringing a second one.
-        alert(
-          `Could not save the sale: ${errText}
+        // The server's own words, not a raw response body: errText can be a
+        // JSON blob, and printing that at a cashier mid-sale helps nobody.
+        say(
+          "The sale did not save",
+          `Press Pay again to retry — the bill will not be charged twice.
 
-Press Pay again to retry — ` +
-          `the bill will not be charged twice.`
+${errorMessage(
+            new Error(errText),
+            "The server did not say why.",
+          )}`,
+          "danger",
         );
         return;
       }
@@ -610,7 +618,7 @@ Press Pay again to retry — ` +
       // and the dashboard render from the server.
       refreshServerData();
     } catch (err) {
-      alert(`Error submitting sale: ${errorMessage(err, "Unknown error")}`);
+      say("The sale did not save", errorMessage(err, "Something went wrong. Press Pay again to retry - the bill will not be charged twice."), "danger");
     } finally {
       // Always. Without this the button stays disabled after the first sale
       // and the till is dead for the rest of the shift — a far worse failure

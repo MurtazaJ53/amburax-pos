@@ -13,6 +13,7 @@ import {
 import type { DataHealthReport, DuplicateGroup } from "@/lib/data-health";
 import { formatCurrency } from "@/lib/utils";
 import { useServerRefresh } from "@/lib/use-server-refresh";
+import { useDialog } from "@/components/ui/dialog-provider";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -85,6 +86,7 @@ function toReport(body: ApiHealthReport): DataHealthReport {
 }
 
 export function DataHealth() {
+  const { ask } = useDialog();
   const refreshServerData = useServerRefresh();
   const [report, setReport] = useState<DataHealthReport>(EMPTY_REPORT);
   const [scanned, setScanned] = useState({ items: 0, customers: 0 });
@@ -227,7 +229,7 @@ export function DataHealth() {
   );
 
   const confirmAndMerge = useCallback(
-    (groups: DuplicateGroup[]) => {
+    async (groups: DuplicateGroup[]) => {
       const message =
         groups.length === 1
           ? `"${groups[0].keeper.name}" appears ${groups[0].copies} times.\n\n` +
@@ -236,10 +238,10 @@ export function DataHealth() {
             `Past bills are not affected — they keep the name and price they were sold at.`
           : `Merge ${groups.length} products?\n\nEach will be reduced to a single item ` +
             `holding the combined stock of its copies. Past bills are not affected.`;
-      if (!window.confirm(message)) return;
+      if (!(await ask("Merge duplicate products?", message, { confirmLabel: "Merge" }))) return;
       void runMerge(groups);
     },
-    [runMerge]
+    [runMerge, ask]
   );
 
   return (

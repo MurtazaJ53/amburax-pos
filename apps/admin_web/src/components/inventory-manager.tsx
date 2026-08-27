@@ -34,6 +34,7 @@ import {
 } from "@/lib/inventory-filters";
 import type { SortKey, StockFilter } from "@/lib/inventory-filters";
 import { useServerRefresh } from "@/lib/use-server-refresh";
+import { useDialog } from "@/components/ui/dialog-provider";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -69,6 +70,7 @@ interface InventoryManagerProps {
 }
 
 export function InventoryManager({ initialInventory, canViewCosts = false }: InventoryManagerProps) {
+  const { say } = useDialog();
   const refreshServerData = useServerRefresh();
   const t = useT();
   const mappedInitial = React.useMemo(
@@ -466,7 +468,7 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
       await fetchItems();
       refreshServerData();
     } catch (err) {
-      alert(errorMessage(err, "An error occurred while saving the product"));
+      say("Could not save this product", errorMessage(err, "Something went wrong saving it."), "danger");
     } finally {
       // In a finally, not after the happy path: several branches above return
       // early, and a stuck flag would leave the form permanently dead.
@@ -501,7 +503,7 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
       await fetchItems();
       refreshServerData();
     } catch (err) {
-      alert(errorMessage(err, "An error occurred while adjusting the stock level."));
+      say("Could not adjust the stock", errorMessage(err, "Something went wrong."), "danger");
     } finally {
       setIsSubmitting(false);
     }

@@ -32,6 +32,7 @@ import { SaleReturnSheet } from "@/components/sale-return-sheet";
 import { ThermalReceiptModal } from "@/components/thermal-receipt-modal";
 import type { CartItem, SplitPaymentTender } from "@/lib/types";
 import { useServerRefresh } from "@/lib/use-server-refresh";
+import { useDialog } from "@/components/ui/dialog-provider";
 
 /** The payment slices worth a single click. "All" first, then the tenders in
  *  the order a counter sees them. */
@@ -201,6 +202,7 @@ export function SalesManager({
   shopLogo = "",
   brandColor = "",
 }: SalesManagerProps) {
+  const { say, ask } = useDialog();
   const refreshServerData = useServerRefresh();
   const t = useT();
   const mappedInitial = React.useMemo(() => {
@@ -382,7 +384,12 @@ export function SalesManager({
   }, [range.from, range.to, range.unbounded, rangeIsBounded]);
 
   const handleVoidSale = async (saleId: string) => {
-    if (!confirm("Are you sure you want to void this sale? This will reverse the transaction and restock inventory.")) return;
+    const agreed = await ask(
+      "Void this sale?",
+      "The bill comes out of the day's takings and its stock goes back on the shelf. This cannot be undone.",
+      { confirmLabel: "Void the sale", tone: "danger" },
+    );
+    if (!agreed) return;
     try {
       const res = await fetch(`/api/sales/${saleId}/void`, { method: "POST" });
       if (!res.ok) {
@@ -394,7 +401,7 @@ export function SalesManager({
       // back, neither of which this list shows.
       refreshServerData();
     } catch (err) {
-      alert(errorMessage(err, "An error occurred while voiding sale."));
+      say("Could not void this sale", errorMessage(err, "Something went wrong."), "danger");
     }
   };
 
