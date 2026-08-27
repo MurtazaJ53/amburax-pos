@@ -169,3 +169,50 @@ class GenerateSkusView(APIView):
                 "remaining_without_code": remaining,
             }
         )
+
+
+def taken_codes(shop) -> set[str]:
+    """Every code already in use in this shop, SKU or barcode.
+
+    Both columns, because a code has to be unique against anything a scan
+    could resolve to - not only against other SKUs.
+    """
+    pairs = InventoryItem.objects.filter(shop=shop, tombstone=False).values_list(
+        "sku", "barcode"
+    )
+    return {
+        value.strip().upper()
+        for pair in pairs
+        for value in pair
+        if value and value.strip()
+    }
+
+
+class SuggestSkuView(APIView):
+    """The next free code, for a product being typed in but not yet saved.
+
+    The bulk generator works on rows that already exist; a product still being
+    filled in on a form has no row to attach a code to. This answers the same
+    question for that case: what would the next one be.
+
+    Deliberately a suggestion and not a reservation. Two people adding a
+    product at the same moment would be offered the same code, and the second
+    save would carry a duplicate. That is worth saying plainly rather than
+    hiding behind a lock: this is a convenience for one shopkeeper at a
+    counter, not a distributed sequence, and a code that is typed over or
+    replaced is a normal outcome.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, shop_id):
+        membership = get_membership_or_403(
+            request.user, shop_id, ShopMembership.Role.STAFF
+        )
+        taken = taken_codes(membership.shop)
+        number = next_free_number(taken)
+        code = format_sku(number)
+        while code.upper() in taken:
+            number += 1
+            code = format_sku(number)
+        return Response({"sku": code})

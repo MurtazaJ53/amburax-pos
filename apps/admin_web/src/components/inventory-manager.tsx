@@ -94,6 +94,26 @@ function FormSection({ title, hint }: { title: string; hint: string }) {
 
 export function InventoryManager({ initialInventory, canViewCosts = false }: InventoryManagerProps) {
   const { say } = useDialog();
+
+  const [skuBusy, setSkuBusy] = useState(false);
+
+  /** Fill the SKU with the next code this shop has not used.
+   *
+   *  A suggestion, not a reservation - nothing is held until the product is
+   *  saved, so it can still be typed over. */
+  const suggestSku = async () => {
+    setSkuBusy(true);
+    try {
+      const res = await fetch("/api/inventory/suggest-sku");
+      if (!res.ok) throw new Error(`Could not get a code (${res.status})`);
+      const body = await res.json();
+      if (body?.sku) setFormSku(String(body.sku));
+    } catch (err) {
+      say("Could not pick a code", errorMessage(err, "Try typing one instead."), "warning");
+    } finally {
+      setSkuBusy(false);
+    }
+  };
   const refreshServerData = useServerRefresh();
   const t = useT();
   const mappedInitial = React.useMemo(
@@ -1256,13 +1276,28 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
                   <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
                     SKU Code
                   </label>
-                  <input
-                    type="text"
-                    value={formSku}
-                    onChange={(e) => setFormSku(e.target.value)}
-                    placeholder="e.g. OIL-MUST-1L"
-                    className="w-full px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none"
-                  />
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      value={formSku}
+                      onChange={(e) => setFormSku(e.target.value)}
+                      placeholder="e.g. OIL-MUST-1L"
+                      className="min-w-0 flex-1 px-3 py-2 bg-bg-soft border border-[var(--border-soft)] rounded-xl text-xs text-text-primary focus:outline-none focus:border-[var(--primary)]"
+                    />
+                    {/* Your own code for the product. The app can pick the
+                        next free one, because typing OIL-MUST-1L by hand for
+                        three hundred products is not a real option - and
+                        without a code the label screen cannot print it. */}
+                    <button
+                      type="button"
+                      onClick={() => void suggestSku()}
+                      disabled={skuBusy}
+                      title="Use the next free code"
+                      className="focus-ring shrink-0 cursor-pointer rounded-xl border border-[var(--border-soft)] bg-[var(--surface)] px-2.5 text-[11px] font-extrabold text-[var(--text-secondary)] transition-colors hover:text-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {skuBusy ? "…" : "Auto"}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">

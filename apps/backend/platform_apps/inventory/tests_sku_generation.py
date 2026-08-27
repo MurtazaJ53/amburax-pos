@@ -178,3 +178,60 @@ class GenerateSkusTests(TestCase):
         client = APIClient()
         client.force_authenticate(user=cashier)
         self.assertIn(client.post(self.url, {}, format="json").status_code, (403, 404))
+
+
+class SuggestSkuTests(TestCase):
+    """The code offered to a product still being typed in.
+
+    The bulk generator works on rows that exist. A product on a half-filled
+    form has no row, and needed the same answer.
+    """
+
+    def setUp(self):
+        self.owner = PlatformUser.objects.create_user(
+            email="suggest@example.com", password="secret", full_name="Owner"
+        )
+        self.shop = Shop.objects.create(name="Suggest Shop", slug="suggest-shop")
+        ShopMembership.objects.create(
+            user=self.owner, shop=self.shop,
+            role=ShopMembership.Role.OWNER,
+            status=ShopMembership.Status.ACTIVE,
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.owner)
+        self.url = reverse("inventory-suggest-sku", args=[self.shop.id])
+
+    def _item(self, name, *, sku="", barcode=""):
+        return InventoryItem.objects.create(
+            shop=self.shop, name=name, sku=sku, barcode=barcode,
+            sell_price=Decimal("10"),
+        )
+
+    def test_an_empty_shop_is_offered_the_first_code(self):
+        self.assertEqual(self.client.get(self.url).data["sku"], "SK00001")
+
+    def test_it_continues_past_what_is_already_issued(self):
+        self._item("Old", sku="SK00007")
+        self.assertEqual(self.client.get(self.url).data["sku"], "SK00008")
+
+    def test_it_avoids_a_code_held_as_a_barcode(self):
+        # The till resolves a scan against both columns, so a suggestion that
+        # matched a barcode would ring up the wrong product.
+        self._item("Imported", barcode="SK00001")
+        self.assertNotEqual(self.client.get(self.url).data["sku"], "SK00001")
+
+    def test_asking_twice_without_saving_offers_the_same_code(self):
+        """A suggestion, not a reservation. Nothing is held until the product
+        is saved, and pretending otherwise would need a sequence this does not
+        have."""
+        first = self.client.get(self.url).data["sku"]
+        self.assertEqual(self.client.get(self.url).data["sku"], first)
+
+    def test_a_manufacturer_barcode_does_not_shift_the_count(self):
+        self._item("Cola", barcode="8901234567890")
+        self.assertEqual(self.client.get(self.url).data["sku"], "SK00001")
+
+    def test_another_shop_cannot_ask(self):
+        other = Shop.objects.create(name="Other", slug="other-suggest-shop")
+        response = self.client.get(reverse("inventory-suggest-sku", args=[other.id]))
+        self.assertIn(response.status_code, (403, 404))
