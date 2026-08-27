@@ -74,16 +74,20 @@ type PosTerminalProps = {
 };
 
 export function PosTerminal({
-  shopName = "Business Hub Superstore",
-  shopAddress = "Shop 12-14, Commercial Complex, Sector 18",
-  // No placeholder. A receipt printing a GSTIN the shop does not own is a
-  // tax document carrying somebody else's number.
+  // No placeholders on any of these. The reasoning that kept the GSTIN empty
+  // applies just as well to the rest of them: a receipt headed TAX INVOICE
+  // that prints an address the shop has never had, a phone number belonging
+  // to nobody, or a cashier called Rashi in a shop with no Rashi, is a
+  // document making things up. Better a receipt with a gap in it, which a
+  // shopkeeper can see and go and fill in.
+  shopName = "",
+  shopAddress = "",
   shopGstin = "",
   regionCode = "IN",
   shopLogo = "",
   brandColor = "",
-  shopPhone = "+91 98765 43210",
-  cashierName = "Rashi (Cashier #1)",
+  shopPhone = "",
+  cashierName = "",
   initialInventory,
   initialCustomers,
 }: PosTerminalProps) {

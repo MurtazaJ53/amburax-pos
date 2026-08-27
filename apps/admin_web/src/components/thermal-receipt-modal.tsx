@@ -62,13 +62,18 @@ export function ThermalReceiptModal({
   isOpen,
   onClose,
   shopName,
-  shopAddress = "123 Commercial High Street, Market Complex",
-  shopGstin = "27AABCU9603R1ZM",
+  // Empty, never invented. This is a document headed TAX INVOICE: a
+  // placeholder GSTIN is somebody else's tax number, and a placeholder
+  // address and phone say a shop is somewhere it has never been. Every one of
+  // these is hidden when blank, so the receipt simply omits what it does not
+  // know - which a shopkeeper can see and go and fill in.
+  shopAddress = "",
+  shopGstin = "",
   regionCode = "IN",
   shopLogo = "",
   brandColor = "",
   footerNote = "",
-  shopPhone = "+91 98765 43210",
+  shopPhone = "",
   receiptNumber,
   cashierName,
   customerName = "Walk-in Guest",

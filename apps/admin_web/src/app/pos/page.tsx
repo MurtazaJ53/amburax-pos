@@ -63,12 +63,17 @@ export default async function PosPage() {
         </div>
       ) : (
         <PosTerminal
-          shopName={activeShop?.shop.name || "Business Hub Store"}
+          shopName={activeShop?.shop.name || ""}
           shopGstin={activeShop?.shop.gstin || ""}
+          // Wired through, not left to a default. These were simply omitted,
+          // so every shop's receipt printed the placeholder address and phone
+          // baked into the component.
+          shopAddress={activeShop?.shop.address || ""}
+          shopPhone={activeShop?.shop.business_phone || ""}
           regionCode={activeShop?.shop.region_code || "IN"}
           shopLogo={activeShop?.shop.logo_data || ""}
           brandColor={activeShop?.shop.brand_color || ""}
-          cashierName={session.user.full_name || "Cashier #1"}
+          cashierName={session.user.full_name || ""}
           initialInventory={inventory}
           initialCustomers={customers}
           shopId={shopId}

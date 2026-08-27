@@ -27,10 +27,17 @@ function errorMessage(error: unknown, fallback: string): string {
 
 type AuthPanelMode = "login" | "register" | "join" | "pin";
 
-export function AuthLogin({ notice }: { notice?: string } = {}) {
+export function AuthLogin({
+  notice,
+  initialMode = "login",
+}: { notice?: string; initialMode?: AuthPanelMode } = {}) {
   const router = useRouter();
   const t = useT();
-  const [panelMode, setPanelMode] = useState<AuthPanelMode>("login");
+  // /register opens straight on the sign-up panel. It used to be a separate
+  // screen with its own form, which collected a name, an email, a phone and a
+  // password and then sent none of it anywhere - two sign-up flows, and the
+  // duplicate was the broken one.
+  const [panelMode, setPanelMode] = useState<AuthPanelMode>(initialMode);
 
   // Cloud login state
   const [email, setEmail] = useState("");

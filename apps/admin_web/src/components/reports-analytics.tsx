@@ -24,6 +24,9 @@ type ProfitAndLoss = {
   end: string;
   revenue: string;
   tax_collected: string;
+  /** Revenue less the GST held for the tax office. Profit is measured from
+   *  this, not from revenue, and showing it is what makes the column add up. */
+  net_revenue: string;
   cost_of_goods_sold: string;
   gross_profit: string;
   total_expenses: string;
@@ -245,10 +248,23 @@ export function ReportsAnalytics() {
                 />
               </div>
 
-              <div className="rounded-[28px] border border-border-soft bg-surface overflow-hidden">
+              <div className="rounded-[16px] border border-border-soft bg-surface overflow-hidden">
                 <table className="min-w-full border-collapse">
                   <tbody>
+                    {/* The tax line sits IN the column, not below it as a
+                        footnote. Profit is measured from revenue net of GST -
+                        the backend is explicit about that and hands over
+                        net_revenue so the arithmetic can be followed - but
+                        the table jumped straight from a tax-inclusive revenue
+                        to a subtraction, so the figures on screen did not add
+                        up. A shopkeeper checking the column with a pen was
+                        right to distrust it. */}
                     <Row label="Revenue" value={num(pnl.revenue)} />
+                    <Row
+                      label="Less: GST collected (held for the tax office)"
+                      value={-num(pnl.tax_collected)}
+                    />
+                    <Row label="Net revenue" value={num(pnl.net_revenue)} />
                     <Row
                       label="Less: cost of goods sold"
                       value={-num(pnl.cost_of_goods_sold)}
@@ -256,11 +272,6 @@ export function ReportsAnalytics() {
                     <Row label="Gross profit" value={num(pnl.gross_profit)} strong />
                     <Row label="Less: expenses" value={-num(pnl.total_expenses)} />
                     <Row label="Net profit" value={num(pnl.net_profit)} strong />
-                    <Row
-                      label="Tax collected (held for GST, not income)"
-                      value={num(pnl.tax_collected)}
-                      muted
-                    />
                     <Row
                       label="Stock purchased (cash out, not a P&amp;L expense)"
                       value={num(pnl.purchases_total)}
@@ -294,7 +305,7 @@ export function ReportsAnalytics() {
               <Figure label="IGST" value={num(gst.igst_amount)} />
             </div>
 
-            <div className="rounded-[28px] border border-border-soft bg-surface overflow-hidden">
+            <div className="rounded-[16px] border border-border-soft bg-surface overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-5 border-b border-border-soft">
                 <h2 className="text-sm font-black text-text-primary uppercase tracking-wide">
                   By tax rate

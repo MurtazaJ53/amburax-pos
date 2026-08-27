@@ -44,6 +44,18 @@ const PAYMENT_CHIPS = [
   { key: "khata", label: "Khata" },
 ] as const;
 
+/** One word for one thing.
+ *
+ *  The API's vocabulary and the counter's are not the same. CREDIT is what
+ *  the database stores; khata is what the shop says, and what every chip,
+ *  badge and total on this screen is labelled. Mapping it once on the way in
+ *  keeps the rest of the file speaking a single language.
+ */
+function normalisePaymentMode(raw: string | undefined): string {
+  const mode = (raw || "cash").toLowerCase();
+  return mode === "credit" ? "khata" : mode;
+}
+
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
@@ -85,6 +97,8 @@ interface SalesManagerProps {
    *  Superstore", so every reprinted bill carried a name no shop has. */
   shopName?: string;
   shopGstin?: string;
+  shopAddress?: string;
+  shopPhone?: string;
   regionCode?: string;
   shopLogo?: string;
   brandColor?: string;
@@ -174,7 +188,11 @@ function toSaleOrder(item: ApiSale): SaleOrder {
     tax_amount: parseFloat(item.tax_amount || "0"),
     discount_amount: parseFloat(item.discount_amount || "0"),
     total_amount: parseFloat(item.total_amount || "0"),
-    payment_mode: (item.payment_mode || "cash").toLowerCase(),
+    // The server calls it CREDIT; a shopkeeper calls it khata, and so does
+    // every chip and label on this screen. Translated once, here at the
+    // boundary, rather than left to disagree - the Khata filter matched
+    // nothing and its count read 0 with credit sales plainly on the list.
+    payment_mode: normalisePaymentMode(item.payment_mode),
     payment_breakdown: {
       cash: tenderTotal(payments, "CASH"),
       card: tenderTotal(payments, "CARD"),
@@ -198,6 +216,8 @@ export function SalesManager({
   timeZone = "Asia/Kolkata",
   shopName = "",
   shopGstin = "",
+  shopAddress = "",
+  shopPhone = "",
   regionCode = "IN",
   shopLogo = "",
   brandColor = "",
@@ -1094,6 +1114,11 @@ export function SalesManager({
           onClose={() => setViewingReceipt(null)}
           shopName={shopName}
           shopGstin={shopGstin}
+          // Passed here too. Reprinting a bill from history used the receipt
+          // component's own placeholder address, phone and GSTIN, so the same
+          // fake details reached paper by a second route.
+          shopAddress={shopAddress}
+          shopPhone={shopPhone}
           regionCode={regionCode}
           shopLogo={shopLogo}
           brandColor={brandColor}

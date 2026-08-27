@@ -87,12 +87,19 @@ class MembershipShopSerializer(serializers.Serializer):
     logo_data = serializers.CharField()
     brand_color = serializers.CharField()
     business_phone = serializers.SerializerMethodField()
+    # Same reason as the GSTIN above. Without it the POS fell back to a
+    # placeholder street address baked into the component, so a receipt headed
+    # TAX INVOICE carried an address the shop has never had.
+    address = serializers.SerializerMethodField()
     # Needed so the web can put a one-tap UPI pay link in khata reminders, the
     # same as the phone does. Public payee id, not a secret.
     upi_vpa = serializers.SerializerMethodField()
 
     def get_business_phone(self, obj):
         return obj.settings_json.get("business_phone", "")
+
+    def get_address(self, obj):
+        return obj.settings_json.get("address", "")
 
     def get_upi_vpa(self, obj):
         return obj.settings_json.get("upi_vpa", "")

@@ -115,6 +115,7 @@ export type ShopMembership = {
     plan_tier: BusinessHubPlanTier;
     enabled_features: Record<string, boolean>;
     business_phone?: string;
+    address?: string;
     upi_vpa?: string;
     /** Everything a receipt needs to identify the shop it came from. */
     region_code?: string;

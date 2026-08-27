@@ -47,6 +47,8 @@ export default async function SalesPage() {
         timeZone={activeShop?.shop.timezone || "Asia/Kolkata"}
         shopName={activeShop?.shop.name || ""}
         shopGstin={activeShop?.shop.gstin || ""}
+        shopAddress={activeShop?.shop.address || ""}
+        shopPhone={activeShop?.shop.business_phone || ""}
         regionCode={activeShop?.shop.region_code || "IN"}
         shopLogo={activeShop?.shop.logo_data || ""}
         brandColor={activeShop?.shop.brand_color || ""}
