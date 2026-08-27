@@ -180,18 +180,20 @@ class GenerateSkusTests(TestCase):
         self.assertIn(client.post(self.url, {}, format="json").status_code, (403, 404))
 
 
-class SuggestSkuTests(TestCase):
-    """The code offered to a product still being typed in.
+class AutoCodeAtSaveTests(TestCase):
+    """Choosing the code when the row is written, not before.
 
-    The bulk generator works on rows that exist. A product on a half-filled
-    form has no row, and needed the same answer.
+    The browser used to ask what the next code would be and send it back with
+    the form. Between those two moments somebody else could save a product and
+    take it, and the second save carried a duplicate - which makes a scan ring
+    up the wrong product.
     """
 
     def setUp(self):
         self.owner = PlatformUser.objects.create_user(
-            email="suggest@example.com", password="secret", full_name="Owner"
+            email="auto@example.com", password="secret", full_name="Owner"
         )
-        self.shop = Shop.objects.create(name="Suggest Shop", slug="suggest-shop")
+        self.shop = Shop.objects.create(name="Auto Shop", slug="auto-code-shop")
         ShopMembership.objects.create(
             user=self.owner, shop=self.shop,
             role=ShopMembership.Role.OWNER,
@@ -199,39 +201,52 @@ class SuggestSkuTests(TestCase):
         )
         self.client = APIClient()
         self.client.force_authenticate(user=self.owner)
-        self.url = reverse("inventory-suggest-sku", args=[self.shop.id])
+        self.url = reverse("inventory-list", args=[self.shop.id])
 
-    def _item(self, name, *, sku="", barcode=""):
-        return InventoryItem.objects.create(
-            shop=self.shop, name=name, sku=sku, barcode=barcode,
-            sell_price=Decimal("10"),
+    def _create(self, name, sku):
+        return self.client.post(
+            self.url, {"name": name, "sell_price": "10.00", "sku": sku}, format="json"
         )
 
-    def test_an_empty_shop_is_offered_the_first_code(self):
-        self.assertEqual(self.client.get(self.url).data["sku"], "SK00001")
+    def test_asking_for_a_code_gets_a_real_one(self):
+        response = self._create("Rice", "__auto__")
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(
+            InventoryItem.objects.get(shop=self.shop, name="Rice").sku, "SK00001"
+        )
 
-    def test_it_continues_past_what_is_already_issued(self):
-        self._item("Old", sku="SK00007")
-        self.assertEqual(self.client.get(self.url).data["sku"], "SK00008")
+    def test_two_products_saved_in_turn_never_share_a_code(self):
+        """The race, closed. Both forms could have been holding SK00001."""
+        self._create("First", "__auto__")
+        self._create("Second", "__auto__")
+        codes = list(
+            InventoryItem.objects.filter(shop=self.shop).values_list("sku", flat=True)
+        )
+        self.assertEqual(len(codes), len(set(codes)))
+        self.assertEqual(sorted(codes), ["SK00001", "SK00002"])
 
-    def test_it_avoids_a_code_held_as_a_barcode(self):
-        # The till resolves a scan against both columns, so a suggestion that
-        # matched a barcode would ring up the wrong product.
-        self._item("Imported", barcode="SK00001")
-        self.assertNotEqual(self.client.get(self.url).data["sku"], "SK00001")
+    def test_a_typed_code_is_kept_exactly(self):
+        self._create("Rice", "MY-OWN-CODE")
+        self.assertEqual(
+            InventoryItem.objects.get(shop=self.shop, name="Rice").sku, "MY-OWN-CODE"
+        )
 
-    def test_asking_twice_without_saving_offers_the_same_code(self):
-        """A suggestion, not a reservation. Nothing is held until the product
-        is saved, and pretending otherwise would need a sequence this does not
-        have."""
-        first = self.client.get(self.url).data["sku"]
-        self.assertEqual(self.client.get(self.url).data["sku"], first)
+    def test_a_typed_code_that_is_taken_is_refused_by_name(self):
+        """An IntegrityError would surface as "an internal server error",
+        which tells the person who typed it nothing."""
+        self._create("Rice", "SHARED")
+        response = self._create("Dal", "SHARED")
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn("Rice", str(response.data))
 
-    def test_a_manufacturer_barcode_does_not_shift_the_count(self):
-        self._item("Cola", barcode="8901234567890")
-        self.assertEqual(self.client.get(self.url).data["sku"], "SK00001")
+    def test_a_blank_code_stays_blank(self):
+        self._create("No code", "")
+        self.assertEqual(
+            InventoryItem.objects.get(shop=self.shop, name="No code").sku, ""
+        )
 
-    def test_another_shop_cannot_ask(self):
-        other = Shop.objects.create(name="Other", slug="other-suggest-shop")
-        response = self.client.get(reverse("inventory-suggest-sku", args=[other.id]))
-        self.assertIn(response.status_code, (403, 404))
+    def test_the_placeholder_is_never_stored(self):
+        self._create("Rice", "__auto__")
+        self.assertFalse(
+            InventoryItem.objects.filter(shop=self.shop, sku="__auto__").exists()
+        )

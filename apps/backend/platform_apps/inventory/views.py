@@ -236,6 +236,10 @@ class InventoryItemBulkCreateView(ShopScopedMixin, APIView):
         context = {
             "shop": membership.shop,
             "actor": request.user,
+            # This view matches an incoming row against an existing product by
+            # code before deciding to create or update, so the serializer must
+            # not refuse a code that is already in use.
+            "matches_existing_rows": True,
             "can_view_costs": self.can_view_costs(),
             "can_view_supplier_directory": False,
             "can_view_purchase_workflow": False,

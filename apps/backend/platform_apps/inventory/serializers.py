@@ -9,6 +9,11 @@ from rest_framework import serializers
 import logging
 
 from platform_apps.common.blob import content_key, get_store
+from platform_apps.inventory.sku_views import (
+    format_sku,
+    next_free_number,
+    taken_codes,
+)
 from platform_apps.inventory.image_views import MAX_IMAGE_BYTES, parse_data_uri
 from platform_apps.inventory.models import InventoryItem, InventoryItemPrivate, InventoryStockLedger
 
@@ -160,6 +165,46 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             )
         return candidate
 
+    def validate_sku(self, value):
+        """Refuse a code another product in this shop already carries.
+
+        The database enforces this too, but an IntegrityError surfaces as
+        "an internal server error occurred" - which tells the person who typed
+        it nothing, and looks like the app broke rather than like a code being
+        taken. Caught here it names the product holding it, which is the one
+        fact needed to decide what to do next.
+        """
+        code = (value or "").strip()
+        if not code:
+            return code  # Blank is allowed, and common.
+        if code == self.AUTO_SKU:
+            return code  # Not a code yet; create() picks the real one.
+
+        shop = self.context.get("shop")
+        if shop is None:
+            return code
+
+        # A bulk import legitimately sends codes that already exist - that is
+        # how a re-import updates a product instead of adding a second one.
+        # It matches on the code itself before deciding, so rejecting here
+        # turned every repeat import into a sheet of errors.
+        if self.context.get("matches_existing_rows"):
+            return code
+
+        clash = InventoryItem.objects.filter(
+            shop=shop, tombstone=False, sku__iexact=code
+        )
+        if self.instance is not None:
+            clash = clash.exclude(pk=self.instance.pk)
+
+        holder = clash.first()
+        if holder is not None:
+            raise serializers.ValidationError(
+                f'"{code}" is already the code for {holder.name}. '
+                "Two products with one code make a scan ring up the wrong one."
+            )
+        return code
+
     def validate(self, attrs):
         supplier_id = attrs.get("supplier_id_input")
         last_purchase_date = attrs.get("last_purchase_date_input")
@@ -273,8 +318,38 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         validated_data["image_key"] = key
         validated_data["image_data"] = ""
 
+    #: What the form sends when the shopkeeper pressed Auto rather than
+    #: typing a code. Resolved here rather than in the browser, so the code is
+    #: chosen at the moment the row is written.
+    AUTO_SKU = "__auto__"
+
+    def _assign_code_if_asked(self, validated_data: dict) -> None:
+        """Pick the next free code, at the moment of saving.
+
+        The browser used to ask what the next code would be and send it back
+        with the form. Between those two moments somebody else could save a
+        product and take it - two shopkeepers adding stock at the same counter
+        is not a rare event - and the second save carried a duplicate, which
+        makes a scan ring up the wrong product.
+
+        Choosing it here closes that window to nothing: the code is read and
+        written inside one transaction, so nothing can be issued in between.
+        """
+        if validated_data.get("sku") != self.AUTO_SKU:
+            return
+
+        shop = self.context["shop"]
+        taken = taken_codes(shop)
+        number = next_free_number(taken)
+        code = format_sku(number)
+        while code.upper() in taken:
+            number += 1
+            code = format_sku(number)
+        validated_data["sku"] = code
+
     def create(self, validated_data):
         self._store_image(validated_data)
+        self._assign_code_if_asked(validated_data)
         opening_stock = Decimal(str(validated_data.pop("opening_stock", 0)))
         cost_price = validated_data.pop("cost_price_input", None)
         supplier_id = validated_data.pop("supplier_id_input", "")
