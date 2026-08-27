@@ -106,7 +106,7 @@ interface SalesManagerProps {
 
 /** A sale row as the API returns it. Only the fields this screen reads. */
 type ApiSalePayment = { payment_method: string; amount: string };
-type ApiSale = {
+export type ApiSale = {
   id: string;
   receipt_number?: string;
   shop?: string;
@@ -117,6 +117,11 @@ type ApiSale = {
   tax_amount?: string;
   discount_amount?: string;
   total_amount?: string;
+  // What the server says has been paid and what is still owed. Absent
+  // from this type until the sales screen was found reading tenders
+  // instead - a field nobody could reach for is a field nobody uses.
+  amount_received?: string;
+  amount_due?: string;
   payment_mode?: string;
   status?: string;
   item_count?: number;
@@ -173,7 +178,7 @@ function toReceiptLine(line: ApiSaleLine): CartItem {
   };
 }
 
-function toSaleOrder(item: ApiSale): SaleOrder {
+export function toSaleOrder(item: ApiSale): SaleOrder {
   const payments = item.payments ?? [];
   return {
     id: item.id,
@@ -197,7 +202,16 @@ function toSaleOrder(item: ApiSale): SaleOrder {
       cash: tenderTotal(payments, "CASH"),
       card: tenderTotal(payments, "CARD"),
       upi: tenderTotal(payments, "UPI"),
-      khata_due: tenderTotal(payments, "CREDIT"),
+      // What is still owed, taken from the sale itself rather than from a
+      // CREDIT payment row. There is no such row any more: recording money on
+      // khata as a payment is what made the till count it as received, and
+      // 670c3e3 stopped writing it - test_no_payment_row_is_stored_for_credit
+      // holds it stopped. Reading tenders here meant every credit sale after
+      // that fix showed nothing owed on this screen and no khata line on its
+      // reprinted receipt, while the ledger, the dashboard and the day book
+      // all had it right. amount_due is the server's own arithmetic, so the
+      // four tenders now sum to the bill by construction.
+      khata_due: parseFloat(item.amount_due || "0"),
     },
     status: item.status || "completed",
     items: (item.items ?? []).map(toReceiptLine),
