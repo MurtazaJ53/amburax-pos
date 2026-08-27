@@ -252,6 +252,14 @@ class SaleSerializer(serializers.ModelSerializer):
             amount = payment.get("amount") or Decimal("0.00")
             if amount <= 0:
                 raise serializers.ValidationError({"payments": "Each payment amount must be positive."})
+            # Credit is the ABSENCE of payment. The till sends the khata
+            # portion of a bill as a payment row so the sale is labelled
+            # CREDIT, and counting it here made the bill fully paid: the
+            # customer's balance never moved, the dashboard said everyone had
+            # settled up, and the day book reported the money as received.
+            # A shop silently forgot what it was owed.
+            if str(payment.get("payment_method") or "").upper() == Sale.PaymentMode.CREDIT:
+                continue
             total_paid += amount
 
         if declared_subtotal is not None and declared_subtotal != computed_subtotal:
@@ -370,7 +378,22 @@ class SaleSerializer(serializers.ModelSerializer):
             customer_name_snapshot = customer_name_snapshot or customer.name
             customer_phone_snapshot = customer_phone_snapshot or customer.phone
 
-        payment_mode = payment_payloads[0]["payment_method"] if len(payment_payloads) == 1 else Sale.PaymentMode.SPLIT
+        payment_mode = (
+            payment_payloads[0]["payment_method"]
+            if len(payment_payloads) == 1
+            else Sale.PaymentMode.SPLIT
+        )
+
+        # The credit row told us the mode; it must not become a payment. A
+        # stored CREDIT row would inflate every sum taken over the payments
+        # table - takings, the day book, the payment mix - by money that was
+        # never handed over.
+        payment_payloads = [
+            payload
+            for payload in payment_payloads
+            if str(payload.get("payment_method") or "").upper()
+            != Sale.PaymentMode.CREDIT
+        ]
 
         # Drop the client's own subtotal/total. They are writable so a caller
         # can send them, and validate() already checked them against the figures

@@ -80,16 +80,24 @@ class SalesApiTests(TestCase):
         self.assertEqual(sale.payment_mode, Sale.PaymentMode.SPLIT)
         self.assertEqual(sale.subtotal_amount, Decimal("1000.00"))
         self.assertEqual(sale.total_amount, Decimal("950.00"))
-        self.assertEqual(sale.amount_received, Decimal("950.00"))
-        self.assertEqual(sale.amount_due, Decimal("0.00"))
+        # 700 was handed over; 250 went on the khata. This used to assert 950
+        # received and nothing due - the shop was owed 250 and the test called
+        # it settled, which is exactly the bug it was hiding.
+        self.assertEqual(sale.amount_received, Decimal("700.00"))
+        self.assertEqual(sale.amount_due, Decimal("250.00"))
         self.assertEqual(SaleItem.objects.filter(sale=sale).count(), 1)
-        self.assertEqual(SalePayment.objects.filter(sale=sale).count(), 2)
+        # One, not two. The credit row named the mode; it is not money, and a
+        # stored payment row would inflate every sum taken over that table.
+        self.assertEqual(SalePayment.objects.filter(sale=sale).count(), 1)
         self.assertEqual(
             InventoryStockLedger.objects.filter(item=self.item, event_type=InventoryStockLedger.EventType.SALE).count(),
             1,
         )
         self.customer.refresh_from_db()
         self.assertEqual(self.customer.total_spent, Decimal("950.00"))
+        # The receivable. Without this the customer owes nothing, the
+        # dashboard says everyone has settled up, and the money is forgotten.
+        self.assertEqual(self.customer.balance, Decimal("250.00"))
         self.assertEqual(
             CustomerLedgerEntry.objects.filter(customer=self.customer, event_type=CustomerLedgerEntry.EventType.SALE).count(),
             1,
