@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { BarChart3, Download, FileSpreadsheet, Loader2, PieChart } from "lucide-react";
 
 import { formatCurrency } from "@/lib/utils";
+import { monthStartKey, todayKey } from "@/lib/local-date";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -63,11 +64,11 @@ function num(value: string | number | null | undefined): number {
 
 function startOfMonth(): string {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  return monthStartKey();
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayKey();
 }
 
 export function ReportsAnalytics() {

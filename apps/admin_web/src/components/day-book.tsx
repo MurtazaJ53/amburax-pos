@@ -23,7 +23,14 @@ type DayBook = {
     total: string;
   };
   udhaar: { credit_given: string; customers: number };
-  money_out: { expenses: string };
+  money_out: {
+    expenses: string;
+    // Added when returns started reaching the reports. Optional so a
+    // server that predates them renders rather than crashing.
+    refunds?: string;
+    cash_refunds?: string;
+    returns_count?: number;
+  };
   cash_in_hand: string;
   sales_count: number;
   summary_text: string;
@@ -269,7 +276,13 @@ export function DayBook({
               </dl>
             </section>
 
-            {/* Udhaar — value handed over and still owed */}
+            {/* Udhaar - value handed over on credit TODAY, not the total
+                outstanding. A customer who took goods on khata this
+                morning and settled at lunchtime still appears here: the
+                credit was genuinely given, and a day book records the
+                day. The labels say today so a zeroed balance does not
+                read as the screen being wrong. What is owed overall
+                lives on the dashboard and the customer's ledger. */}
             <section className="flex flex-col rounded-[20px] border border-[var(--warning)]/40 bg-[var(--warning)]/10 p-5 animate-fade-in-up delay-2">
               <h3 className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--warning-strong)]">
                 Udhaar · given
@@ -281,7 +294,7 @@ export function DayBook({
               <dl className="mt-4 space-y-1.5">
                 <div className="flex items-center gap-3">
                   <dt className="text-[12.5px] font-semibold text-[var(--text-secondary)]">
-                    Customers on credit
+                    Customers given credit today
                   </dt>
                   <dd className="tnum ml-auto font-mono text-[12.5px] font-bold text-[var(--text-primary)]">
                     {data.udhaar.customers}
@@ -305,9 +318,20 @@ export function DayBook({
                 <p className="tnum mt-1 font-mono text-[22px] font-bold tracking-tight text-[var(--text-primary)]">
                   {money(data.cash_in_hand, c)}
                 </p>
+                {/* Every part of the sum above, so the sentence adds up to the
+                    number it sits under. It read "630 cash taken, less 0 paid
+                    out" beneath a figure of 330: refunds were missing, and a
+                    subtitle that contradicts its own total teaches a
+                    shopkeeper to distrust the screen rather than the
+                    sentence. */}
                 <p className="mt-1 text-[11px] font-medium text-[var(--text-tertiary)]">
-                  {money(data.jama.cash, c)} cash taken, less{" "}
-                  {money(data.money_out.expenses, c)} paid out
+                  {money(data.jama.cash, c)} cash taken
+                  {Number(data.money_out.expenses) > 0 && (
+                    <>, less {money(data.money_out.expenses, c)} expenses</>
+                  )}
+                  {Number(data.money_out.cash_refunds ?? 0) > 0 && (
+                    <>, less {money(data.money_out.cash_refunds ?? "0", c)} refunded</>
+                  )}
                 </p>
               </div>
             </section>

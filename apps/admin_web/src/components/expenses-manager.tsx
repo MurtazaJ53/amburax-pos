@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Expense, ExpenseSummaryPayload } from "@/lib/types";
+import { todayKey } from "@/lib/local-date";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -126,7 +127,10 @@ export function ExpensesManager({ initialExpenses, initialSummary }: ExpensesMan
    *  are a shortcut rather than a restriction. */
   const QUICK_CATEGORIES: readonly string[] = QUICK_EXPENSE_CATEGORIES;
 
-  const today = () => new Date().toISOString().split("T")[0];
+  // Local, not UTC. toISOString() renders UTC, so an expense entered after
+  // midnight IST was filed against yesterday while the sales beside it were
+  // filed against today - and the day book then showed nothing paid out.
+  const today = () => todayKey();
 
   /** Everything selectable in the filter: the standard list plus whatever
    *  this shop has actually recorded, so a category typed by hand can still

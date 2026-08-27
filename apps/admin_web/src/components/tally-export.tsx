@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Download, FileSpreadsheet, Loader2 } from "lucide-react";
+import { daysAgoKey, todayKey } from "@/lib/local-date";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -10,11 +11,11 @@ function errorMessage(error: unknown, fallback: string): string {
 
 
 function isoDaysAgo(days: number): string {
-  return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+  return daysAgoKey(days);
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayKey();
 }
 
 /**

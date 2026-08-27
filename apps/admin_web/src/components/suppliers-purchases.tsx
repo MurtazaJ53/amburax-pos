@@ -19,6 +19,7 @@ import {
 } from "@/lib/item-lines";
 import { ItemLinesEditor } from "@/components/ui/item-lines-editor";
 import { useServerRefresh } from "@/lib/use-server-refresh";
+import { todayKey } from "@/lib/local-date";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -280,7 +281,7 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
           invoice_number: invoice,
           amount_paid: paid.toFixed(2),
           payment_mode: "CASH",
-          purchase_date: new Date().toISOString().slice(0, 10),
+          purchase_date: todayKey(),
           // The real lines. Each one carries the stock item it belongs to,
           // which is what moves stock, rewrites the cost price, stamps the
           // supplier and date on the product, and feeds Supplier prices.

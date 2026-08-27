@@ -18,6 +18,7 @@ import {
 } from "@/lib/import";
 import { useServerRefresh } from "@/lib/use-server-refresh";
 import { contradicts, detectKind, findDuplicates } from "@/lib/import-detect";
+import { todayKey } from "@/lib/local-date";
 
 /** One past import, as the list endpoint returns it. */
 type ImportBatch = {
@@ -79,7 +80,7 @@ function downloadErrorReport(errors: RowError[]) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `import-errors-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `import-errors-${todayKey()}.csv`;
   link.click();
   URL.revokeObjectURL(url);
 }

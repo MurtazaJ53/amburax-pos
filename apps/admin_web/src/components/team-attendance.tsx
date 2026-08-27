@@ -26,6 +26,7 @@ import type {
 } from "@/lib/types";
 import { useServerRefresh } from "@/lib/use-server-refresh";
 import { useDialog } from "@/components/ui/dialog-provider";
+import { todayKey } from "@/lib/local-date";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -262,7 +263,7 @@ export function TeamAttendance({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             membership_id: myMember.id,
-            session_date: new Date().toISOString().split("T")[0],
+            session_date: todayKey(),
             clock_in_at: new Date().toISOString(),
             status: "present",
           }),
@@ -291,7 +292,7 @@ export function TeamAttendance({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           membership_id: selectedMemberId,
-          session_date: new Date().toISOString().split("T")[0],
+          session_date: todayKey(),
           clock_in_at: new Date().toISOString(),
           status: attendanceStatus,
           note: attendanceNote,
