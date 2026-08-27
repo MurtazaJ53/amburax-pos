@@ -45,6 +45,7 @@ class ImportBatch(UUIDStampedModel):
     class Kind(models.TextChoices):
         PRODUCTS = "products", "Products"
         CUSTOMERS = "customers", "Customers"
+        SALES = "sales", "Past sales"
 
     #: The value written into every imported row's source_system.
     SOURCE_SYSTEM = "spreadsheet-import"

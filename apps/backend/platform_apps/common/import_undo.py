@@ -52,13 +52,19 @@ def rows_from(batch: ImportBatch):
     """Every row this import created, whichever table it went into."""
     from platform_apps.customers.models import Customer
     from platform_apps.inventory.models import InventoryItem
+    from platform_apps.sales.models import Sale
 
-    model = InventoryItem if batch.kind == ImportBatch.Kind.PRODUCTS else Customer
+    model = {
+        ImportBatch.Kind.PRODUCTS: InventoryItem,
+        ImportBatch.Kind.CUSTOMERS: Customer,
+        ImportBatch.Kind.SALES: Sale,
+    }[batch.kind]
+    # Matched on the batch alone. source_system is not part of the filter
+    # because the sales importer already uses source_id for its own
+    # idempotency key, and narrowing on a second field would have meant
+    # overwriting that - trading duplicate protection for undo.
     return model.objects.filter(
-        shop=batch.shop,
-        source_system=ImportBatch.SOURCE_SYSTEM,
-        source_path=str(batch.id),
-        tombstone=False,
+        shop=batch.shop, source_path=str(batch.id), tombstone=False
     )
 
 
@@ -84,6 +90,16 @@ def customer_is_in_use(customer) -> bool:
     return customer.ledger_entries.exists() or customer.sales.exists()
 
 
+def sale_is_in_use(sale) -> bool:
+    """Whether anything has been done to an imported sale since.
+
+    A return is the one that matters: it put stock back and money out against
+    this bill. Removing the sale would leave the return pointing at nothing,
+    and the model refuses the delete anyway - the foreign key is PROTECT.
+    """
+    return sale.returns.exists()
+
+
 def undo(batch: ImportBatch) -> dict:
     """Remove what this import created, keeping anything since used.
 
@@ -99,11 +115,11 @@ def undo(batch: ImportBatch) -> dict:
             "kept_rows": [],
         }
 
-    in_use = (
-        product_is_in_use
-        if batch.kind == ImportBatch.Kind.PRODUCTS
-        else customer_is_in_use
-    )
+    in_use = {
+        ImportBatch.Kind.PRODUCTS: product_is_in_use,
+        ImportBatch.Kind.CUSTOMERS: customer_is_in_use,
+        ImportBatch.Kind.SALES: sale_is_in_use,
+    }[batch.kind]
 
     removed_ids: list = []
     kept: list[dict] = []
@@ -113,7 +129,15 @@ def undo(batch: ImportBatch) -> dict:
         # write would otherwise have its product removed underneath it.
         for row in rows_from(batch).select_for_update():
             if in_use(row):
-                kept.append({"id": str(row.id), "name": getattr(row, "name", "")})
+                kept.append(
+                    {
+                        "id": str(row.id),
+                        # A sale has no name; its receipt number is what a
+                        # person would look for.
+                        "name": getattr(row, "name", "")
+                        or getattr(row, "receipt_number", ""),
+                    }
+                )
             else:
                 removed_ids.append(row.pk)
 

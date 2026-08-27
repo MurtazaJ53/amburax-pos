@@ -221,3 +221,81 @@ class ChunkedImportTests(TestCase):
         self._chunk(["A"], filename="")
         self._chunk(["B"], filename="")
         self.assertEqual(ImportBatch.objects.filter(shop=self.shop).count(), 2)
+
+
+class SalesHistoryUndoTests(TestCase):
+    """Undoing imported history, and the rule that makes it safe.
+
+    A historical sale deliberately moves no stock - the shelf today already
+    reflects that it happened. That is what makes taking one back safe: there
+    is no stock movement to reverse, only a record to remove.
+    """
+
+    def setUp(self):
+        self.owner = PlatformUser.objects.create_user(
+            email="hist@example.com", password="secret", full_name="Owner"
+        )
+        self.shop = Shop.objects.create(name="History Shop", slug="history-imp-shop")
+        ShopMembership.objects.create(
+            user=self.owner, shop=self.shop,
+            role=ShopMembership.Role.OWNER,
+            status=ShopMembership.Status.ACTIVE,
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.owner)
+        self.url = f"/api/v1/shops/{self.shop.id}/sales/history-import/"
+
+    def _import(self, rows, filename="last-year.csv"):
+        return self.client.post(
+            self.url, {"filename": filename, "sales": rows}, format="json"
+        )
+
+    def test_imported_history_moves_no_stock(self):
+        """The whole design. Replaying a year of sales against today's shelf
+        would drive every product deeply negative."""
+        from platform_apps.inventory.models import InventoryStockLedger
+
+        self._import(
+            [{"id": "a1", "date": "2026-03-04", "total": "500"},
+             {"id": "a2", "date": "2026-03-05", "total": "250"}]
+        )
+        self.assertEqual(
+            InventoryStockLedger.objects.filter(shop=self.shop).count(), 0
+        )
+
+    def test_an_import_can_be_taken_back(self):
+        from platform_apps.sales.models import Sale
+
+        response = self._import(
+            [{"id": "b1", "date": "2026-03-04", "total": "500"},
+             {"id": "b2", "date": "2026-03-05", "total": "250"}]
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        batch_id = response.data["batch_id"]
+
+        undone = self.client.post(
+            reverse("import-batch-undo", args=[self.shop.id, batch_id])
+        )
+
+        self.assertEqual(undone.data["removed"], 2)
+        self.assertEqual(
+            Sale.objects.filter(shop=self.shop, tombstone=False).count(), 0
+        )
+
+    def test_re_importing_the_same_file_does_not_duplicate(self):
+        """It was already idempotent by client id. Adding a batch must not
+        have broken that."""
+        from platform_apps.sales.models import Sale
+
+        rows = [{"id": "c1", "date": "2026-03-04", "total": "500"}]
+        self._import(rows)
+        self._import(rows)
+        self.assertEqual(Sale.objects.filter(shop=self.shop).count(), 1)
+
+    def test_the_import_is_listed_as_undoable(self):
+        self._import([{"id": "d1", "date": "2026-03-04", "total": "500"}])
+        row = self.client.get(
+            reverse("import-batch-list", args=[self.shop.id])
+        ).data[0]
+        self.assertEqual(row["kind"], "sales")
+        self.assertTrue(row["can_undo"])

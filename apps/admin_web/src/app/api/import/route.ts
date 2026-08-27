@@ -19,6 +19,10 @@ const MAX_SHOWN_ERRORS = 50;
 const TARGETS = {
   products: { path: "inventory/bulk/", key: "items" },
   customers: { path: "customers/bulk/", key: "customers" },
+  // Records that a sale happened, for the reports. Deliberately moves no
+  // stock: the shelf today already reflects last year's sales, so replaying
+  // them would drive every product negative.
+  sales: { path: "sales/history-import/", key: "sales" },
 } as const;
 
 export async function POST(req: NextRequest) {

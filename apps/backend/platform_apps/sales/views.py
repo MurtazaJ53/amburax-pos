@@ -19,6 +19,8 @@ from rest_framework.views import APIView
 from platform_apps.audit.services import create_workspace_audit_event, snapshot_sale
 from platform_apps.common.migration import MigrationDomain
 from platform_apps.common.cursor import CursorListMixin
+from platform_apps.common.import_undo import batch_for, record_rows
+from platform_apps.common.models import ImportBatch
 from platform_apps.common.migration_guards import (
     assert_domain_epoch_current,
     assert_postgres_primary_write_enabled_multi,
@@ -920,6 +922,12 @@ class SaleHistoryBulkImportView(ShopScopedMixin, APIView):
             raise exceptions.ValidationError({"sales": "Send at most 1000 sales per request."})
 
         valid_modes = set(Sale.PaymentMode.values)
+        batch = batch_for(
+            membership.shop,
+            ImportBatch.Kind.SALES,
+            str(request.data.get("filename") or "")[:255],
+            request.user,
+        )
         created = 0
         skipped = 0
         # Row-level reasons, not just a count. "340 skipped" tells a shopkeeper
@@ -988,15 +996,23 @@ class SaleHistoryBulkImportView(ShopScopedMixin, APIView):
                     occurred_at=occurred,
                     source_system="import",
                     source_id=client_id,
+                    # Which import this came from, so a wrong file can be
+                    # taken back. Kept separate from source_id, which is this
+                    # importer's idempotency key - overwriting it would trade
+                    # duplicate protection for undo.
+                    source_path=str(batch.id),
                 )
                 sale.receipt_number = f"H-{str(sale.id).replace('-', '')[:8].upper()}"
                 sale.save(update_fields=["receipt_number", "updated_at"])
                 created += 1
+        record_rows(batch, rows=len(rows), created=created)
+        batch.refresh_from_db()
         if created:
             refresh_projection_after_write(membership.shop, context="a bulk import")
         return Response(
             {
                 "created": created,
+                "batch_id": str(batch.id),
                 "skipped": skipped,
                 "errors": errors,
                 "error_count": skipped,

@@ -35,9 +35,11 @@ describe("detectKind", () => {
   });
 
   it("ignores columns both kinds share", () => {
+    // "Name" is in all three schemas, so it points nowhere.
     const detection = detectKind(["Name"]);
-    expect(detection.productSignals).toEqual([]);
-    expect(detection.customerSignals).toEqual([]);
+    expect(detection.scores.products).toEqual([]);
+    expect(detection.scores.customers).toEqual([]);
+    expect(detection.scores.sales).toEqual([]);
   });
 
   it("reads the everyday words for a column, not just our own labels", () => {
@@ -182,5 +184,36 @@ describe("summarise", () => {
     );
     expect(line).toContain("1 repeated in the file");
     expect(line).toContain("1 already in your shop");
+  });
+});
+
+
+describe("telling past sales apart", () => {
+  it("recognises an old sales register", () => {
+    expect(detectKind(["Bill No", "Bill Date", "Grand Total"]).kind).toBe("sales");
+  });
+
+  it("does not cry wolf when a sales file is imported as sales", () => {
+    // The regression this guards: adding a third kind to a two-way check made
+    // every sales file look like a customer list, because it has a party name
+    // and a mobile number in it.
+    const detection = detectKind(["Bill No", "Bill Date", "Total", "Party Name", "Mobile"]);
+    expect(contradicts("sales", detection)).toBe(false);
+  });
+
+  it("catches a sales file imported as products", () => {
+    const detection = detectKind(["Bill No", "Bill Date", "Grand Total"]);
+    expect(contradicts("products", detection)).toBe(true);
+  });
+
+  it("identifies a sale by its bill number and nothing else", () => {
+    // Two sales on the same day for the same amount are ordinary trading.
+    // Falling back to a name would call every cash sale a duplicate.
+    expect(identityOf({ id: "INV-9", customer_name: "Asha" }, "sales")).toBe("inv-9");
+    expect(identityOf({ customer_name: "Asha" }, "sales")).toBe("");
+  });
+
+  it("counts past sales in words a shopkeeper uses", () => {
+    expect(summarise("sales", 2, [], [])).toBe("2 past sales");
   });
 });

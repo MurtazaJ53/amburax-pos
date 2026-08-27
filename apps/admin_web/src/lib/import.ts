@@ -10,7 +10,7 @@
  * preview the shopkeeper can override, and the upload.
  */
 
-export type ImportKind = "products" | "customers";
+export type ImportKind = "products" | "customers" | "sales";
 
 export type ImportField = {
   key: string;
@@ -75,13 +75,54 @@ export const IMPORT_SCHEMAS: Record<ImportKind, ImportField[]> = {
       key: "amountDue",
       label: "Amount due",
       type: "number",
-      synonyms: ["balance", "due", "outstanding", "credit", "pending", "closing balance"],
+      synonyms: ["balance", "due", "outstanding", "credit", "pending", "closing balance", "opening balance"],
     },
     {
       key: "advance",
       label: "Advance",
       type: "number",
       synonyms: ["amount held", "deposit", "prepaid", "advance paid"],
+    },
+  ],
+  sales: [
+    {
+      key: "date",
+      label: "Date",
+      required: true,
+      synonyms: ["bill date", "invoice date", "sale date", "day", "dt"],
+    },
+    {
+      key: "total",
+      label: "Bill total",
+      type: "number",
+      required: true,
+      synonyms: ["amount", "grand total", "net", "value", "bill amount", "sale amount"],
+    },
+    {
+      key: "id",
+      label: "Bill number",
+      synonyms: ["invoice", "invoice no", "bill no", "receipt", "receipt no", "voucher"],
+    },
+    {
+      key: "payment_mode",
+      label: "Paid by",
+      synonyms: ["mode", "payment", "type", "tender", "paid via"],
+    },
+    {
+      key: "customer_name",
+      label: "Customer",
+      synonyms: ["party", "party name", "client", "buyer", "name"],
+    },
+    {
+      key: "customer_phone",
+      label: "Customer phone",
+      synonyms: ["mobile", "contact", "phone number"],
+    },
+    {
+      key: "discount",
+      label: "Discount",
+      type: "number",
+      synonyms: ["disc", "less", "rebate"],
     },
   ],
 };
@@ -284,5 +325,26 @@ export function toCustomerPayload(row: MappedRow): Record<string, unknown> {
     phone: row.phone ?? "",
     email: row.email ?? "",
     opening_balance: balance.toFixed(2),
+  };
+}
+
+
+/** One past bill, as the history importer takes it.
+ *
+ *  `id` is the bill number from the old system and doubles as the key that
+ *  stops a re-import creating a second copy - so a file with no bill numbers
+ *  gets one derived from the row, which is stable for that file but will not
+ *  recognise the same bill arriving under a different name later.
+ */
+export function toSalePayload(row: MappedRow, index: number): Record<string, unknown> {
+  const billNumber = (row.id ?? "").trim();
+  return {
+    id: billNumber || `row-${index + 1}-${(row.date ?? "").trim()}`,
+    date: (row.date ?? "").trim(),
+    total: parseNumber(row.total),
+    discount: parseNumber(row.discount),
+    payment_mode: (row.payment_mode ?? "").trim().toUpperCase(),
+    customer_name: (row.customer_name ?? "").trim(),
+    customer_phone: (row.customer_phone ?? "").trim(),
   };
 }

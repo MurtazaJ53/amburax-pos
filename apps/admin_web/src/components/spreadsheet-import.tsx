@@ -10,6 +10,7 @@ import {
   IMPORT_SCHEMAS,
   parseCsv,
   toCustomerPayload,
+  toSalePayload,
   toInventoryPayload,
   type FieldMapping,
   type ImportKind,
@@ -86,6 +87,11 @@ function downloadErrorReport(errors: RowError[]) {
 const KINDS: { key: ImportKind; label: string; hint: string }[] = [
   { key: "products", label: "Products", hint: "Your stock list — names, prices, quantities" },
   { key: "customers", label: "Customers", hint: "Names, numbers and any opening balances" },
+  {
+    key: "sales",
+    label: "Past sales",
+    hint: "Last year's bills from your old system — for the reports only",
+  },
 ];
 
 export function SpreadsheetImport() {
@@ -260,7 +266,12 @@ export function SpreadsheetImport() {
     setError(null);
     setResult(null);
     try {
-      const shape = kind === "products" ? toInventoryPayload : toCustomerPayload;
+      const shape =
+        kind === "products"
+          ? toInventoryPayload
+          : kind === "customers"
+            ? toCustomerPayload
+            : toSalePayload;
       const res = await fetch("/api/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -523,13 +534,13 @@ export function SpreadsheetImport() {
             <div className="rounded-[16px] border border-[var(--error)]/35 bg-[var(--error)]/10 p-4">
               <p className="m-0 flex items-center gap-2 text-[13px] font-extrabold text-[var(--error-strong)]">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
-                This file looks like {detection.kind === "customers" ? "a customer list" : "a product list"}, not {kind === "products" ? "products" : "customers"}
+                This file looks like {detection.kind === "customers" ? "a customer list" : detection.kind === "sales" ? "a list of past sales" : "a product list"}
               </p>
               <p className="m-0 mt-1.5 max-w-[68ch] text-[12px] font-semibold leading-relaxed text-[var(--text-secondary)]">
-                It has {(detection.kind === "customers" ? detection.customerSignals : detection.productSignals).slice(0, 4).join(", ")} in it.
-                Importing it as {kind === "products" ? "products" : "customers"} will
-                succeed and put the wrong thing in the wrong place. Switch the
-                type above, or carry on if you meant it.
+                It has {(detection.kind ? detection.scores[detection.kind] : []).slice(0, 4).join(", ")} in it.
+                Importing it as this type will succeed and put the wrong thing
+                in the wrong place. Switch the type above, or carry on if you
+                meant it.
               </p>
             </div>
           )}
