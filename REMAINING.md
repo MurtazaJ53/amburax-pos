@@ -44,15 +44,28 @@ can find by reading.**
 
 ### Run the product image migration
 
-Measured on the droplet on 27 August 2026: **one photo, 0.2 MB**. Run it and
-it is done:
+One photo, 0.2 MB. It failed the first time with `Permission denied:
+/var/lib/bhub/media/products` — the container runs as `appuser` and the named
+volume was created owned by root.
+
+The Dockerfile now creates and owns that directory, which fixes any **new**
+deployment: Docker copies an image directory's ownership into an empty named
+volume on first use. The volume on this droplet already exists and is already
+root-owned, so it needs correcting once by hand:
 
 ```bash
+cd /opt/bhub
+docker compose -f docker-compose.demo.yml exec -u root api   chown -R appuser:appgroup /var/lib/bhub/media
+
 docker compose -f docker-compose.demo.yml exec api   python manage.py migrate_product_images
 ```
 
-The `bhub_media` volume is deployed, so this is safe now. **Confirm the volume
-is in your backups** — unlike the database it has no dump.
+Nothing was lost by the failure: the command moves a row only after reading
+the bytes back out of the store, so a failed write leaves the photo in the
+database exactly as it was.
+
+**Confirm `bhub_media` is in your backups** — unlike the database it has no
+dump.
 
 > **Correction to the scale review.** It ranked photos-in-the-database as the
 > dominant cause of slow page loads, reasoning from the 60 KB client cap times

@@ -38,7 +38,19 @@ COPY . .
 
 # Create a non-root user
 RUN addgroup --system appgroup && adduser --system --group appuser \
-    && chown -R appuser:appgroup /app
+    && chown -R appuser:appgroup /app \
+    && mkdir -p /var/lib/bhub/media \
+    && chown -R appuser:appgroup /var/lib/bhub/media
+
+# The media directory is created and owned HERE, before the volume is
+# mounted over it. Docker copies an image directory's ownership into a NEW
+# named volume on first use; a volume that appears unannounced belongs to
+# root, which this container is not.
+#
+# Without it the store is unwritable, and both halves fail quietly: every
+# photo save falls back to keeping the picture in the database row, and the
+# migration that moves them out fails a row at a time with
+# "Permission denied".
 USER appuser
 
 EXPOSE 8000
