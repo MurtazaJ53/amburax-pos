@@ -64,7 +64,7 @@ class ReturnsReachTheReportsTests(TestCase):
     _seq = 0
 
     def _cash_sale(self, *, qty="4", unit="25.00", unit_cost="10.00",
-                   taxable="95.24", tax="4.76"):
+                   taxable="95.24", tax="4.76", hsn="2501", rate="5.00"):
         """A completed cash bill with a GST split and a known cost."""
         type(self)._seq += 1
         total = Decimal(qty) * Decimal(unit)
@@ -91,6 +91,10 @@ class ReturnsReachTheReportsTests(TestCase):
             line_total=total,
             taxable_amount=Decimal(taxable),
             tax_amount=Decimal(tax),
+            cgst_amount=Decimal(tax) / 2,
+            sgst_amount=Decimal(tax) / 2,
+            gst_rate=Decimal(rate),
+            hsn_snapshot=hsn,
             position=0,
         )
         InventoryStockLedger.objects.create(
@@ -295,3 +299,127 @@ class ReturnsReachTheReportsTests(TestCase):
             Decimal(self._profit_loss()["cost_of_goods_sold"]),
             cogs_after_sale - Decimal("40.00"),
         )
+
+
+class ReturnsReachEveryAggregateTests(ReturnsReachTheReportsTests):
+    """The places the first pass missed.
+
+    The returns fix landed in the day book, the P&L and the GST headline on
+    the first try and missed the table underneath that headline - the legal
+    filing, where a wrong number costs the most and is noticed the latest.
+    That is worth a test each rather than a note, because the failure mode is
+    always the same shape: an aggregate that recomputes from sale lines
+    instead of asking what came back.
+    """
+
+    def _gst(self):
+        return self.client.get(
+            reverse("sale-gst-summary", args=[self.shop.id])
+        ).data
+
+    def test_the_rate_table_agrees_with_the_headline(self):
+        # One screen, two answers: the card deducted returns and the table
+        # under it did not. The shopkeeper files from the table.
+        sale, item = self._cash_sale()
+        self._refund(sale, item, quantity="2")
+
+        summary = self._gst()
+        from_table = sum(Decimal(str(row["taxable_amount"])) for row in summary["b2c_small"])
+        self.assertEqual(from_table, Decimal(str(summary["taxable_amount"])))
+
+    def test_the_hsn_table_agrees_with_the_headline(self):
+        sale, item = self._cash_sale()
+        self._refund(sale, item, quantity="2")
+
+        summary = self._gst()
+        from_table = sum(
+            Decimal(str(row["taxable_amount"])) for row in summary["hsn_summary"]
+        )
+        self.assertEqual(from_table, Decimal(str(summary["taxable_amount"])))
+
+    def test_an_hsn_returned_in_full_carries_no_tax(self):
+        # The reported case: HSN 2501 still listed at 47.62 taxable / 2.38 tax,
+        # every unit of which had been returned.
+        sale, item = self._cash_sale(qty="4")
+        self._refund(sale, item, quantity="4")
+
+        rows = [
+            row for row in self._gst()["hsn_summary"]
+            if row["items__hsn_snapshot"] == "2501"
+        ]
+        # Asserted present first: a loop over rows that are not there passes
+        # while proving nothing, which is the failure this whole file exists
+        # to stop.
+        self.assertTrue(rows, "HSN 2501 was not in the summary at all")
+        for row in rows:
+            self.assertEqual(Decimal(str(row["taxable_amount"])), Decimal("0.00"))
+            self.assertEqual(Decimal(str(row["tax_amount"])), Decimal("0.00"))
+
+    # --- the cash drawer ---------------------------------------------------
+
+    def test_a_cash_refund_lowers_the_cash_the_drawer_should_hold(self):
+        """Otherwise the count comes up short by exactly the refund.
+
+        That reads as a cashier being light, not as a report being wrong, and
+        it is the kind of accusation that gets someone spoken to before
+        anybody checks the code.
+        """
+        sale, item = self._cash_sale()
+        before = Decimal(
+            self.client.get(reverse("register-session", args=[self.shop.id]))
+            .data["expected_cash"]
+        )
+
+        self._refund(sale, item, quantity="2")
+
+        after = Decimal(
+            self.client.get(reverse("register-session", args=[self.shop.id]))
+            .data["expected_cash"]
+        )
+        self.assertEqual(before - after, Decimal("50.00"))
+
+    # --- takings -----------------------------------------------------------
+
+    def test_takings_do_not_count_money_handed_back(self):
+        sale, item = self._cash_sale()
+        url = reverse("sale-takings", args=[self.shop.id])
+        before = Decimal(str(self.client.get(url).data["total"]))
+
+        self._refund(sale, item, quantity="2")
+
+        self.assertEqual(
+            before - Decimal(str(self.client.get(url).data["total"])), Decimal("50.00")
+        )
+
+    def test_the_takings_mix_still_adds_up_to_its_headline(self):
+        # The bar is only trustworthy because its slices sum to the total.
+        # Netting one side and not the other would break that silently.
+        sale, item = self._cash_sale()
+        self._refund(sale, item, quantity="2")
+
+        data = self.client.get(reverse("sale-takings", args=[self.shop.id])).data
+        sliced = sum(Decimal(str(slice_["amount"])) for slice_ in data["mix"])
+        self.assertEqual(sliced, Decimal(str(data["total"])))
+
+    # --- best sellers ------------------------------------------------------
+
+    def test_a_product_returned_in_full_is_not_a_best_seller(self):
+        # Sold four, brought back four: it sold nothing. Leaving it on the
+        # list sends the shopkeeper out to buy more of it.
+        sale, item = self._cash_sale(qty="4")
+        self._refund(sale, item, quantity="4")
+
+        rows = self.client.get(
+            reverse("report-best-sellers", args=[self.shop.id])
+        ).data["items"]
+        self.assertEqual([row for row in rows if row["name"] == "Salt"], [])
+
+    def test_a_part_returned_product_ranks_on_what_stayed_sold(self):
+        sale, item = self._cash_sale(qty="4")
+        self._refund(sale, item, quantity="1")
+
+        rows = self.client.get(
+            reverse("report-best-sellers", args=[self.shop.id])
+        ).data["items"]
+        salt = next(row for row in rows if row["name"] == "Salt")
+        self.assertEqual(Decimal(str(salt["quantity_sold"])), Decimal("3"))

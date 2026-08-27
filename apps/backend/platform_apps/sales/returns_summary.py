@@ -162,3 +162,89 @@ def for_range(shop, start, end) -> ReturnsTotals:
             occurred_at__date__lte=end,
         )
     )
+
+
+def _bucket() -> dict:
+    return {
+        "taxable": _ZERO, "tax": _ZERO,
+        "cgst": _ZERO, "sgst": _ZERO, "igst": _ZERO,
+    }
+
+
+def _grouped(returns, key) -> dict:
+    """Returned tax, grouped by whatever `key` reads off the original line.
+
+    The headline totals were netted first and the per-rate and per-HSN tables
+    underneath them were not, so one screen gave two answers and the table -
+    the one a shopkeeper actually files from - was the wrong one. Grouping has
+    to come from the same apportionment as the total or they disagree again
+    the moment a part return happens.
+    """
+    lines = SaleReturnLine.objects.filter(
+        sale_return__in=[r.pk for r in returns]
+    ).select_related("sale_item")
+
+    out: dict = {}
+    for line in lines:
+        item = line.sale_item
+        if item is None:
+            continue
+        share = line_share(line.quantity, item.quantity)
+        bucket = out.setdefault(key(item), _bucket())
+        bucket["taxable"] += _money(Decimal(item.taxable_amount or 0) * share)
+        bucket["tax"] += _money(Decimal(item.tax_amount or 0) * share)
+        bucket["cgst"] += _money(Decimal(getattr(item, "cgst_amount", 0) or 0) * share)
+        bucket["sgst"] += _money(Decimal(getattr(item, "sgst_amount", 0) or 0) * share)
+        bucket["igst"] += _money(Decimal(getattr(item, "igst_amount", 0) or 0) * share)
+    return out
+
+
+def by_rate(returns) -> dict:
+    """Returned tax per GST rate, keyed exactly as the sale lines key it."""
+    return _grouped(list(returns), lambda item: item.gst_rate)
+
+
+def by_hsn(returns) -> dict:
+    """Returned tax per HSN code."""
+    return _grouped(list(returns), lambda item: getattr(item, "hsn_snapshot", "") or "")
+
+
+def by_product(returns) -> dict:
+    """Units, revenue and cost returned, per product.
+
+    For the best-seller list, which ranks by quantity: a product sold four
+    times and brought back four times has sold nothing, and leaving it top of
+    the list sends the shopkeeper out to buy more of it.
+
+    Keyed on the name snapshot, because that is how the best-seller list
+    groups - the product row it points at may since have been renamed or
+    archived, and the list is about what was sold under that name.
+    """
+    lines = SaleReturnLine.objects.filter(
+        sale_return__in=[r.pk for r in list(returns)]
+    ).select_related("sale_item")
+
+    out: dict = {}
+    for line in lines:
+        item = line.sale_item
+        if item is None:
+            continue
+        bucket = out.setdefault(
+            item.name_snapshot or line.name_snapshot or "",
+            {"quantity": Decimal("0"), "revenue": _ZERO, "cost": _ZERO},
+        )
+        bucket["quantity"] += Decimal(line.quantity or 0)
+        bucket["revenue"] += _money(line.line_total)
+        if item.unit_cost is not None:
+            bucket["cost"] += _money(Decimal(item.unit_cost) * Decimal(line.quantity or 0))
+    return out
+
+
+def in_range(shop, start=None, end=None):
+    """The returns themselves, for callers that need their own grouping."""
+    queryset = SaleReturn.objects.filter(shop=shop)
+    if start:
+        queryset = queryset.filter(occurred_at__date__gte=start)
+    if end:
+        queryset = queryset.filter(occurred_at__date__lte=end)
+    return list(queryset)

@@ -378,9 +378,12 @@ export function ReportsAnalytics() {
             </div>
 
             <p className="text-xs font-semibold text-text-tertiary">
-              Voided bills are excluded and returns are deducted, including part
-              returns. Check these figures against your books before filing — this
-              is a summary of what was billed, not tax advice.
+              Voided bills are excluded, and returns are deducted from these
+              figures and the tables below, including part returns. The GSTR-1
+              CSV lists invoices as they were issued — returns belong there as
+              credit notes, which it does not yet produce, so your accountant
+              must enter them. Check these figures against your books before
+              filing — this is a summary of what was billed, not tax advice.
             </p>
           </div>
         )

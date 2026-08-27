@@ -28,6 +28,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from platform_apps.payments.models import SalePayment
+from platform_apps.sales import returns_summary
 from platform_apps.sales.models import Sale
 from platform_apps.shops.models import ShopMembership
 from platform_apps.shops.permissions import get_membership_or_403
@@ -123,15 +124,22 @@ class SaleTakingsView(APIView):
             )
 
         sales = self._sales(shop, date_from, date_to)
-        total = _sum(sales, "total_amount")
+        # Money handed back is not money taken. Only the modes where cash
+        # or a card actually moved are deducted, and the mix below deducts
+        # exactly the same figure - a khata or exchange refund moves no
+        # money, so neither side sees it and the slices still sum to the
+        # headline, which is the only reason that bar can be trusted.
+        refunds = returns_summary.for_range(shop, date_from, date_to)
+        total = _money(_sum(sales, "total_amount") - refunds.total_paid_out)
         bill_count = sales.count()
 
         # The preceding window of EQUAL length. Comparing a 30-day month
         # against a 31-day one manufactures a change that did not happen.
         previous_to = date_from - timedelta(days=1)
         previous_from = previous_to - timedelta(days=span - 1)
-        previous_total = _sum(
-            self._sales(shop, previous_from, previous_to), "total_amount"
+        previous_total = _money(
+            _sum(self._sales(shop, previous_from, previous_to), "total_amount")
+            - returns_summary.for_range(shop, previous_from, previous_to).total_paid_out
         )
 
         return Response(
@@ -256,6 +264,18 @@ class SaleTakingsView(APIView):
         # 3. What has not been paid yet, named rather than left as a gap
         #    between the mix and the total nobody can account for.
         add("UNPAID", _sum(sales, "amount_due"))
+
+        # 4. Refunds come off the mode they were paid out in. Subtracted
+        #    directly rather than through add(), which drops anything not
+        #    positive - a day of nothing but refunds is a real day and the
+        #    bar has to be able to say so.
+        paid_back = returns_summary.for_range(shop, date_from, date_to).paid_out
+        for mode, amount in paid_back.items():
+            key = str(mode).upper()
+            if key in totals:
+                totals[key] = totals[key] - _money(amount)
+                if totals[key] <= _ZERO:
+                    del totals[key]
 
         mix = [
             {

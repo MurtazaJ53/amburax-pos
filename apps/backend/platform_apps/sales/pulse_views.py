@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 
 from platform_apps.expenses.models import Expense
 from platform_apps.purchases.models import Purchase
+from platform_apps.sales import returns_summary
 from platform_apps.sales.models import Sale, SaleItem
 from platform_apps.shops.models import ShopMembership
 from platform_apps.shops.permissions import get_membership_or_403
@@ -121,17 +122,35 @@ class BestSellersView(APIView):
             .order_by("-quantity_sold")[:limit]
         )
 
+        # Goods brought back were not sold. Voided bills were already
+        # excluded, but a PART return left the whole quantity on the list -
+        # so a product sold four times and returned four times still ranked
+        # as a best seller, and the shopkeeper restocks it.
+        returned = returns_summary.by_product(
+            returns_summary.in_range(membership.shop, since, until)
+        )
+
         results = []
         for row in rows:
             # Report profit only when EVERY line had a cost. A partial figure
             # looks authoritative and is quietly wrong.
             complete = row["priced_lines"] == row["total_lines"] and row["total_lines"] > 0
+            back = returned.get(row["name_snapshot"] or "")
+            quantity = (row["quantity_sold"] or Decimal("0")) - (
+                back["quantity"] if back else Decimal("0")
+            )
+            revenue = (row["revenue"] or _ZERO) - (back["revenue"] if back else _ZERO)
+            cost = (row["cost"] or _ZERO) - (back["cost"] if back else _ZERO)
+            # Everything came back. Listing it at zero would push a real
+            # seller off the end of the list.
+            if quantity <= Decimal("0") and revenue <= _ZERO:
+                continue
             results.append(
                 {
                     "name": row["name_snapshot"] or "Unknown item",
-                    "quantity_sold": row["quantity_sold"] or Decimal("0"),
-                    "revenue": row["revenue"] or _ZERO,
-                    "profit": (row["revenue"] - row["cost"]) if complete else None,
+                    "quantity_sold": quantity,
+                    "revenue": revenue,
+                    "profit": (revenue - cost) if complete else None,
                 }
             )
         return Response({"days": days, "items": results})

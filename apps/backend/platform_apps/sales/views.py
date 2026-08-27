@@ -453,16 +453,33 @@ class SaleGstSummaryView(ShopScopedMixin, APIView):
         # rate - a return has to reverse exactly what that line contributed.
         start = date_from or None
         end = date_to or None
-        refunds = returns_summary.totals_for(
-            SaleReturn.objects.filter(
-                shop=membership.shop
-            ).filter(
-                **{k: v for k, v in {
-                    "occurred_at__date__gte": start,
-                    "occurred_at__date__lte": end,
-                }.items() if v}
-            )
-        )
+        refund_rows = returns_summary.in_range(membership.shop, start, end)
+        refunds = returns_summary.totals_for(refund_rows)
+
+        # The tables under the headline, netted the same way. The header card
+        # deducted returns and these did not, so one screen gave two answers -
+        # and the wrong one was the table, which is what gets filed. A rate
+        # row is only dropped when nothing is left of it; a row reading zero
+        # is information, a row that vanished is a question.
+        returned_by_rate = returns_summary.by_rate(refund_rows)
+        returned_by_hsn = returns_summary.by_hsn(refund_rows)
+
+        def _net(rows, key_field, returned):
+            out = []
+            for row in rows:
+                key = row.get(key_field)
+                back = returned.get(key)
+                if back:
+                    row = {
+                        **row,
+                        "taxable_amount": row["taxable_amount"] - back["taxable"],
+                        "tax_amount": row["tax_amount"] - back["tax"],
+                        "cgst_amount": row["cgst_amount"] - back["cgst"],
+                        "sgst_amount": row["sgst_amount"] - back["sgst"],
+                        "igst_amount": row["igst_amount"] - back["igst"],
+                    }
+                out.append(row)
+            return out
 
         payload = {
             "taxable_amount": aggregates["total_taxable"] - refunds.taxable,
@@ -471,8 +488,10 @@ class SaleGstSummaryView(ShopScopedMixin, APIView):
             "sgst_amount": aggregates["total_sgst"] - refunds.sgst,
             "igst_amount": aggregates["total_igst"] - refunds.igst,
             "gross_amount": aggregates["total_gross"] - refunds.gross,
-            "b2c_small": list(b2c_rates),
-            "hsn_summary": list(hsn_summary),
+            "b2c_small": _net(list(b2c_rates), "items__gst_rate", returned_by_rate),
+            "hsn_summary": _net(
+                list(hsn_summary), "items__hsn_snapshot", returned_by_hsn
+            ),
         }
 
         serializer = SaleGstSummarySerializer(payload)

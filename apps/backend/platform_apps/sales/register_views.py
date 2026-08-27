@@ -29,6 +29,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from platform_apps.payments.models import SalePayment
+from platform_apps.sales import returns_summary
 from platform_apps.sales.models import RegisterSession, Sale
 from platform_apps.shops.models import ShopMembership
 from platform_apps.shops.permissions import get_membership_or_403
@@ -87,7 +88,15 @@ def cash_taken(shop, business_date: date_cls) -> Decimal:
             )
         )["total"]
     )
-    return (total or _ZERO).quantize(Decimal("0.01"))
+
+    # Cash handed back over the counter is cash that left the drawer. Without
+    # this the expected figure is high by every refund given that day, and the
+    # count comes up short by exactly that much - which reads as a cashier
+    # being light, not as a report being wrong. That is an accusation, and it
+    # is the kind that gets someone spoken to before anybody checks the code.
+    refunded = returns_summary.for_day(shop, business_date).cash_paid_out
+
+    return ((total or _ZERO) - refunded).quantize(Decimal("0.01"))
 
 
 class RegisterSessionSerializer(serializers.ModelSerializer):
