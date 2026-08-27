@@ -114,9 +114,36 @@ chmod 600 "$OUT"
 SIZE="$(du -h "$OUT" | cut -f1)"
 log "wrote and verified $OUT ($SIZE)"
 
+# --- Product photos -------------------------------------------------------
+#
+# These used to ride along inside the dump, as base64 text on the product row.
+# Moving them into a volume took them out of the table the till reads, which
+# was the point - and out of the only thing being backed up, which was not.
+# Restoring the database alone now gives a shop every product with a broken
+# picture, and no way to tell which ones had photos.
+MEDIA_OUT="$BACKUP_DIR/daily/bhub-media-$STAMP.tar.gz"
+MEDIA_TMP="$MEDIA_OUT.part"
+# Tarred from inside the api container, which already mounts the volume at a
+# known path. Attaching a fresh container to the volume by name would mean
+# reconstructing Docker's project prefix, which is derived from the compose
+# project rather than the directory and has differed from both.
+MEDIA_ROOT="${MEDIA_ROOT:-/var/lib/bhub/media}"
+if compose exec -T api tar czf - -C "$MEDIA_ROOT" . > "$MEDIA_TMP" 2>/dev/null    && [[ -s "$MEDIA_TMP" ]]; then
+  mv "$MEDIA_TMP" "$MEDIA_OUT"
+  chmod 600 "$MEDIA_OUT"
+  log "wrote $MEDIA_OUT ($(du -h "$MEDIA_OUT" | cut -f1))"
+else
+  rm -f "$MEDIA_TMP"
+  # Not fatal: a database backup without photos still saves the business. Loud,
+  # though - this is the half nobody notices is missing until a restore
+  # produces a catalogue of grey squares.
+  log "WARNING: could not archive product photos from $MEDIA_ROOT"
+fi
+
 # Keep one dump per week for longer-term recovery (e.g. corruption noticed late).
 if [[ "$(date '+%u')" == "7" ]]; then
   cp -p "$OUT" "$BACKUP_DIR/weekly/bhub-$STAMP.dump"
+  [[ -f "$MEDIA_OUT" ]] && cp -p "$MEDIA_OUT" "$BACKUP_DIR/weekly/"
   log "kept a weekly copy"
 fi
 

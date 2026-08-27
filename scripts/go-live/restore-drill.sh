@@ -40,7 +40,7 @@ PG_DB="$(grep '^POSTGRES_DB=' "$ENV_FILE" | cut -d= -f2-)"
 PG_USER="${PG_USER:-postgres}"
 [[ -n "$PG_DB" ]] || die "POSTGRES_DB not set in $ENV_FILE."
 
-say "1/5  Choosing a backup"
+say "1/6  Choosing a backup"
 BACKUP="${1:-}"
 if [[ -z "$BACKUP" ]]; then
   BACKUP="$(ls -t "$BACKUP_DIR"/**/*.dump "$BACKUP_DIR"/*.dump ~/bhub-db-*.sql 2>/dev/null | head -1 || true)"
@@ -58,13 +58,13 @@ cleanup() {
 }
 trap cleanup EXIT
 
-say "2/5  Creating a scratch database"
+say "2/6  Creating a scratch database"
 # Never the live one. Everything below happens inside $DRILL_DB.
 "${COMPOSE[@]}" exec -T db psql -U "$PG_USER" -d postgres \
   -c "CREATE DATABASE $DRILL_DB;" >/dev/null || die "Could not create $DRILL_DB."
 echo "    $DRILL_DB"
 
-say "3/5  Restoring into it (timed)"
+say "3/6  Restoring into it (timed)"
 START=$(date +%s)
 case "$BACKUP" in
   *.sql)
@@ -77,7 +77,7 @@ esac
 ELAPSED=$(( $(date +%s) - START ))
 echo "    restored in ${ELAPSED}s"
 
-say "4/5  Comparing against the live database"
+say "4/6  Comparing against the live database"
 count_in() {
   "${COMPOSE[@]}" exec -T db psql -U "$PG_USER" -d "$1" -tAc \
     "SELECT COALESCE((SELECT count(*) FROM $2), -1);" 2>/dev/null | tr -d '\r' || echo "-1"
@@ -96,7 +96,34 @@ for table in shops_shop customers_customer inventory_inventoryitem sales_sale; d
   fi
 done
 
-say "5/5  Result"
+say "5/6  Product photos"
+#
+# Checked separately because they are stored separately, and that separation
+# is recent. Photos used to sit in the products table and came back with the
+# dump; they now live in a volume, so a database restore alone returns every
+# product with a broken picture. Counting rows would not notice - the rows are
+# all there, each pointing at a file nothing has saved.
+PHOTO_KEYS="$("${COMPOSE[@]}" exec -T db psql -U "$PG_USER" -d "$DRILL_DB" -tAc \n  "SELECT count(*) FROM inventory_inventoryitem WHERE image_key <> '';" 2>/dev/null \n  | tr -dc '0-9' || echo 0)"
+PHOTO_KEYS="${PHOTO_KEYS:-0}"
+
+MEDIA_ARCHIVE="$(ls -1t "$BACKUP_DIR"/daily/bhub-media-*.tar.gz 2>/dev/null | head -1 || true)"
+if [[ "$PHOTO_KEYS" -eq 0 ]]; then
+  echo "    no product photos in this backup - nothing to check"
+elif [[ -z "$MEDIA_ARCHIVE" ]]; then
+  echo "    $PHOTO_KEYS product(s) reference a photo, and no media archive exists"
+  warn "Restoring this backup would give every one of them a broken picture."
+  warn "Check scripts/backup_db.sh is archiving the media volume."
+  FAILED=1
+else
+  FILES="$(tar tzf "$MEDIA_ARCHIVE" 2>/dev/null | grep -c '\.' || echo 0)"
+  echo "    $PHOTO_KEYS product(s) reference a photo; $FILES file(s) in $(basename "$MEDIA_ARCHIVE")"
+  if [[ "$FILES" -eq 0 ]]; then
+    warn "The media archive is empty. The photos are not being saved."
+    FAILED=1
+  fi
+fi
+
+say "6/6  Result"
 if [[ "$FAILED" -eq 1 ]]; then
   die "The backup restored incompletely. Treat that as an incident, not a warning."
 fi
