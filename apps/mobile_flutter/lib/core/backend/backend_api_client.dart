@@ -106,6 +106,21 @@ class UserMfaVerifyPayload {
   };
 }
 
+/// One page of a list endpoint, and where the next one starts.
+///
+/// The body of these endpoints is a bare JSON array - deliberately, because
+/// this client throws on anything else - so the cursor for the next page
+/// travels in the X-Next-Cursor header instead. A caller that reads only the
+/// body sees one page and has no way to know there were more.
+class _ListPage {
+  const _ListPage(this.rows, this.nextCursor);
+
+  final List<Map<String, dynamic>> rows;
+
+  /// Null when this was the last page.
+  final String? nextCursor;
+}
+
 class BackendApiClient {
   BackendApiClient({
     required this.baseUrl,
@@ -726,18 +741,54 @@ class BackendApiClient {
   // go through the partial-return sheet, which is what left voidSale without
   // a caller.
 
+  /// Every product in the shop, following the server's paging to the end.
+  ///
+  /// This used to make one request and take what it was given. The server
+  /// returns 200 rows by default and names the next page in an X-Next-Cursor
+  /// header, so a shop with more than 200 products simply did not have the
+  /// rest on the phone - no error, no empty state, no way to tell. Scanning a
+  /// barcode for a product past the cut said the item did not exist.
+  ///
+  /// [limit] is a ceiling on the whole walk rather than a page size, so it
+  /// keeps meaning what its callers already assume it means.
   Future<List<Map<String, dynamic>>> fetchInventoryItems({
     required User user,
     required String shopId,
-    int limit = 500,
+    int limit = 5000,
     String query = '',
   }) async {
     final q = query.trim();
-    final path = q.isEmpty
+    final base = q.isEmpty
         ? '/shops/$shopId/inventory/'
         : '/shops/$shopId/inventory/?q=${Uri.encodeQueryComponent(q)}';
-    final decoded = await _requestList(user: user, method: 'GET', path: path);
-    return decoded.take(limit).toList(growable: false);
+
+    final items = <Map<String, dynamic>>[];
+    String? cursor;
+
+    // Bounded rather than "until the cursor stops". A server that kept
+    // returning the same cursor would otherwise spin here forever, on a phone,
+    // on someone's mobile data.
+    for (var page = 0; page < _maxListPages; page++) {
+      final path = cursor == null
+          ? base
+          : '$base${base.contains('?') ? '&' : '?'}'
+              'cursor=${Uri.encodeQueryComponent(cursor)}';
+
+      final result = await _requestListPage(
+        user: user,
+        method: 'GET',
+        path: path,
+      );
+      items.addAll(result.rows);
+
+      if (result.nextCursor == null || items.length >= limit) break;
+      // The same cursor twice means no progress. Stopping with what we have
+      // beats looping; the alternative failure is silent and expensive.
+      if (result.nextCursor == cursor) break;
+      cursor = result.nextCursor;
+    }
+
+    return items.take(limit).toList(growable: false);
   }
 
   Future<BackendCommandResponse> submitSaleCommand({
@@ -1641,6 +1692,12 @@ class BackendApiClient {
   /// than surfacing as a failure (which used to make writes silently fall back
   /// to local and then be lost).
   static const Set<int> _coldStartStatuses = <int>{502, 503, 504};
+  /// How many pages one list walk may fetch. 25 x 200 rows is 5,000
+  /// products - past any single shop this app is built for, and short
+  /// enough that a server looping on its own cursor stops being a phone
+  /// stuck downloading on mobile data.
+  static const int _maxListPages = 25;
+
   static const int _maxAttempts = 5;
 
   Future<Map<String, dynamic>> _request({
@@ -1789,6 +1846,15 @@ class BackendApiClient {
     required String method,
     required String path,
   }) async {
+    final page = await _requestListPage(user: user, method: method, path: path);
+    return page.rows;
+  }
+
+  Future<_ListPage> _requestListPage({
+    required User user,
+    required String method,
+    required String path,
+  }) async {
     if (baseUrl.trim().isEmpty) {
       throw BackendApiException(
         'BUSINESS_HUB_API_BASE_URL is not configured for Flutter mobile.',
@@ -1839,7 +1905,7 @@ class BackendApiClient {
       }
 
       if (bodyText.trim().isEmpty) {
-        return const <Map<String, dynamic>>[];
+        return const _ListPage(<Map<String, dynamic>>[], null);
       }
 
       final decoded = jsonDecode(bodyText);
@@ -1848,10 +1914,15 @@ class BackendApiClient {
           'Backend request for $path did not return a list payload.',
         );
       }
-      return decoded
+      final rows = decoded
           .whereType<Map>()
           .map((item) => Map<String, dynamic>.from(item))
           .toList(growable: false);
+      final cursor = response.headers.value('x-next-cursor');
+      return _ListPage(
+        rows,
+        (cursor == null || cursor.trim().isEmpty) ? null : cursor.trim(),
+      );
     } on TimeoutException {
       if (attempt < _maxAttempts) {
         await Future<void>.delayed(Duration(seconds: 3 * attempt));
