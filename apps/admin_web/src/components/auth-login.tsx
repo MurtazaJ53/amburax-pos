@@ -81,10 +81,19 @@ export function AuthLogin({ notice }: { notice?: string } = {}) {
       }
 
       setSuccessMsg("Signed in successfully! Redirecting...");
-      setTimeout(() => {
-        router.push(data.defaultRoute || "/");
-        router.refresh();
-      }, 500);
+      // Straight there. The half-second pause here was purely so the
+      // success message could be read, and it is time somebody spends
+      // looking at a screen that has already finished its work.
+      //
+      // refresh() before replace(), not after: called afterwards it
+      // re-rendered the page just navigated to, so the dashboard - three
+      // sequential calls and a render - was built twice. Called first it
+      // clears the cached signed-out payload, which is what it was for.
+      //
+      // replace() rather than push(), so Back from the dashboard does not
+      // return to a sign-in form for a session that already exists.
+      router.refresh();
+      router.replace(data.defaultRoute || "/");
     } catch (err) {
       setError(errorMessage(err, "Failed to sign in. Please verify your connection."));
     } finally {
@@ -112,10 +121,19 @@ export function AuthLogin({ notice }: { notice?: string } = {}) {
       }
 
       setSuccessMsg("Terminal unlocked! Opening POS...");
-      setTimeout(() => {
-        router.push("/pos");
-        router.refresh();
-      }, 400);
+      // Straight there. The half-second pause here was purely so the
+      // success message could be read, and it is time somebody spends
+      // looking at a screen that has already finished its work.
+      //
+      // refresh() before replace(), not after: called afterwards it
+      // re-rendered the page just navigated to, so the dashboard - three
+      // sequential calls and a render - was built twice. Called first it
+      // clears the cached signed-out payload, which is what it was for.
+      //
+      // replace() rather than push(), so Back from the dashboard does not
+      // return to a sign-in form for a session that already exists.
+      router.refresh();
+      router.replace("/pos");
     } catch (err) {
       setError(errorMessage(err, "Failed to unlock terminal."));
       setPin("");
@@ -167,10 +185,19 @@ export function AuthLogin({ notice }: { notice?: string } = {}) {
       }
 
       setSuccessMsg("Shop created successfully! Redirecting...");
-      setTimeout(() => {
-        router.push("/");
-        router.refresh();
-      }, 500);
+      // Straight there. The half-second pause here was purely so the
+      // success message could be read, and it is time somebody spends
+      // looking at a screen that has already finished its work.
+      //
+      // refresh() before replace(), not after: called afterwards it
+      // re-rendered the page just navigated to, so the dashboard - three
+      // sequential calls and a render - was built twice. Called first it
+      // clears the cached signed-out payload, which is what it was for.
+      //
+      // replace() rather than push(), so Back from the dashboard does not
+      // return to a sign-in form for a session that already exists.
+      router.refresh();
+      router.replace("/");
     } catch (err) {
       setError(errorMessage(err, "Failed to create shop."));
     } finally {
@@ -202,10 +229,19 @@ export function AuthLogin({ notice }: { notice?: string } = {}) {
       }
 
       setSuccessMsg("Joined shop successfully! Redirecting...");
-      setTimeout(() => {
-        router.push(data.defaultRoute || "/");
-        router.refresh();
-      }, 500);
+      // Straight there. The half-second pause here was purely so the
+      // success message could be read, and it is time somebody spends
+      // looking at a screen that has already finished its work.
+      //
+      // refresh() before replace(), not after: called afterwards it
+      // re-rendered the page just navigated to, so the dashboard - three
+      // sequential calls and a render - was built twice. Called first it
+      // clears the cached signed-out payload, which is what it was for.
+      //
+      // replace() rather than push(), so Back from the dashboard does not
+      // return to a sign-in form for a session that already exists.
+      router.refresh();
+      router.replace(data.defaultRoute || "/");
     } catch (err) {
       setError(errorMessage(err, "Failed to join shop."));
     } finally {
