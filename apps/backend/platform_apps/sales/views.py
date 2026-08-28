@@ -404,8 +404,20 @@ class SaleGstSummaryView(ShopScopedMixin, APIView):
     def get(self, request, shop_id):
         membership = self.get_membership()
         ensure_gst_returns_allowed_or_403(membership)
-        queryset = Sale.objects.filter(shop=membership.shop, tombstone=False).exclude(
-            status=Sale.Status.VOID
+        # Bills imported from another POS are excluded outright.
+        #
+        # They are headers with no line items, so they have no rate and no HSN,
+        # and they arrived here as a row reading gst_rate: null, taxable: 0 -
+        # while their value still counted toward the gross. A return carrying
+        # sales under a null rate with no taxable value is not a rounding
+        # problem; it goes to the tax department looking plausible.
+        #
+        # Whoever ran the previous POS filed these. This return covers what
+        # this shop billed, and the screen says so.
+        queryset = (
+            Sale.objects.filter(shop=membership.shop, tombstone=False)
+            .exclude(status=Sale.Status.VOID)
+            .exclude(source_system="import")
         )
 
         date_from = request.query_params.get("date_from", "").strip()

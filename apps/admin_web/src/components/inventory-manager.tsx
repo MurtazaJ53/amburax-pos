@@ -234,6 +234,24 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
     }
   };
 
+  // Establish the cursor on mount.
+  //
+  // The paging below was written, tested and never ran. This screen is seeded
+  // server-side from initialInventory, which returns rows but no cursor, so
+  // nextCursor stayed null, "Load more" never rendered, and the totals were
+  // computed over whatever the first page happened to hold. The screen then
+  // said "Showing 200 of 200" - an assertion of completeness, not a visible
+  // truncation - while the dashboard asked the database and said 285.
+  //
+  // The server render still paints instantly; this replaces it with a real
+  // first page that knows whether there is a second.
+  useEffect(() => {
+    void fetchItems();
+    // Once, on mount. fetchItems is recreated every render and listing it
+    // here would refetch the catalogue on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const loadMore = async () => {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
@@ -1189,7 +1207,9 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
             Showing {filteredItems.length} of {items.length}
             {/* Said out loud, because filters only ever search what has been
                 loaded. Without this the count reads as the whole catalogue and
-                a search for something further down comes back empty. */}
+                a search for something further down comes back empty - and
+                "200 of 200" is a claim of completeness rather than a
+                truncation anybody can see. */}
             {nextCursor ? " loaded so far" : ""}
           </span>
 

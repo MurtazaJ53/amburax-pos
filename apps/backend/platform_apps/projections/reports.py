@@ -121,6 +121,32 @@ class ProfitAndLossView(APIView):
             value=Coalesce(Sum("total_amount"), Decimal("0.00"), output_field=_MONEY)
         )["value"]
 
+        # Bills imported from another POS are records, not transactions: they
+        # carry a total and no line items, so there is no cost behind them and
+        # no margin to compute. Left in, they reported a shop that had spent
+        # nothing - revenue 2,03,158 against a cost of zero, a fabricated 100%
+        # margin sitting on the screen looking entirely plausible.
+        #
+        # So revenue keeps ALL of it, because a shopkeeper asking what they
+        # sold means everything they sold. Profit is computed only over the
+        # bills that can answer it, and the part that cannot is named rather
+        # than folded in silently.
+        imported_agg = completed_sales.filter(source_system="import").aggregate(
+            gross=Coalesce(Sum("total_amount"), Decimal("0.00"), output_field=_MONEY),
+            net=Coalesce(
+                Sum(
+                    Case(
+                        When(taxable_amount__gt=0, then=F("taxable_amount")),
+                        default=F("total_amount") - F("tax_amount"),
+                        output_field=_MONEY,
+                    )
+                ),
+                Decimal("0.00"),
+                output_field=_MONEY,
+            ),
+        )
+        imported = imported_agg["gross"]
+
         # Goods that came back. Reversed on all four figures at once, which
         # is why they arrive as one object: subtracting the revenue of a
         # return without also removing its cost from COGS would report the
@@ -148,7 +174,16 @@ class ProfitAndLossView(APIView):
         # credit rather than cost. Net-vs-net is the only comparison that means
         # anything, and a shopkeeper setting prices off the old number was
         # being told a margin that did not exist.
-        gross_profit = net_revenue - cogs
+        # AFTER returns, not before. The first version subtracted the imported
+        # bills from a revenue that had not yet had refunds taken off it, so
+        # the profit line stopped matching the lines above it - caught by the
+        # invariant test that exists for exactly that.
+        comparable_revenue = net_revenue - imported_agg["net"]
+
+        # Measured against comparable revenue, not all of it. Subtracting a
+        # cost that covers only some bills from a revenue that covers every
+        # bill is how a hundred per cent margin gets invented.
+        gross_profit = comparable_revenue - cogs
         net_profit = gross_profit - total_expenses
         margin_pct = (
             (net_profit / net_revenue * Decimal("100")).quantize(Decimal("0.01"))
@@ -166,6 +201,10 @@ class ProfitAndLossView(APIView):
                 # net_revenue = revenue - tax_collected, and profit is measured
                 # from net_revenue, not from revenue.
                 "net_revenue": net_revenue,
+                # Named so the screen can say why profit is measured against a
+                # smaller number than the revenue printed above it.
+                "imported_revenue": imported,
+                "revenue_with_costs": comparable_revenue,
                 "cost_of_goods_sold": cogs,
                 "gross_profit": gross_profit,
                 "total_expenses": total_expenses,

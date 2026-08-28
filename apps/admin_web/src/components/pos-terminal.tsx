@@ -26,6 +26,7 @@ import type {
 } from "@/lib/types";
 import type { ProductItem } from "@/components/inventory-manager";
 import { useT } from "@/lib/i18n";
+import { fetchAllPages } from "@/lib/fetch-all";
 import { mapInventoryRow } from "@/lib/inventory-rows";
 import { findExistingCustomer } from "@/lib/customer-match";
 import type { NewCustomerDetails } from "@/lib/customer-match";
@@ -298,20 +299,21 @@ export function PosTerminal({
   useEffect(() => {
     async function _loadData() {
       try {
-        // Load inventory
-        const invRes = await fetch("/api/inventory");
-        if (!invRes.ok) throw new Error("Failed to load inventory");
-        const invData = await invRes.json();
-        
-        // Map backend InventoryItem to ProductItem
-        const mappedProducts: ProductItem[] = invData.map(mapInventoryRow);
-        setProducts(mappedProducts);
+        // EVERY page of the catalogue, not the first one.
+        //
+        // This was a bare fetch, and the till then searched the result in
+        // memory - so on a shop of 285 products it could not sell 85 of them.
+        // Searching for one answered "Nothing matches", which reads as "you
+        // do not stock this", and a shopkeeper believes the app before they
+        // believe the shelf. The same fix already shipped in the mobile
+        // client and was never carried across to here.
+        const invData = await fetchAllPages<ApiInventoryRow>("/api/inventory");
+        setProducts(invData.map(mapInventoryRow));
 
-        // Load customers
-        const custRes = await fetch("/api/customers");
-        if (!custRes.ok) throw new Error("Failed to load customers");
-        const custData = await custRes.json();
-        setCustomers(custData);
+        // Customers are paged too: a khata sale to somebody past the first
+        // page could not be attributed, so the bill went to Walk-in Guest and
+        // the debt was never recorded against anyone.
+        setCustomers(await fetchAllPages("/api/customers"));
       } catch (err) {
         setError(errorMessage(err, "Failed to load POS data"));
       }
@@ -611,12 +613,15 @@ ${errorMessage(
       // retry is recognised as the same sale.
       commandIdRef.current = "";
       
-      // Reload inventory from backend to update stock indicators
-      const invRes = await fetch("/api/inventory");
-      if (invRes.ok) {
-        const invData = await invRes.json();
-        const mappedProducts: ProductItem[] = invData.map(mapInventoryRow);
-        setProducts(mappedProducts);
+      // Reload the catalogue so stock indicators follow the sale. Every page
+      // again: reloading only the first would quietly shrink the till's idea
+      // of the shop after each bill.
+      try {
+        const invData = await fetchAllPages<ApiInventoryRow>("/api/inventory");
+        setProducts(invData.map(mapInventoryRow));
+      } catch {
+        // The sale is already saved. A failed refresh means stale stock
+        // numbers, which is not a reason to tell somebody their bill failed.
       }
       // The sale also moved takings and the day's figures, which the shell
       // and the dashboard render from the server.
