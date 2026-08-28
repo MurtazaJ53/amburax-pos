@@ -33,6 +33,7 @@ import { ThermalReceiptModal } from "@/components/thermal-receipt-modal";
 import type { CartItem, SplitPaymentTender } from "@/lib/types";
 import { useServerRefresh } from "@/lib/use-server-refresh";
 import { useDialog } from "@/components/ui/dialog-provider";
+import { Pagination } from "@/components/ui/pagination";
 
 /** The payment slices worth a single click. "All" first, then the tenders in
  *  the order a counter sees them. */
@@ -352,37 +353,56 @@ export function SalesManager({
     }
   };
 
-  /** One page of bills. `cursor` null means start again from the newest.
+  /** One numbered page of bills.
    *
-   *  The history used to stop at five hundred rows with nothing to say about
-   *  it - on nineteen thousand sales, that is the last fortnight and no way
-   *  to reach the rest. It is keyset-paged now. */
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+   *  This walked forward with a cursor and a "load older bills" button, which
+   *  can only ever offer the next page. Reaching last March meant pressing it
+   *  forty times, with no way back to where you were. A shopkeeper hunting a
+   *  bill thinks in pages, so the server counts them now and this asks for
+   *  one directly.
+   *
+   *  The rows are REPLACED rather than appended: a page is what you asked
+   *  for, not everything up to it. */
+  const [page, setPage] = useState(1);
+  const [pageCount, setPageCount] = useState(1);
+  const [totalBills, setTotalBills] = useState<number | undefined>(undefined);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  async function fetchPage(cursor: string | null) {
-    const query = new URLSearchParams({ limit: String(SALES_PAGE_SIZE) });
+  async function fetchPage(wanted: number) {
+    const query = new URLSearchParams({
+      limit: String(SALES_PAGE_SIZE),
+      page: String(wanted),
+    });
     // All time sends no window at all.
     if (rangeIsBounded) {
       query.set("date_from", range.from);
       query.set("date_to", range.to);
     }
-    if (cursor) query.set("cursor", cursor);
     const res = await fetch(`/api/sales?${query.toString()}`);
     if (!res.ok) throw new Error("Failed to load sales history");
     const rows = await res.json();
+    const header = (name: string, fallback: number) => {
+      const raw = Number(res.headers.get(name));
+      return Number.isFinite(raw) && raw > 0 ? raw : fallback;
+    };
     return {
       sales: (rows as ApiSale[]).map(toSaleOrder),
-      cursor: res.headers.get("X-Next-Cursor"),
+      // The server clamps a page past the end, so trust its answer over the
+      // number that was asked for.
+      page: header("X-Page", wanted),
+      pageCount: header("X-Page-Count", 1),
+      total: Number(res.headers.get("X-Total-Count")) || undefined,
     };
   }
 
   async function fetchSales() {
     try {
       setIsLoading(true);
-      const page = await fetchPage(null);
-      setSales(page.sales);
-      setNextCursor(page.cursor);
+      const first = await fetchPage(1);
+      setSales(first.sales);
+      setPage(first.page);
+      setPageCount(first.pageCount);
+      setTotalBills(first.total);
     } catch (err) {
       setError(errorMessage(err, "Failed to load sales"));
     } finally {
@@ -390,20 +410,21 @@ export function SalesManager({
     }
   }
 
-  async function loadMoreSales() {
-    if (!nextCursor || loadingMore) return;
+  async function goToPage(wanted: number) {
+    if (loadingMore || wanted === page) return;
     setLoadingMore(true);
     try {
-      const page = await fetchPage(nextCursor);
-      // Merged by id: a bill voided in another tab between two pages would
-      // otherwise arrive twice.
-      setSales((previous) => {
-        const seen = new Set(previous.map((sale) => sale.id));
-        return [...previous, ...page.sales.filter((sale) => !seen.has(sale.id))];
-      });
-      setNextCursor(page.cursor);
+      const next = await fetchPage(wanted);
+      setSales(next.sales);
+      setPage(next.page);
+      setPageCount(next.pageCount);
+      setTotalBills(next.total);
+      // Back to the top of the list, or page 7 starts halfway down page 6.
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     } catch (err) {
-      setError(errorMessage(err, "Could not load more bills."));
+      setError(errorMessage(err, "Could not load that page."));
     } finally {
       setLoadingMore(false);
     }
@@ -598,23 +619,12 @@ export function SalesManager({
                 {isLoading
                   ? "Loading..."
                   : `${filteredSales.length} of ${sales.length}${
-                      // Said out loud: the filters above only search what has
-                      // been loaded, so a plain count would read as the whole
-                      // period and a search for an older bill look empty.
-                      nextCursor ? " loaded" : ""
+                      // Said out loud: the filters above only search this
+                      // page, so a plain count would read as the whole period
+                      // and a search for a bill on page 4 look empty.
+                      pageCount > 1 ? ` on page ${page}` : ""
                     } in ${range.label.toLowerCase()}`}
               </span>
-
-              {nextCursor && !isLoading && (
-                <button
-                  type="button"
-                  onClick={() => void loadMoreSales()}
-                  disabled={loadingMore}
-                  className="focus-ring shrink-0 cursor-pointer rounded-[10px] border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-3 py-1.5 text-[11.5px] font-extrabold text-[var(--primary-dark)] transition-colors duration-200 hover:bg-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loadingMore ? "Loading…" : "Load older bills"}
-                </button>
-              )}
             </>
           )}
         </div>
@@ -896,6 +906,18 @@ export function SalesManager({
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Under the table, where somebody arrives after reading it. */}
+            <div className="border-t border-[var(--border-soft)] px-4 py-3">
+              <Pagination
+                page={page}
+                pageCount={pageCount}
+                onPage={(next) => void goToPage(next)}
+                busy={loadingMore}
+                total={totalBills}
+                label="bills"
+              />
             </div>
           </div>
         </div>

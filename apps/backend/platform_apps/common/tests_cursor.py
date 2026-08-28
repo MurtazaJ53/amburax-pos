@@ -331,3 +331,110 @@ class MultiColumnCursorTests(TestCase):
         one_page, _ = cursor_page(self._all(), order=self.ORDER, size=50)
         paged = self._walk(size=4)
         self.assertEqual([c.id for c in paged], [c.id for c in one_page])
+
+
+class NumberedPageTests(CursorEndpointTests):
+    """Numbered pages, for the screens a person reads rather than a client syncs.
+
+    A cursor knows "the row after this one" and nothing else, so it can offer
+    "load more" and never "go to page 7". A shopkeeper hunting a bill from
+    March wants page 7, and pressing "load older" forty times is not an
+    answer.
+
+    The contract that must not move is the old one: no ?page means exactly
+    what it meant before, because the mobile client walks cursors and throws
+    on anything that is not a bare array.
+    """
+
+    def test_without_a_page_nothing_changes(self):
+        # The mobile client's contract. It sends no page and must keep getting
+        # a cursor, not a page count.
+        response = self.client.get(self.url, {"limit": 5})
+
+        self.assertIsInstance(response.json(), list)
+        self.assertIn("X-Next-Cursor", response)
+        self.assertNotIn("X-Page-Count", response)
+
+    def test_a_numbered_page_is_still_a_bare_array(self):
+        response = self.client.get(self.url, {"limit": 5, "page": 1})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertIsInstance(response.json(), list)
+
+    def test_the_counts_travel_in_headers(self):
+        response = self.client.get(self.url, {"limit": 5, "page": 1})
+
+        self.assertEqual(response["X-Total-Count"], "12")
+        self.assertEqual(response["X-Page-Count"], "3")
+        self.assertEqual(response["X-Page"], "1")
+
+    def test_pages_hold_different_rows(self):
+        first = self.client.get(self.url, {"limit": 5, "page": 1}).json()
+        second = self.client.get(self.url, {"limit": 5, "page": 2}).json()
+
+        self.assertEqual(len(first), 5)
+        self.assertEqual(len(second), 5)
+        self.assertFalse(
+            {row["id"] for row in first} & {row["id"] for row in second},
+            "the same row appeared on two pages",
+        )
+
+    def test_every_row_is_reachable_across_the_pages(self):
+        # The failure that matters: a row that no page returns is a bill
+        # somebody cannot find, and nothing on screen would say so.
+        seen = set()
+        for page in (1, 2, 3):
+            for row in self.client.get(self.url, {"limit": 5, "page": page}).json():
+                seen.add(row["id"])
+        self.assertEqual(len(seen), 12)
+
+    def test_the_last_page_holds_the_remainder(self):
+        third = self.client.get(self.url, {"limit": 5, "page": 3}).json()
+        self.assertEqual(len(third), 2)
+
+    def test_a_page_past_the_end_shows_the_last_one(self):
+        # Not an empty list. An empty screen reads as "no bills", which is a
+        # different and alarming answer to "you have gone too far".
+        response = self.client.get(self.url, {"limit": 5, "page": 99})
+
+        self.assertEqual(response["X-Page"], "3")
+        self.assertEqual(len(response.json()), 2)
+
+    def test_page_zero_and_nonsense_land_on_the_first_page(self):
+        for value in (0, -4, "abc", ""):
+            response = self.client.get(self.url, {"limit": 5, "page": value})
+            self.assertEqual(response["X-Page"], "1", f"page={value!r}")
+
+    def test_an_empty_list_still_reports_one_page(self):
+        InventoryItem.objects.filter(shop=self.shop).delete()
+        response = self.client.get(self.url, {"limit": 5, "page": 1})
+
+        self.assertEqual(response.json(), [])
+        self.assertEqual(response["X-Total-Count"], "0")
+        self.assertEqual(response["X-Page-Count"], "1")
+
+    def test_paged_and_cursored_walks_return_the_same_rows(self):
+        # Two ways of reading one list. If they disagree, one of them is
+        # skipping rows and there is no way to tell which from a screen.
+        by_page = []
+        for page in (1, 2, 3):
+            by_page += [
+                row["id"]
+                for row in self.client.get(
+                    self.url, {"limit": 5, "page": page}
+                ).json()
+            ]
+
+        by_cursor = []
+        cursor = None
+        while True:
+            params = {"limit": 5}
+            if cursor:
+                params["cursor"] = cursor
+            response = self.client.get(self.url, params)
+            by_cursor += [row["id"] for row in response.json()]
+            cursor = response.get("X-Next-Cursor")
+            if not cursor:
+                break
+
+        self.assertEqual(by_page, by_cursor)

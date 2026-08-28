@@ -86,8 +86,18 @@ export async function proxyToApi(
     // The next-page cursor rides in a header so the body can stay the shape
     // every existing client already parses. It has to be forwarded here or it
     // stops at this hop and the screen never learns there is more to load.
-    const nextCursor = res.headers.get("X-Next-Cursor");
-    if (nextCursor) out.headers.set("X-Next-Cursor", nextCursor);
+    // Paging travels in headers so the body stays a bare array - the mobile
+    // client throws on anything else. Forwarded here rather than in each
+    // route, because a route that forgets one pages silently wrongly.
+    for (const header of [
+      "X-Next-Cursor",
+      "X-Total-Count",
+      "X-Page-Count",
+      "X-Page",
+    ]) {
+      const value = res.headers.get(header);
+      if (value) out.headers.set(header, value);
+    }
     return out;
   } catch (error) {
     return NextResponse.json(

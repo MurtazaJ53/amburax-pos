@@ -31,6 +31,7 @@ from __future__ import annotations
 import base64
 import binascii
 import json
+from math import ceil
 from typing import Any, Sequence
 
 from django.db.models import Q, QuerySet
@@ -50,6 +51,12 @@ MAX_PAGE_SIZE = 200
 
 #: The header the next cursor travels in, so the body stays a bare array.
 NEXT_CURSOR_HEADER = "X-Next-Cursor"
+
+#: Numbered-page headers, for the same reason: the body stays an array and
+#: a caller that ignores these sees exactly what it saw before.
+TOTAL_COUNT_HEADER = "X-Total-Count"
+PAGE_COUNT_HEADER = "X-Page-Count"
+PAGE_HEADER = "X-Page"
 
 
 def page_size(raw: object, *, default: int = DEFAULT_PAGE_SIZE) -> int:
@@ -196,6 +203,51 @@ def attach_cursor(response, next_cursor: str | None):
     return response
 
 
+def offset_page(queryset, *, order, page, size=None):
+    """One numbered page, and how many pages there are.
+
+    Cursors cannot do this. A cursor knows "the row after this one" and
+    nothing else, so it can offer "load more" and never "go to page 7" - and a
+    shopkeeper looking through a year of bills wants page 7. That is a real
+    requirement, not a preference, so it gets a real answer rather than a
+    button renamed.
+
+    The costs are worth stating because they are the reason cursors exist.
+    Counting the whole filtered set is an extra query, cheap on an indexed
+    column and not free. And OFFSET makes the database walk the rows it is
+    skipping, so page 600 is slower than page 2. Both are fine for a person
+    reading a list and neither is fine for a client syncing everything, which
+    is why the cursor stays the default and this is opt-in.
+    """
+    try:
+        number = max(1, int(page))
+    except (TypeError, ValueError):
+        number = 1
+
+    limit = page_size(size)
+    total = queryset.count()
+    pages = max(1, ceil(total / limit)) if total else 1
+    # A page past the end shows the last one rather than nothing. An empty
+    # screen reads as "no bills", which is a different and alarming answer.
+    number = min(number, pages)
+
+    start = (number - 1) * limit
+    rows = list(
+        queryset.order_by(
+            *[f"{'-' if desc else ''}{name}" for name, desc in order]
+        )[start : start + limit]
+    )
+    return rows, {"total": total, "pages": pages, "page": number}
+
+
+def attach_pages(response, meta: dict):
+    """Put the page counts on a response without touching its body."""
+    response[TOTAL_COUNT_HEADER] = str(meta["total"])
+    response[PAGE_COUNT_HEADER] = str(meta["pages"])
+    response[PAGE_HEADER] = str(meta["page"])
+    return response
+
+
 class CursorListMixin:
     """A DRF list view that pages by cursor and keeps its array body.
 
@@ -218,6 +270,24 @@ class CursorListMixin:
         from rest_framework.response import Response
 
         queryset = self.filter_queryset(self.get_queryset())
+
+        # Numbered pages only when asked for. Without ?page the response is
+        # byte-identical to what it always was, which is what keeps the mobile
+        # client - and its cursor walk - working untouched.
+        raw_page = request.query_params.get("page")
+        if raw_page is not None:
+            order = normalise_order(
+                self.cursor_field, self.cursor_descending, self.cursor_order
+            )
+            rows, meta = offset_page(
+                queryset,
+                order=order,
+                page=raw_page,
+                size=request.query_params.get("limit"),
+            )
+            serializer = self.get_serializer(rows, many=True)
+            return attach_pages(Response(serializer.data), meta)
+
         rows, next_cursor = cursor_page(
             queryset,
             field=self.cursor_field,

@@ -23,6 +23,9 @@ const FORWARDED = [
   "q",
   "limit",
   "cursor",
+  // Numbered pages. Without this the route always asks for page one and
+  // every page button shows the same bills.
+  "page",
 ] as const;
 
 export async function GET(req: NextRequest) {
