@@ -8,6 +8,65 @@ For what is outstanding *now*, see `REMAINING.md`.
 
 ---
 
+## Password reset
+
+There is no password reset. No "forgot password" link, no reset endpoint, no
+token — and nothing to send one with, because no mail server is configured on
+the deployment. An owner who forgets their password on a Tuesday morning
+cannot open their own till.
+
+The only way back is an operator with a shell:
+
+```bash
+docker compose exec api python manage.py changepassword owner@example.com
+```
+
+That path is now covered by `platform_apps/users/tests_password_recovery.py`,
+which pins the two things that had never been checked: the command finds the
+account by **email** (this project has no usernames, and Django resolves by
+`USERNAME_FIELD`), and the password it sets is one the real sign-in endpoint
+accepts. Before those tests it was an assumption.
+
+Doing this properly needs SMTP first. A reset flow that emails a link, on a
+deployment where mail silently goes nowhere, would be one more control that
+looks like it works — which is the failure this whole codebase has been
+spending its time removing. So: mail server, then reset, in that order.
+
+**Before the pilot**, tell the client plainly that password recovery goes
+through the operator, and make sure somebody other than them has the shop's
+details written down.
+
+---
+
+## The counter PIN, and the locked till it needs
+
+The server half of the counter PIN is built, reviewed and tested: a hashed
+`pos_pin_hash` on the membership, a verify endpoint that fails **closed** when
+its throttle cache is unreachable, an audit event on every failed attempt, and
+the role read back from the membership rather than assumed.
+
+The browser half was a PIN pad behind a panel mode nothing ever selected. A
+"Staff Login" no member of staff could reach, and a Team page counting PINs
+that no screen could set — both permanently zero. Both have been removed:
+shipping a control that can only ever read zero is worse than shipping
+nothing, because it makes a promise about a shift change that the till cannot
+keep.
+
+What it is actually waiting for is a **locked till screen**, and the reason
+that is not a small job is enforcement. A lock drawn over the page is defeated
+by a reload, so the gate has to live in `middleware.ts` alongside token
+renewal, covering every POS route. That is a new check in the request path for
+every page load, which is not a thing to add days before a pilot to solve a
+problem no shop has reported yet.
+
+When it is built: `/api/auth/pin` already does the round trip correctly and
+passes the server's three distinct answers through (wrong PIN, PIN never set,
+too many attempts), and the membership serialiser already reports
+`has_pos_pin`. What is missing is the lock control, the middleware gate, and a
+set-PIN control on the Team page.
+
+---
+
 ## Sales history with line items
 
 The history importer records flat bills — date, total, payment mode,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchAllPages } from "@/lib/fetch-all";
 import { AlertTriangle, Minus, Plus, Printer, Search, Wand2, X } from "lucide-react";
 
 import { useServerRefresh } from "@/lib/use-server-refresh";
@@ -92,13 +93,11 @@ export function LabelPrinter({ shopName }: { shopName: string }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/inventory");
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Could not load items (${res.status})`);
-      }
-      const payload = await res.json();
-      const rows: StockItem[] = (payload.items ?? payload ?? []).map(
+      // Every page. A label printer that reaches only the first one prints
+      // shelf labels for part of the shop, and the items it silently left out
+      // are the ones that end up on the shelf with no price on them.
+      const payload = await fetchAllPages<Record<string, unknown>>("/api/inventory");
+      const rows: StockItem[] = payload.map(
         (raw: Record<string, unknown>) => ({
           id: String(raw.id),
           name: String(raw.name ?? ""),

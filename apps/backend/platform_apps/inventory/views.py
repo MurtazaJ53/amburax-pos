@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import DecimalField, Exists, F, OuterRef, Q
 from django.db.models import Count
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
@@ -505,15 +505,21 @@ class InventorySummaryView(ShopScopedMixin, APIView):
 
         projected_sell_value = None
         if has_feature_enabled(membership, "advanced_reports"):
-            projected_sell_value = (
-                sum(
-                    (
-                        (item.sell_price or Decimal("0.00")) * item.stock_on_hand
-                        for item in queryset
-                    ),
+            # Summed by the database, not by walking the queryset in Python.
+            # The loop that was here fetched every product and every one of
+            # its annotations on each request; on a ten thousand product shop
+            # that is the whole catalogue crossing the wire so one number can
+            # be added up for a small tile.
+            valued = queryset.aggregate(
+                total=Coalesce(
+                    Sum(F("sell_price") * F("stock_on_hand")),
                     Decimal("0.00"),
+                    output_field=DecimalField(max_digits=18, decimal_places=4),
                 )
-            ).quantize(Decimal("0.01"))
+            )
+            projected_sell_value = (valued["total"] or Decimal("0.00")).quantize(
+                Decimal("0.01")
+            )
 
         serializer = InventorySummarySerializer(
             {

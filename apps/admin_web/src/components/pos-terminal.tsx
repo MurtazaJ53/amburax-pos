@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Search,
   Barcode,
@@ -101,8 +101,6 @@ export function PosTerminal({
 
   const [products, setProducts] = useState<ProductItem[]>(mappedInitialProducts);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers ?? []);
-  const [_isLoading, _setIsLoading] = useState(false);
-  const [_error, setError] = useState<string | null>(null);
   
   const [searchQuery, setSearchQuery] = useState("");
   /** Photo tiles or a compact list. A shop with four hundred items scrolls a
@@ -296,29 +294,55 @@ export function PosTerminal({
     };
   }, []);
 
-  useEffect(() => {
-    async function _loadData() {
-      try {
-        // EVERY page of the catalogue, not the first one.
-        //
-        // This was a bare fetch, and the till then searched the result in
-        // memory - so on a shop of 285 products it could not sell 85 of them.
-        // Searching for one answered "Nothing matches", which reads as "you
-        // do not stock this", and a shopkeeper believes the app before they
-        // believe the shelf. The same fix already shipped in the mobile
-        // client and was never carried across to here.
-        const invData = await fetchAllPages<ApiInventoryRow>("/api/inventory");
-        setProducts(invData.map(mapInventoryRow));
+  /** Load the whole catalogue and the whole customer list.
+   *
+   *  EVERY page of each, not the first one. The till searches this in memory,
+   *  so on a shop of 285 products a first-page-only load could not sell 85 of
+   *  them: searching for one answered "Nothing matches", which reads as "you
+   *  do not stock this", and a shopkeeper believes the app before they
+   *  believe the shelf. Customers page the same way, and a khata sale to
+   *  somebody past the first page went to Walk-in Guest with the debt
+   *  recorded against nobody.
+   *
+   *  One function, called on mount and again after each sale. These were two
+   *  separate copies, which is how the mount path came to be dead without
+   *  anything failing: the post-sale copy kept working, so the till healed
+   *  after the first bill of the day and the defect only showed before it. */
+  const loadCatalogue = useCallback(async () => {
+    const [invData, customerData] = await Promise.all([
+      fetchAllPages<ApiInventoryRow>("/api/inventory"),
+      fetchAllPages<Customer>("/api/customers"),
+    ]);
+    setProducts(invData.map(mapInventoryRow));
+    setCustomers(customerData);
+  }, []);
 
-        // Customers are paged too: a khata sale to somebody past the first
-        // page could not be attributed, so the bill went to Walk-in Guest and
-        // the debt was never recorded against anyone.
-        setCustomers(await fetchAllPages("/api/customers"));
-      } catch (err) {
-        setError(errorMessage(err, "Failed to load POS data"));
-      }
-    }
-    // We already loaded initial data server-side, but keep this to pull fresh updates if needed
+  /** Say so when the catalogue could not be loaded.
+   *
+   *  Loudly, because the till is then showing part of the shop while looking
+   *  exactly like it is showing all of it. That silence is the reason the
+   *  paging defect survived a shop floor: nothing on screen was wrong, there
+   *  was simply less of it. */
+  const reportLoadFailure = useCallback(
+    (err: unknown) => {
+      say(
+        "The full catalogue did not load",
+        errorMessage(
+          err,
+          "Some products and customers may not be searchable. Reload the page before billing.",
+        ),
+        "danger",
+      );
+    },
+    [say],
+  );
+
+  // The server render seeds the first page so the till paints immediately.
+  // This is what makes the rest of the shop reachable, and it has to run on
+  // mount: before the first sale, nothing else loads it.
+  useEffect(() => {
+    void loadCatalogue().catch(reportLoadFailure);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Modals state
@@ -613,12 +637,10 @@ ${errorMessage(
       // retry is recognised as the same sale.
       commandIdRef.current = "";
       
-      // Reload the catalogue so stock indicators follow the sale. Every page
-      // again: reloading only the first would quietly shrink the till's idea
-      // of the shop after each bill.
+      // Reload so stock indicators follow the sale, through the same function
+      // the mount uses — a second copy here is what let the first one rot.
       try {
-        const invData = await fetchAllPages<ApiInventoryRow>("/api/inventory");
-        setProducts(invData.map(mapInventoryRow));
+        await loadCatalogue();
       } catch {
         // The sale is already saved. A failed refresh means stale stock
         // numbers, which is not a reason to tell somebody their bill failed.

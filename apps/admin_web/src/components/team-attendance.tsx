@@ -34,6 +34,24 @@ function errorMessage(error: unknown, fallback: string): string {
 
 
 
+/** An invite the shop has sent and nobody has accepted yet.
+ *
+ *  `invite_code` is the code the new member types on the sign-in screen under
+ *  "Join with code"; it is also the last segment of the invite link. The
+ *  server only ever echoes it back to the person who sent the invite. */
+type PendingInvite = {
+  id: string;
+  email: string;
+  role: string;
+  role_label: string;
+  expires_at: string;
+  invite_code: string;
+  /** Whether the invite email actually went out. Reported honestly by the
+   *  server, which is how we know it is false on every deployment without
+   *  SMTP configured — and why the code has to be visible on screen. */
+  email_sent?: boolean;
+};
+
 interface TeamAttendanceProps {
   initialTeam: WorkspaceTeamMemberPayload[];
   initialSessions: AttendanceSession[];
@@ -143,6 +161,20 @@ export function TeamAttendance({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  /** Invites sent but not yet accepted, each with the code that accepts it.
+   *
+   *  Nothing showed these. The code was returned by the server, rendered by
+   *  nothing, and the only copy of it went out by email — on a deployment
+   *  with no SMTP configured, which is to say nowhere. A shop could invite
+   *  somebody and then have no way on earth to tell them how to join.
+   *
+   *  Reading the code aloud is how this actually happens in a shop: the owner
+   *  is standing next to the person they are hiring. */
+  const [invites, setInvites] = useState<PendingInvite[]>([]);
+  /** The invite just created, shown large so it can be read out. */
+  const [freshInvite, setFreshInvite] = useState<PendingInvite | null>(null);
+  const [copiedCode, setCopiedCode] = useState("");
+
   // Manual Attendance modal
   const [isManualAttendanceOpen, setIsManualAttendanceOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState("");
@@ -192,19 +224,49 @@ export function TeamAttendance({
   const refreshData = async () => {
     try {
       setIsLoading(true);
-      const [resTeam, resSessions, resSummary] = await Promise.all([
+      const [resTeam, resSessions, resSummary, resInvites] = await Promise.all([
         fetch("/api/team").then((r) => r.json()),
         fetch("/api/attendance").then((r) => r.json()),
         fetch("/api/attendance/summary").then((r) => r.json()),
+        // Separately caught: a shop with no pending invites is the normal
+        // case, and it must not take the whole page down with it.
+        fetch("/api/invites")
+          .then((r) => (r.ok ? r.json() : []))
+          .catch(() => []),
       ]);
       setStaff(resTeam);
       setAttendance(resSessions);
       setSummary(resSummary);
+      setInvites(Array.isArray(resInvites) ? resInvites : []);
     } catch (err) {
       console.error(err);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  /** Put a code on the clipboard, and say so for a moment.
+   *
+   *  A copy button that gives no sign it worked gets pressed four times. */
+  const copyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      window.setTimeout(() => setCopiedCode(""), 2000);
+    } catch {
+      // Clipboard access can be refused outright. The code is on screen in
+      // full either way, which is what it is there for.
+    }
+  };
+
+  /** Shut the invite dialog and forget the code it was showing.
+   *
+   *  One closer for every way out of it, so the dialog cannot be dismissed
+   *  into a state where it reopens still displaying the last person's code. */
+  const closeInvite = () => {
+    setIsInviteOpen(false);
+    setFreshInvite(null);
+    setSubmitError("");
   };
 
   const handleInviteStaff = async (e: React.FormEvent) => {
@@ -224,14 +286,25 @@ export function TeamAttendance({
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Failed to invite team member");
+        // The server's own sentence, not the JSON wrapper around it. A refusal
+        // here is nearly always a role that may not invite people, and showing
+        // {"detail":"..."} made a clear answer look like a fault.
+        const body = await res.json().catch(() => null);
+        throw new Error(
+          (typeof body?.detail === "string" && body.detail) ||
+            (typeof body?.error === "string" && body.error) ||
+            (res.status === 403
+              ? "Your role does not allow inviting people. Ask an owner or admin."
+              : "Could not send that invitation."),
+        );
       }
 
-      setIsInviteOpen(false);
+      // Held, not thrown away. Closing the dialog here was what lost the code
+      // — the one thing the new member needs, shown for no time at all.
+      const created: PendingInvite = await res.json();
+      setFreshInvite(created);
       setInviteEmail("");
       setInviteName("");
-      refreshServerData();
       await refreshData();
       refreshServerData();
     } catch (err) {
@@ -346,12 +419,6 @@ export function TeamAttendance({
               label: "present today",
               value: String(summary.active_workers_today),
               detail: `of ${staff.length}`,
-              tone: "text-[var(--text-primary)]",
-            },
-            {
-              label: "counter pins",
-              value: String(staff.filter((m) => m.has_pos_pin).length),
-              detail: "set for a shift change",
               tone: "text-[var(--text-primary)]",
             },
           ].map((stat, index) => (
@@ -558,6 +625,44 @@ export function TeamAttendance({
         ))}
       </div>
 
+      {/* Invites sent and not yet accepted.
+          Here rather than only in the dialog, because the code is needed
+          after the dialog is gone: the new member turns up the next morning,
+          or the owner closed the box before writing it down. Without this the
+          only recovery was to invite them a second time. */}
+      {activeTab === "team" && invites.length > 0 && (
+        <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] p-4 shadow-sm">
+          <h2 className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+            Waiting to join
+          </h2>
+          <ul className="mt-2.5 space-y-1.5">
+            {invites.map((invite) => (
+              <li
+                key={invite.id}
+                className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl bg-[var(--bg-soft)] px-3 py-2"
+              >
+                <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-[var(--text-primary)]">
+                  {invite.email}
+                </span>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)]">
+                  {invite.role_label}
+                </span>
+                <code className="tnum font-mono text-[12.5px] font-extrabold tracking-[0.1em] text-[var(--primary-dark)]">
+                  {invite.invite_code}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => void copyCode(invite.invite_code)}
+                  className="focus-ring cursor-pointer rounded-lg border border-[var(--border-soft)] bg-[var(--surface)] px-2.5 py-1 text-[10.5px] font-extrabold text-[var(--text-secondary)] transition-colors duration-200 hover:text-[var(--text-primary)]"
+                >
+                  {copiedCode === invite.invite_code ? "Copied" : "Copy"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Tab Panels */}
       {activeTab === "team" && (
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm">
@@ -574,7 +679,6 @@ export function TeamAttendance({
                   <th className="py-3 px-4">{t("webEmail", "Email")}</th>
                   <th className="py-3 px-4">Role</th>
                   <th className="py-3 px-4">Phone</th>
-                  <th className="py-3 px-4">Counter PIN</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Joined</th>
                   <th className="py-3 px-4 text-right">History</th>
@@ -612,20 +716,6 @@ export function TeamAttendance({
                       </td>
                       <td className="py-3 px-4 font-mono text-[var(--text-tertiary)]">
                         {member.phone || "—"}
-                      </td>
-                      <td className="py-3 px-4">
-                        {member.has_pos_pin ? (
-                          <span
-                            className="rounded-full bg-[var(--success)]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--success-strong)]"
-                            title="A four-digit PIN unlocks the till at a shift change. It is hashed, and it cannot sign anyone in on its own."
-                          >
-                            Set
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-semibold text-[var(--text-tertiary)]">
-                            Not set
-                          </span>
-                        )}
                       </td>
                       <td className="py-3 px-4">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
@@ -1117,22 +1207,75 @@ export function TeamAttendance({
           role="dialog"
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-          onClick={() => setIsInviteOpen(false)}
+          onClick={closeInvite}
         >
           <div
             className="w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-[var(--border-soft)] flex items-center justify-between bg-bg-soft">
-              <span className="font-semibold text-sm text-text-primary">Invite Team Member</span>
+              <span className="font-semibold text-sm text-text-primary">
+                {freshInvite ? "Give them this code" : "Invite Team Member"}
+              </span>
               <button
-                onClick={() => setIsInviteOpen(false)}
-                className="p-1 text-[var(--text-tertiary)] hover:text-text-primary"
+                onClick={closeInvite}
+                aria-label="Close"
+                className="focus-ring cursor-pointer rounded-lg p-1 text-[var(--text-tertiary)] transition-colors duration-200 hover:text-text-primary"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
+            {/* The invite exists now, and this is the only place its code is
+                ever shown. Sending the email is best-effort; reading six
+                characters aloud to somebody standing at the counter is not. */}
+            {freshInvite ? (
+              <div className="space-y-4 p-6">
+                <p className="text-xs font-semibold leading-relaxed text-[var(--text-secondary)]">
+                  {freshInvite.email} can join as{" "}
+                  <span className="font-extrabold text-[var(--text-primary)]">
+                    {freshInvite.role_label}
+                  </span>
+                  . On the sign-in screen they choose{" "}
+                  <span className="font-extrabold text-[var(--text-primary)]">
+                    Join with code
+                  </span>{" "}
+                  and type this:
+                </p>
+
+                <div className="flex items-center gap-2 rounded-2xl border border-[var(--primary)]/25 bg-[var(--primary)]/8 p-4">
+                  <code className="tnum flex-1 break-all font-mono text-[17px] font-extrabold tracking-[0.12em] text-[var(--primary-dark)]">
+                    {freshInvite.invite_code}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => void copyCode(freshInvite.invite_code)}
+                    className="focus-ring inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-2 text-[11px] font-extrabold text-[var(--text-secondary)] transition-colors duration-200 hover:text-[var(--text-primary)]"
+                  >
+                    {copiedCode === freshInvite.invite_code ? "Copied" : "Copy"}
+                  </button>
+                </div>
+
+                {/* Said plainly rather than assumed. A screen that claims an
+                    email was sent when no mail server is configured is how a
+                    shop ends up waiting for a message that never existed. */}
+                <p className="text-[11px] font-semibold leading-relaxed text-[var(--text-tertiary)]">
+                  {freshInvite.email_sent
+                    ? "An email with this code is on its way to them as well."
+                    : "No email was sent — this shop has no mail server set up, so the code above is the only copy."}
+                </p>
+
+                <div className="flex justify-end border-t border-[var(--border-soft)] pt-3">
+                  <button
+                    type="button"
+                    onClick={closeInvite}
+                    className="focus-ring cursor-pointer rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/12 px-5 py-2 text-xs font-extrabold text-[var(--primary-dark)] shadow-md transition-colors duration-200 hover:bg-[var(--primary)]/20"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            ) : (
             <form onSubmit={handleInviteStaff} className="p-6 space-y-4">
               {submitError && (
                 <div className="p-3 bg-[var(--error)]/10 border border-[var(--error)]/20 text-[var(--error-strong)] text-xs rounded-xl font-bold">
@@ -1187,8 +1330,8 @@ export function TeamAttendance({
                 <button
                   type="button"
                   disabled={isSubmitting}
-                  onClick={() => setIsInviteOpen(false)}
-                  className="px-4 py-2 text-xs text-[var(--text-secondary)] hover:text-text-primary bg-bg-base rounded-xl disabled:opacity-50"
+                  onClick={closeInvite}
+                  className="focus-ring cursor-pointer rounded-xl bg-bg-base px-4 py-2 text-xs text-[var(--text-secondary)] transition-colors duration-200 hover:text-text-primary disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -1202,6 +1345,7 @@ export function TeamAttendance({
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { fetchAllPages } from "@/lib/fetch-all";
 import { ClipboardCheck, Play, Search, TriangleAlert, X } from "lucide-react";
 
 import { resolveScan, searchItems } from "@/lib/stock-search";
@@ -107,9 +108,13 @@ export function StocktakeScreen({
     setLoading(true);
     setError(null);
     try {
-      const [takesRes, itemsRes] = await Promise.all([
+      // Every page of the catalogue. This is the worst place to page short: a
+      // stocktake that quietly omits products reports them as uncounted
+      // forever, and the shopkeeper reconciles against a shop smaller than
+      // the one they own.
+      const [takesRes, itemRows] = await Promise.all([
         fetch("/api/stocktakes"),
-        fetch("/api/inventory"),
+        fetchAllPages<Record<string, unknown>>("/api/inventory"),
       ]);
       if (!takesRes.ok) {
         const body = await takesRes.json().catch(() => ({}));
@@ -120,18 +125,15 @@ export function StocktakeScreen({
       setCurrent(all.find((t) => t.status === "open") ?? null);
       setHistory(all.filter((t) => t.status !== "open"));
 
-      if (itemsRes.ok) {
-        const payload = await itemsRes.json();
-        setItems(
-          (payload.items ?? payload ?? []).map((r: Record<string, unknown>) => ({
-            id: String(r.id),
-            name: String(r.name ?? ""),
-            sku: String(r.sku ?? ""),
-            barcode: String(r.barcode ?? ""),
-            stock_on_hand: Number(r.stock_on_hand ?? 0),
-          })),
-        );
-      }
+      setItems(
+        itemRows.map((r: Record<string, unknown>) => ({
+          id: String(r.id),
+          name: String(r.name ?? ""),
+          sku: String(r.sku ?? ""),
+          barcode: String(r.barcode ?? ""),
+          stock_on_hand: Number(r.stock_on_hand ?? 0),
+        })),
+      );
     } catch (err) {
       setError(errorMessage(err, "Could not load stocktakes."));
     } finally {

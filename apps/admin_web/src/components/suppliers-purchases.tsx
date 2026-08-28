@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchAllPages } from "@/lib/fetch-all";
 import {
   Truck,
   Plus,
@@ -228,9 +229,9 @@ export function SuppliersPurchases({ initialTab = "purchases" }: { initialTab?: 
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/inventory");
-        if (!res.ok) throw new Error(`Could not load your stock (${res.status})`);
-        const rows = readStockItems(await res.json());
+        // Every page. Half a catalogue in the picker means a purchase gets
+        // recorded against the wrong product, or not recorded at all.
+        const rows = readStockItems(await fetchAllPages("/api/inventory"));
         if (cancelled) return;
         setStockItems(rows);
         // Said out loud. An empty picker with no explanation is why the

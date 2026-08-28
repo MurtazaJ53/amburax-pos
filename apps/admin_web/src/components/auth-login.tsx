@@ -13,10 +13,8 @@ import {
   Lock,
   ArrowRight,
   AlertCircle,
-  KeyRound,
   CheckCircle2,
   User,
-  Delete,
   Globe,
 } from "lucide-react";
 
@@ -25,7 +23,20 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 
-type AuthPanelMode = "login" | "register" | "join" | "pin";
+/** The panels this screen can actually show.
+ *
+ *  "pin" is deliberately not among them. A counter PIN unlocks a session that
+ *  already exists — the server requires an authenticated caller and refuses to
+ *  issue a session from four digits — so it can never be a way in, and the
+ *  sign-in screen is the one place it can never work. The whole PIN pad lived
+ *  here behind a mode nothing ever selected: a Staff Login that no staff could
+ *  reach, and a Team page counting PINs that nothing could set.
+ *
+ *  The server half is built and tested. What it is waiting for is a locked
+ *  till screen, which needs the lock enforced in middleware rather than drawn
+ *  over the page — see FUTURE.md.
+ */
+type AuthPanelMode = "login" | "register" | "join";
 
 export function AuthLogin({
   notice,
@@ -43,9 +54,6 @@ export function AuthLogin({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [_rememberMe, _setRememberMe] = useState(true);
-
-  // PIN unlock state
-  const [pin, setPin] = useState("");
 
   // Register state
   const [regOwnerName, setRegOwnerName] = useState("");
@@ -106,61 +114,6 @@ export function AuthLogin({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // 2. PIN Unlock Submit
-  const handlePinSubmit = async (pinValue = pin) => {
-    if (pinValue.length < 4) return;
-    setError(null);
-    setIsLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/pin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: pinValue }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Incorrect PIN");
-      }
-
-      setSuccessMsg("Terminal unlocked! Opening POS...");
-      // Straight there. The half-second pause here was purely so the
-      // success message could be read, and it is time somebody spends
-      // looking at a screen that has already finished its work.
-      //
-      // refresh() before replace(), not after: called afterwards it
-      // re-rendered the page just navigated to, so the dashboard - three
-      // sequential calls and a render - was built twice. Called first it
-      // clears the cached signed-out payload, which is what it was for.
-      //
-      // replace() rather than push(), so Back from the dashboard does not
-      // return to a sign-in form for a session that already exists.
-      router.refresh();
-      router.replace("/pos");
-    } catch (err) {
-      setError(errorMessage(err, "Failed to unlock terminal."));
-      setPin("");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handlePinDigit = (digit: string) => {
-    if (pin.length < 4) {
-      const nextPin = pin + digit;
-      setPin(nextPin);
-      if (nextPin.length === 4) {
-        handlePinSubmit(nextPin);
-      }
-    }
-  };
-
-  const handlePinBackspace = () => {
-    setPin((prev) => prev.slice(0, -1));
   };
 
   // 3. Register Submit
@@ -290,17 +243,14 @@ export function AuthLogin({
               {panelMode === "login" && "Cloud Sign-in"}
               {panelMode === "register" && "Create your shop"}
               {panelMode === "join" && "Join a shop"}
-              {panelMode === "pin" && "Staff Login"}
             </span>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold tracking-wider bg-[var(--primary)]/10 text-[var(--primary-hover)] border border-[var(--primary)]/20 uppercase">
               {panelMode === "login" && <Globe className="w-3.5 h-3.5" />}
               {panelMode === "register" && <Store className="w-3.5 h-3.5" />}
               {panelMode === "join" && <User className="w-3.5 h-3.5" />}
-              {panelMode === "pin" && <KeyRound className="w-3.5 h-3.5" />}
               {panelMode === "login" && "CLOUD"}
               {panelMode === "register" && "SIGN UP"}
               {panelMode === "join" && "INVITE"}
-              {panelMode === "pin" && "SECURE PIN"}
             </span>
           </div>
 
@@ -632,88 +582,6 @@ export function AuthLogin({
           )}
 
           {/* MODE: PIN LOGIN / LOCKSCREEN */}
-          {panelMode === "pin" && (
-            <div className="space-y-5">
-              <p className="text-xs font-medium text-[var(--text-secondary)] text-center -mt-1 mb-2 leading-relaxed">
-                {t("webPinHint")}
-              </p>
-
-              {/* 4-digit PIN dots */}
-              <div className="flex justify-center items-center gap-4 py-2">
-                {[0, 1, 2, 3].map((idx) => (
-                  <div
-                    key={idx}
-                    className={`w-5 h-5 rounded-full border-2 transition-all ${
-                      pin.length > idx
-                        ? "bg-[var(--primary)] border-[var(--primary)] scale-110 shadow-md shadow-[var(--primary)]/30"
-                        : "bg-[var(--bg-soft)] border-[var(--border)]"
-                    }`}
-                  />
-                ))}
-              </div>
-
-              {/* Numeric Keypad */}
-              <div className="grid grid-cols-3 gap-2.5 pt-2 max-w-[260px] mx-auto">
-                {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
-                  <button
-                    key={num}
-                    type="button"
-                    onClick={() => handlePinDigit(num)}
-                    className="h-13 bg-[var(--bg-base)] hover:bg-[var(--bg-app)] active:bg-[var(--border-soft)] border border-[var(--border-soft)] rounded-2xl text-xl font-bold text-[var(--text-primary)] shadow-sm transition-all flex items-center justify-center cursor-pointer"
-                  >
-                    {num}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setPin("")}
-                  className="h-13 bg-[var(--bg-base)] hover:bg-[var(--bg-app)] border border-[var(--border-soft)] rounded-2xl text-xs font-bold text-[var(--text-secondary)] shadow-sm flex items-center justify-center cursor-pointer"
-                >
-                  CLEAR
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePinDigit("0")}
-                  className="h-13 bg-[var(--bg-base)] hover:bg-[var(--bg-app)] border border-[var(--border-soft)] rounded-2xl text-xl font-bold text-[var(--text-primary)] shadow-sm flex items-center justify-center cursor-pointer"
-                >
-                  0
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePinBackspace}
-                  className="h-13 bg-[var(--bg-base)] hover:bg-[var(--bg-app)] border border-[var(--border-soft)] rounded-2xl text-[var(--text-secondary)] shadow-sm flex items-center justify-center cursor-pointer"
-                >
-                  <Delete className="w-5 h-5" />
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handlePinSubmit(pin)}
-                disabled={pin.length < 4 || isLoading}
-                className="w-full h-13 py-3.5 bg-[var(--primary)]/12/12 hover:bg-[var(--primary)]/12/20 disabled:bg-[var(--border)] text-[var(--primary-dark)] text-xs font-extrabold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer border border-[var(--primary)]/25"
-              >
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>UNLOCK TERMINAL</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-
-              <div className="text-center pt-2">
-                <button
-                  type="button"
-                  onClick={() => setPanelMode("login")}
-                  className="text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
-                >
-                  {t("webSignInCloud")}
-                </button>
-              </div>
-            </div>
-          )}
 
         </div>
 

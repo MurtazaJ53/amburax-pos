@@ -25,6 +25,7 @@ import {
   stockFillPercent,
 } from "@/lib/inventory-rows";
 import type { ApiInventoryRow, ProductRow } from "@/lib/inventory-rows";
+import type { InventorySummaryPayload } from "@/lib/types";
 import {
   applyFilters,
   DEFAULT_FILTERS,
@@ -61,7 +62,14 @@ export type ProductItem = ProductRow;
 
 interface InventoryManagerProps {
   initialInventory: ApiInventoryRow[];
-  initialSummary?: unknown;
+  /** Shop-wide counts, straight from the database.
+   *
+   *  This arrived typed `unknown` and was never read, so the figures above
+   *  the table were summed over whichever products happened to be loaded -
+   *  and the screen reported that partial number as the size of the shop.
+   *  The dashboard asked the server the same question and got 285 while this
+   *  said 200, which is how the paging defect was found at all. */
+  initialSummary?: InventorySummaryPayload;
   shopId: string;
   /** Whether this member's role permits seeing cost prices at all. Without
    *  it the screen cannot tell "no cost recorded" from "not your business",
@@ -92,7 +100,11 @@ function FormSection({ title, hint }: { title: string; hint: string }) {
   );
 }
 
-export function InventoryManager({ initialInventory, canViewCosts = false }: InventoryManagerProps) {
+export function InventoryManager({
+  initialInventory,
+  initialSummary,
+  canViewCosts = false,
+}: InventoryManagerProps) {
   const { say } = useDialog();
 
   /** What the form sends when Auto is pressed.
@@ -310,6 +322,39 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
     () => categoryFacets(items, stockFilter, search),
     [items, stockFilter, search],
   );
+
+  /** How big the shop actually is, according to the database.
+   *
+   *  Everything below counts loaded rows, which is a different question. The
+   *  two were conflated, so a catalogue of 285 read as 200 items worth 200
+   *  items of stock — a smaller shop, described with total confidence. When
+   *  no summary reached us, fall back to the loaded count rather than
+   *  inventing a total. */
+  const catalogue = useMemo(
+    () => ({
+      total: initialSummary?.total_items ?? items.length,
+      needRestock:
+        initialSummary === undefined
+          ? null
+          : initialSummary.low_stock_items + initialSummary.out_of_stock_items,
+      outOfStock: initialSummary?.out_of_stock_items ?? null,
+      categories: initialSummary?.categories ?? Math.max(categories.length - 1, 0),
+      /** Retail value of the whole shop, or null when the plan does not
+       *  include it. Never a partial sum wearing the whole shop's label. */
+      stockValue:
+        initialSummary?.projected_sell_value == null
+          ? null
+          : Number(initialSummary.projected_sell_value),
+    }),
+    [initialSummary, items.length, categories.length],
+  );
+
+  /** Is the browser holding the entire catalogue?
+   *
+   *  Only then can a figure summed here honestly describe the shop. Margin
+   *  and cost have no server aggregate, so this decides whether they are
+   *  reported as fact or as "so far". */
+  const wholeCatalogueLoaded = items.length >= catalogue.total;
 
   /** Retail value of everything on the shelf, and what it cost, when the
    *  viewer is allowed to know. */
@@ -590,34 +635,54 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
       <div className="flex items-center gap-4 rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-2.5 shadow-sm animate-fade-in-up">
         <dl className="no-scrollbar m-0 flex min-w-0 flex-1 items-stretch gap-4 overflow-x-auto">
           {[
+            // Every figure here describes the SHOP, so every figure here
+            // comes from the server's count of it. They were summed over the
+            // loaded rows before, which made a half-loaded catalogue look
+            // like a small shop rather than a long list.
             {
-              value: String(items.length),
+              value: String(catalogue.total),
               label: "items",
-              detail: `${Math.max(categories.length - 1, 0)} categories`,
+              detail: `${catalogue.categories} categories`,
               tone: "text-[var(--text-primary)]",
             },
             {
-              value: String(counts.out + counts.low),
+              value: String(catalogue.needRestock ?? counts.out + counts.low),
               label: "need restock",
-              detail: counts.out > 0 ? `${counts.out} out of stock` : "none out of stock",
+              detail:
+                (catalogue.outOfStock ?? counts.out) > 0
+                  ? `${catalogue.outOfStock ?? counts.out} out of stock`
+                  : "none out of stock",
               tone:
-                counts.out + counts.low > 0
+                (catalogue.needRestock ?? counts.out + counts.low) > 0
                   ? "text-[var(--error-strong)]"
                   : "text-[var(--success-strong)]",
             },
+            // Stock value is the one the server may withhold by plan. Where
+            // it does, say the figure covers what is loaded rather than
+            // quietly presenting part of the shelf as all of it.
             {
-              value: formatCurrency(totals.retail),
+              value: formatCurrency(catalogue.stockValue ?? totals.retail),
               label: "stock value",
-              detail: canViewCosts ? `${formatCurrency(totals.cost)} at cost` : "at selling price",
+              detail:
+                catalogue.stockValue === null && !wholeCatalogueLoaded
+                  ? `across ${items.length} loaded`
+                  : canViewCosts
+                    ? `${formatCurrency(totals.cost)} at cost`
+                    : "at selling price",
               tone: "text-[var(--text-primary)]",
             },
             ...(canViewCosts
               ? [
                   {
+                    // No server aggregate for margin, so it is honestly
+                    // labelled instead of silently partial.
                     value: avgMargin === null ? "—" : `${avgMargin.toFixed(1)}%`,
                     label: "avg margin",
-                    detail:
-                      counts.nocost > 0 ? `${counts.nocost} without cost` : "across every item",
+                    detail: !wholeCatalogueLoaded
+                      ? `across ${items.length} loaded`
+                      : counts.nocost > 0
+                        ? `${counts.nocost} without cost`
+                        : "across every item",
                     tone: "text-[var(--text-primary)]",
                   },
                 ]
@@ -1204,13 +1269,16 @@ export function InventoryManager({ initialInventory, canViewCosts = false }: Inv
 
         <div className="flex flex-wrap items-center gap-3 border-t border-[var(--border-soft)] bg-[var(--bg-soft)] px-4 py-2.5 text-[11.5px] font-semibold text-[var(--text-tertiary)]">
           <span>
-            Showing {filteredItems.length} of {items.length}
-            {/* Said out loud, because filters only ever search what has been
-                loaded. Without this the count reads as the whole catalogue and
-                a search for something further down comes back empty - and
-                "200 of 200" is a claim of completeness rather than a
-                truncation anybody can see. */}
-            {nextCursor ? " loaded so far" : ""}
+            Showing {filteredItems.length} of {catalogue.total}
+            {/* The total is the shop's, from the server. What the filters can
+                actually search is only what has been loaded, and saying so is
+                the difference between an empty result meaning "you do not
+                stock this" and meaning "not fetched yet". "200 of 200" was a
+                claim of completeness rather than a truncation anybody could
+                see. */}
+            {!wholeCatalogueLoaded
+              ? ` · searching the ${items.length} loaded so far`
+              : ""}
           </span>
 
           {nextCursor && (

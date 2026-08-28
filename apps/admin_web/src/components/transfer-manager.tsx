@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchAllPages } from "@/lib/fetch-all";
 import {
   ArrowRight,
   Check,
@@ -142,10 +143,10 @@ export function TransferManager({
 
   const loadItems = useCallback(async () => {
     try {
-      const res = await fetch("/api/inventory");
-      if (!res.ok) return;
-      const payload = await res.json();
-      const rows: StockItem[] = (payload.items ?? payload ?? []).map(
+      // Every page: a product the picker cannot see is a product that cannot
+      // be moved between branches at all.
+      const payload = await fetchAllPages<Record<string, unknown>>("/api/inventory");
+      const rows: StockItem[] = payload.map(
         (raw: Record<string, unknown>) => ({
           id: String(raw.id),
           name: String(raw.name ?? ""),

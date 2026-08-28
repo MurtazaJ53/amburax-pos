@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchAllPages } from "@/lib/fetch-all";
 import {
   AlertTriangle,
   ClipboardList,
@@ -180,9 +181,12 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
 
   const loadPickers = useCallback(async () => {
     try {
-      const [supplierRes, itemRes] = await Promise.all([
+      // The catalogue comes back a page at a time. A picker holding only the
+      // first page cannot reorder the products further down it, which is
+      // exactly the long tail a shop runs out of.
+      const [supplierRes, itemRows] = await Promise.all([
         fetch("/api/suppliers"),
-        fetch("/api/inventory"),
+        fetchAllPages<Record<string, unknown>>("/api/inventory"),
       ]);
       if (supplierRes.ok) {
         const payload = await supplierRes.json();
@@ -205,32 +209,24 @@ export function PurchaseOrders({ canOrder }: { canOrder: boolean }) {
           })),
         );
       }
-      if (itemRes.ok) {
-        const payload = await itemRes.json();
-        const rows = Array.isArray(payload)
-          ? payload
-          : Array.isArray(payload?.items)
-            ? payload.items
-            : [];
-        setItems(
-          rows.map((raw: Record<string, unknown>) => ({
-            id: String(raw.id),
-            name: String(raw.name ?? ""),
-            sku: String(raw.sku ?? ""),
-            size: String(raw.size ?? ""),
-            unit: String(raw.unit ?? ""),
-            // What the shop last paid, so the line does not ask for a cost
-            // the app already knows. Null when it was never recorded, or when
-            // this role may not see costs - and null must stay null, because
-            // a zero here becomes the cost price of everything received.
-            costPrice:
-              raw.cost_price === null || raw.cost_price === undefined
-                ? null
-                : Number(raw.cost_price),
-            stock: Number(raw.stock_on_hand ?? 0),
-          })),
-        );
-      }
+      setItems(
+        itemRows.map((raw: Record<string, unknown>) => ({
+          id: String(raw.id),
+          name: String(raw.name ?? ""),
+          sku: String(raw.sku ?? ""),
+          size: String(raw.size ?? ""),
+          unit: String(raw.unit ?? ""),
+          // What the shop last paid, so the line does not ask for a cost
+          // the app already knows. Null when it was never recorded, or when
+          // this role may not see costs - and null must stay null, because
+          // a zero here becomes the cost price of everything received.
+          costPrice:
+            raw.cost_price === null || raw.cost_price === undefined
+              ? null
+              : Number(raw.cost_price),
+          stock: Number(raw.stock_on_hand ?? 0),
+        })),
+      );
     } catch (err) {
       // Said out loud. An empty dropdown with no explanation is why this
       // screen looked broken rather than merely unloaded.
