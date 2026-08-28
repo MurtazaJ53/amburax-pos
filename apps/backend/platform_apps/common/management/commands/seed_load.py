@@ -149,11 +149,39 @@ class Command(BaseCommand):
 
     # --- the writing ---------------------------------------------------
 
+    @staticmethod
+    def _continue_from(queryset, field: str, prefix: str) -> int:
+        """The next free number, given what a previous run already wrote.
+
+        Receipt numbers already did this and products did not, so a second run
+        against the same shop tried to write LOAD-00001 again and hit the
+        unique code constraint. That constraint doing its job is the good news;
+        an operator having to restore a database to re-run a seeder is not.
+
+        Zero-padded to a fixed width, so the highest string is the highest
+        number and one ORDER BY answers it.
+        """
+        last = (
+            queryset.filter(**{f"{field}__startswith": prefix})
+            .order_by(f"-{field}")
+            .values_list(field, flat=True)
+            .first()
+        )
+        if not last:
+            return 1
+        try:
+            return int(str(last).rsplit(" ", 1)[-1].rsplit("-", 1)[-1]) + 1
+        except ValueError:
+            return 1
+
     def _products(self, shop, count, rng) -> list:
         if not count:
             return list(InventoryItem.objects.filter(shop=shop)[:500])
 
         now = timezone.now()
+        first = self._continue_from(
+            InventoryItem.objects.filter(shop=shop), "sku", "LOAD-"
+        )
         InventoryItem.objects.bulk_create(
             [
                 InventoryItem(
@@ -163,7 +191,7 @@ class Command(BaseCommand):
                     sell_price=Decimal(rng.randrange(1000, 50_000)) / 100,
                     category="Load Test",
                 )
-                for n in range(1, count + 1)
+                for n in range(first, first + count)
             ],
             batch_size=BATCH,
         )
@@ -190,8 +218,14 @@ class Command(BaseCommand):
         if not count:
             return list(Customer.objects.filter(shop=shop)[:500])
 
+        first = self._continue_from(
+            Customer.objects.filter(shop=shop), "name", "Load Customer "
+        )
         rows = []
-        for n in range(1, count + 1):
+        for n in range(first, first + count):
+            # Continued too, so a second run does not hand two people the same
+            # number - which would make the phone lookup ambiguous and the
+            # benchmark of it meaningless.
             phone = f"9{n:09d}"
             rows.append(
                 Customer(

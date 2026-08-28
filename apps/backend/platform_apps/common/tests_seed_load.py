@@ -230,3 +230,35 @@ class SeedLoadTests(TestCase):
             .values_list("sale_date", flat=True)[:5]
         )
         self.assertEqual(by_time, sorted(by_time, reverse=True))
+
+    # --- running it more than once ------------------------------------
+
+    def test_a_second_run_does_not_reuse_product_codes(self):
+        # The unique code constraint caught this on real data: a second run
+        # tried to write LOAD-00001 again and the whole seed aborted. The
+        # constraint was right; needing a database restore to re-run a seeder
+        # was not.
+        self._seed(products=5, customers=0, sales=0)
+        self._run(products=5, customers=0, sales=0, confirm=True)
+
+        skus = list(
+            InventoryItem.objects.filter(shop=self.shop).values_list("sku", flat=True)
+        )
+        self.assertEqual(len(skus), 10)
+        self.assertEqual(len(set(skus)), 10)
+
+    def test_a_second_run_does_not_reuse_phone_numbers(self):
+        # Two customers with one number makes the phone lookup ambiguous, and
+        # benchmarking an ambiguous lookup measures nothing.
+        self._seed(products=0, customers=5, sales=0)
+        self._run(products=0, customers=5, sales=0, confirm=True)
+
+        phones = [c.phone for c in Customer.objects.filter(shop=self.shop)]
+        self.assertEqual(len(phones), 10)
+        self.assertEqual(len(set(phones)), 10)
+
+    def test_a_second_run_still_leaves_the_money_consistent(self):
+        self._seed(products=10, customers=5, sales=30)
+        self._run(products=10, customers=5, sales=30, confirm=True)
+
+        self.assertEqual(reconcile.shop_problems(self.shop), [])
