@@ -11,7 +11,14 @@ the query FUTURE.md predicts will slow first. A shop with a hundred thousand
 ledger rows either answers quickly or it does not, and no amount of reasoning
 settles that.
 
-Three things it refuses to get wrong.
+Four things it refuses to get wrong.
+
+It writes CONSISTENT time. A bill's sale_date and its occurred_at describe
+the same moment. The first version scattered the date across ninety days and
+stamped every timestamp with one "now", so the sales list - which pages on
+occurred_at - had nothing to order by while the dashboard displayed
+sale_date, and recent sales came out shuffled. That looked like a bug in the
+screen and was a bug in the data.
 
 It writes CONSISTENT money. Every bill satisfies received + due == total,
 every khata bill has a matching ledger entry, and every balance is the sum of
@@ -38,7 +45,7 @@ from __future__ import annotations
 
 import random
 import shutil
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand, CommandError
@@ -237,6 +244,23 @@ class Command(BaseCommand):
                 due = total if on_khata else Decimal("0.00")
                 received = Decimal("0.00") if on_khata else total
 
+                # The day it was rung up, and a plausible moment on that day.
+                #
+                # These have to agree. The first version scattered sale_date
+                # across ninety days and stamped every occurred_at with the
+                # same "now", so every bill claimed to have happened this
+                # morning while being filed months ago - and the sales list,
+                # which pages on occurred_at, had nothing to order by while
+                # the dashboard showed sale_date. It read as a shuffled list
+                # of recent sales, which is a bug in the data, not the screen.
+                sold_on = today - timedelta(days=rng.randrange(0, 90))
+                sold_at = timezone.make_aware(
+                    datetime.combine(
+                        sold_on,
+                        time(hour=rng.randrange(8, 21), minute=rng.randrange(0, 60)),
+                    )
+                )
+
                 sale = Sale(
                     shop=shop,
                     customer=customer,
@@ -246,8 +270,8 @@ class Command(BaseCommand):
                     total_amount=total,
                     amount_received=received,
                     amount_due=due,
-                    sale_date=today - timedelta(days=rng.randrange(0, 90)),
-                    occurred_at=now,
+                    sale_date=sold_on,
+                    occurred_at=sold_at,
                     status=Sale.Status.COMPLETED,
                 )
                 prepared.append((sale, chosen, quantities, on_khata, customer))

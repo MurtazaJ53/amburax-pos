@@ -193,3 +193,40 @@ class SeedLoadTests(TestCase):
 
         self.assertEqual(InventoryItem.objects.filter(shop=other).count(), 0)
         self.assertEqual(Sale.objects.filter(shop=other).count(), 0)
+
+    # --- time that agrees with itself ---------------------------------
+
+    def test_a_bill_happened_on_the_day_it_is_filed_under(self):
+        # These drifted apart in the first version: the date was scattered
+        # across ninety days and every timestamp said "now". The sales list
+        # pages on occurred_at and the dashboard shows sale_date, so recent
+        # sales came out shuffled - a bug in the data that read as a bug in
+        # the screen.
+        self._seed(sales=50)
+
+        from django.utils import timezone as tz
+
+        for sale in Sale.objects.filter(shop=self.shop):
+            self.assertEqual(tz.localtime(sale.occurred_at).date(), sale.sale_date)
+
+    def test_bills_are_spread_over_time_rather_than_stacked_on_one_moment(self):
+        # A hundred bills sharing one timestamp is not a history, and it makes
+        # any ordering test pass or fail by luck.
+        self._seed(sales=50)
+
+        moments = set(
+            Sale.objects.filter(shop=self.shop).values_list("occurred_at", flat=True)
+        )
+        self.assertGreater(len(moments), 10)
+
+    def test_the_newest_bill_is_the_one_with_the_latest_timestamp(self):
+        # What "recent sales" means. Ordering by occurred_at and by sale_date
+        # have to agree, or the two screens disagree with each other.
+        self._seed(sales=50)
+
+        by_time = list(
+            Sale.objects.filter(shop=self.shop)
+            .order_by("-occurred_at")
+            .values_list("sale_date", flat=True)[:5]
+        )
+        self.assertEqual(by_time, sorted(by_time, reverse=True))
