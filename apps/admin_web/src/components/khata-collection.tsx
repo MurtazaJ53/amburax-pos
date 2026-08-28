@@ -29,6 +29,11 @@ type DebtorPayload = {
   overdue_after_days: number;
   total_outstanding: string;
   unreachable_count: number;
+  /** Everyone who owes, counted in the database. `items` may hold fewer. */
+  debtor_count?: number;
+  showing?: number;
+  /** True when there are more debtors than this response carries. */
+  truncated?: boolean;
   items: Debtor[];
 };
 
@@ -82,6 +87,8 @@ export function KhataCollection({
   const all = useMemo(() => data?.items ?? [], [data]);
   const shown = onlyOverdue ? all.filter((d) => d.is_overdue) : all;
   const chaseable = all.filter((d) => d.has_phone && !d.reminded_today).length;
+  // The server counts every debtor; `all` is only the page it sent.
+  const owedBy = data?.debtor_count ?? all.length;
 
   /**
    * A collection round: statement links minted up front, then one customer at
@@ -281,12 +288,24 @@ export function KhataCollection({
           <p className="mt-1 text-3xl sm:text-4xl font-[900] tracking-tight text-[var(--warning-strong)]">
             {formatCurrency(num(data.total_outstanding))}
           </p>
+          {/* Counted in the database, not from the rows below. The list is
+              capped; the number owed and the number of people owing it are
+              not, so this line stays true on a shop with ten thousand
+              debtors. */}
           <p className="mt-2 text-xs font-semibold text-text-secondary">
-            {all.length} customer{all.length === 1 ? "" : "s"} owe you
+            {owedBy} customer{owedBy === 1 ? "" : "s"} owe you
             {chaseable > 0 && ` · ${chaseable} can be chased today`}
             {data.unreachable_count > 0 &&
               ` · ${data.unreachable_count} with no mobile number`}
           </p>
+          {data.truncated && (
+            /* Said out loud. A list that quietly stops short is how a
+               collection run misses people and nobody notices. */
+            <p className="mt-1 text-xs font-semibold text-[var(--warning-strong)]">
+              Showing the {all.length} largest balances. Settle some of these to
+              see the rest.
+            </p>
+          )}
 
           {chaseable > 0 && !round && (
             <button

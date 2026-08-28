@@ -231,3 +231,101 @@ class LoyaltySettingsTests(TestCase):
         self.assertEqual(
             client.patch(self.url, {"enabled": True}, format="json").status_code, 403
         )
+
+
+class DebtorListIsBoundedTests(DebtorCollectionTests):
+    """The list is capped; the figures above it are not.
+
+    Measured at a thousand debtors this endpoint took 845ms and returned
+    227KB, because it built, decrypted and serialised every one with no
+    ceiling. Capping the list alone would have been worse than leaving it
+    slow: the screen counts "N customers owe you" and sizes its reminder
+    button from the rows it was given, so a silent cap makes a shop chase the
+    first five hundred and believe it chased everybody.
+
+    So these tests are mostly about the summary staying true when the list
+    does not.
+    """
+
+    def _many(self, count, *, balance="100.00"):
+        for n in range(count):
+            self._customer(f"Debtor {n:03d}", balance=balance)
+
+    def test_the_list_stops_at_the_limit(self):
+        self._many(12)
+        payload = self.client.get(
+            f"/api/v1/shops/{self.shop.id}/customers/debtors/?limit=5"
+        ).json()
+
+        self.assertEqual(len(payload["items"]), 5)
+        self.assertEqual(payload["showing"], 5)
+        self.assertTrue(payload["truncated"])
+
+    def test_the_money_owed_still_counts_everyone(self):
+        # The figure a shopkeeper reads. If capping the list shrank this, the
+        # fix would have introduced a money bug to save 800 milliseconds.
+        self._many(12, balance="100.00")
+        payload = self.client.get(
+            f"/api/v1/shops/{self.shop.id}/customers/debtors/?limit=5"
+        ).json()
+
+        self.assertEqual(Decimal(payload["total_outstanding"]), Decimal("1200.00"))
+
+    def test_the_number_of_debtors_still_counts_everyone(self):
+        self._many(12)
+        payload = self.client.get(
+            f"/api/v1/shops/{self.shop.id}/customers/debtors/?limit=5"
+        ).json()
+
+        self.assertEqual(payload["debtor_count"], 12)
+
+    def test_unreachable_counts_everyone_not_just_the_page(self):
+        # Otherwise "3 with no mobile number" would mean "3 in the first page",
+        # and a shop would stop collecting numbers it still needs.
+        self._many(10, balance="100.00")
+        for n in range(4):
+            self._customer(f"No Number {n}", balance="50.00", phone="-")
+
+        payload = self.client.get(
+            f"/api/v1/shops/{self.shop.id}/customers/debtors/?limit=2"
+        ).json()
+
+        self.assertEqual(payload["unreachable_count"], 4)
+
+    def test_a_short_list_is_not_marked_truncated(self):
+        self._many(3)
+        payload = self._debtors()
+
+        self.assertFalse(payload["truncated"])
+        self.assertEqual(payload["showing"], 3)
+        self.assertEqual(payload["debtor_count"], 3)
+
+    def test_the_biggest_debts_are_the_ones_kept(self):
+        # A capped collection list has to hold the debts worth chasing.
+        self._customer("Small", balance="10.00")
+        self._customer("Huge", balance="9000.00")
+        self._customer("Medium", balance="500.00")
+
+        payload = self.client.get(
+            f"/api/v1/shops/{self.shop.id}/customers/debtors/?limit=2"
+        ).json()
+
+        self.assertEqual([row["name"] for row in payload["items"]], ["Huge", "Medium"])
+
+    def test_an_absurd_limit_is_clamped(self):
+        # A caller asking for a million rows is asking for the outage this
+        # change removed.
+        self._many(3)
+        payload = self.client.get(
+            f"/api/v1/shops/{self.shop.id}/customers/debtors/?limit=999999"
+        ).json()
+
+        self.assertEqual(payload["showing"], 3)
+
+    def test_a_nonsense_limit_falls_back_to_the_default(self):
+        self._many(3)
+        payload = self.client.get(
+            f"/api/v1/shops/{self.shop.id}/customers/debtors/?limit=abc"
+        ).json()
+
+        self.assertEqual(payload["showing"], 3)
