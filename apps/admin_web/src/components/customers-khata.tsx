@@ -308,10 +308,17 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
       setNewCreditLimit("");
       setNewCreditTerms("");
 
-      // Refresh customers list and summary
-      const updatedList = await fetch("/api/customers").then((r) => r.json());
+      // Refresh customers list and summary.
+      //
+      // The cursor is read back here for the same reason the search effect
+      // reads it: this replaces the whole list, so dropping the header would
+      // take "Load more customers" off the screen until the next search, and
+      // a shop past the first page would look like it had no more debtors.
+      const listRes = await fetch("/api/customers");
+      const updatedList = await listRes.json();
+      setNextCursor(listRes.headers.get("X-Next-Cursor"));
       const updatedSummary = await fetch("/api/customers/summary").then((r) => r.json());
-      
+
       setCustomers(updatedList);
       setSummary(updatedSummary);
       refreshServerData();
@@ -362,11 +369,15 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
       setTxnDesc("");
 
       // Refresh list, summary, and current customer timeline
-      const [updatedList, updatedSummary, updatedTimeline] = await Promise.all([
-        fetch("/api/customers").then((r) => r.json()),
+      const [listRes, updatedSummary, updatedTimeline] = await Promise.all([
+        fetch("/api/customers"),
         fetch("/api/customers/summary").then((r) => r.json()),
         fetch(`/api/customers/${selectedCustomer.id}/ledger`).then((r) => r.json()),
       ]);
+      const updatedList = await listRes.json();
+      // Same reason as the refresh after creating a customer: replacing the
+      // list without its cursor hides the rest of the debtors.
+      setNextCursor(listRes.headers.get("X-Next-Cursor"));
 
       setCustomers(updatedList);
       setSummary(updatedSummary);

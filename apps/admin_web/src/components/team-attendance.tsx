@@ -245,6 +245,29 @@ export function TeamAttendance({
     }
   };
 
+  /** Load the pending invites once, on mount.
+   *
+   *  Everything else on this screen arrives as a server prop; invites do not.
+   *  refreshData() is the only thing that fetches them and it runs only after
+   *  a write, so the list sat empty on every fresh page load - an owner who
+   *  sent an invite yesterday came back to a screen with no code on it. The
+   *  code existed the whole time and nothing asked for it.
+   *
+   *  Kept separate from refreshData() so a page load does not re-fetch the
+   *  team, the attendance and the summary the server just rendered. */
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/invites")
+      .then((r) => (r.ok ? r.json() : []))
+      .catch(() => [])
+      .then((rows) => {
+        if (active) setInvites(Array.isArray(rows) ? rows : []);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   /** Put a code on the clipboard, and say so for a moment.
    *
    *  A copy button that gives no sign it worked gets pressed four times. */
