@@ -449,7 +449,19 @@ export const getAttendanceSummary = cache(
 export const getSales = cache(
   async (
     shopId: string,
-    query?: { q?: string; dateFrom?: string; dateTo?: string; customerId?: string },
+    query?: {
+      q?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      customerId?: string;
+      /** How many bills to return.
+       *
+       *  The server's own default of 200 applies when this is omitted, which
+       *  is a great deal of JSON for a screen that draws a handful: every
+       *  bill carries its complete line items and payment rows. Ask for what
+       *  is going to be drawn. */
+      limit?: number;
+    },
   ): Promise<Sale[]> => {
     return apiFetch<Sale[]>(`/shops/${shopId}/sales/`, {
       query: {
@@ -457,6 +469,7 @@ export const getSales = cache(
         date_from: query?.dateFrom,
         date_to: query?.dateTo,
         customer_id: query?.customerId,
+        limit: query?.limit === undefined ? undefined : String(query.limit),
       },
     });
   },

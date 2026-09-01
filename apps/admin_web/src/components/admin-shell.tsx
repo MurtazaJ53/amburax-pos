@@ -1,5 +1,6 @@
 "use client";
 
+import { NavPending } from "@/components/ui/nav-pending";
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -380,6 +381,10 @@ export function AdminShell({
                 >
                   <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-[var(--text-primary)]" : ""}`} />
                   <span className="truncate">{item.label}</span>
+                  {/* Answers the tap while the server renders the next screen.
+                      Without it, Stock takes two or three seconds to appear
+                      and nothing whatsoever happens in between. */}
+                  <NavPending />
                 </Link>
               );
             })}
@@ -405,6 +410,7 @@ export function AdminShell({
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   <span className="truncate">{item.label}</span>
+                  <NavPending />
                 </Link>
               );
             })}

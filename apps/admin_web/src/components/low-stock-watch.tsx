@@ -1,5 +1,6 @@
 "use client";
 
+import { staggerDelay } from "@/lib/stagger";
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -102,7 +103,7 @@ export function LowStockWatch({ rows, totalCount, className = "" }: Props) {
               <li
                 key={item.id}
                 className="animate-fade-in-up"
-                style={{ animationDelay: `${index * 30}ms` }}
+                style={{ animationDelay: staggerDelay(index, { step: 30 }) }}
               >
                 <Link
                   href="/inventory"

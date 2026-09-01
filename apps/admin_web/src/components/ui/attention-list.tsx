@@ -1,3 +1,4 @@
+import { staggerDelay } from "@/lib/stagger";
 import Link from "next/link";
 
 /**
@@ -38,7 +39,7 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
           <Link
             href={item.href}
             className="hover-nudge focus-ring group flex items-start gap-3 rounded-[12px] border border-[var(--border-soft)] bg-[var(--bg-base)] p-2.5 hover:border-[var(--border)] animate-fade-in-up"
-            style={{ animationDelay: `${200 + index * 40}ms` }}
+            style={{ animationDelay: staggerDelay(index, { offset: 200 }) }}
           >
             <span
               className={`w-[3px] self-stretch rounded-full ${stripeTone[item.severity]}`}

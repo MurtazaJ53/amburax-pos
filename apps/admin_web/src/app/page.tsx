@@ -1,3 +1,4 @@
+import { staggerDelay } from "@/lib/stagger";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -32,6 +33,14 @@ import { formatCurrency } from "@/lib/formatters";
 import type { WorkspacePulseSnapshot } from "@/lib/types";
 
 /** Segment colours for the payment mix, keyed by mode. */
+
+/** How many bills the dashboard's Recent sales panel shows.
+ *
+ *  A dashboard answers "what is happening" at a glance; "what happened in
+ *  March" is a different question, and /sales answers it with numbered pages.
+ *  Twenty is a screenful and a bit - enough to see the shape of the morning
+ *  without the panel becoming a second, worse history screen. */
+const RECENT_SALES = 20;
 
 function greetingFor(hour: number): string {
   if (hour < 12) return "Good morning";
@@ -86,14 +95,25 @@ export default async function HomePage() {
   const currencyCode = activeShop.shop.currency_code ?? "INR";
   const timeZone = activeShop.shop.timezone || "Asia/Kolkata";
 
-  const dashboardSnapshot = await getDashboardSnapshot(shopId);
-
   // The shop's own calendar date, not the server's. A Kolkata shop billing at
   // 1 AM is still on yesterday's sheet for a UTC server.
-  const todayKey = dashboardSnapshot.today_date ?? shopDateKey(new Date(), timeZone);
+  //
+  // Worked out here rather than read off the snapshot, which is what makes
+  // the batch below one round trip instead of two. The snapshot was awaited
+  // first ONLY to learn today's date, so every dashboard load paid a full
+  // trip to the droplet - about a third of a second before the real work
+  // could even start - for a value this line computes from the shop's own
+  // timezone. It was already the documented fallback when the server omitted
+  // the field; it is simply the answer.
+  const todayKey = shopDateKey(new Date(), timeZone);
 
-  const [recentSales, todaySales, pulse] = await Promise.all([
-    getSales(shopId),
+  const [dashboardSnapshot, recentSales, todaySales, pulse] = await Promise.all([
+    getDashboardSnapshot(shopId),
+    // A glance, not a history. This asked for the server's default of two
+    // hundred bills - each with all its line items and payment rows - to draw
+    // a name and an amount in a panel the size of a postcard. The full
+    // history is one click away on /sales, where it is properly paged.
+    getSales(shopId, { limit: RECENT_SALES }),
     getSales(shopId, { dateFrom: todayKey, dateTo: todayKey }),
     // The pulse feed drives the attention queue. If it is unavailable the
     // rest of the screen must still render, so we fall back to figures the
@@ -441,6 +461,22 @@ export default async function HomePage() {
             title="Recent sales"
             action={recentSales.length > 0 ? { label: "View all", href: "/sales" } : undefined}
             scrollBody
+            // How many bills this panel holds, said rather than left to be
+            // counted. The list scrolls with its scrollbar hidden, so it has
+            // no visible bottom and no sense of length - the only way to know
+            // how many were in it was to scroll to the end and estimate. That
+            // is how one panel of two hundred sales was read first as twenty
+            // and then as forty, and neither reading was careless.
+            count={recentSales.length}
+            footer={
+              recentSales.length > 0 ? (
+                <p className="text-[11px] font-semibold text-[var(--text-tertiary)]">
+                  The {RECENT_SALES} most recent bills. Open{" "}
+                  <span className="font-bold text-[var(--text-secondary)]">View all</span>{" "}
+                  for the full history, page by page.
+                </p>
+              ) : undefined
+            }
             className="min-h-0 animate-fade-in-up delay-5"
           >
             {recentSales.length === 0 ? (
@@ -451,7 +487,7 @@ export default async function HomePage() {
                   <li
                     key={sale.id}
                     className="animate-fade-in-up border-b border-[var(--border-soft)] last:border-b-0"
-                    style={{ animationDelay: `${240 + index * 40}ms` }}
+                    style={{ animationDelay: staggerDelay(index, { offset: 240 }) }}
                   >
                     <Link
                       href="/sales"
