@@ -30,6 +30,7 @@ export type ApiInventoryRow = {
   has_stock_history?: boolean;
   status?: string;
   size?: string;
+  attributes_json?: Record<string, unknown> | null;
   description?: string;
   created_at?: string;
   updated_at?: string;
@@ -57,6 +58,12 @@ export type ProductRow = {
   tax_rate: number | null;
   hsn_code: string;
   unit: string;
+  /** Free-text size or pack ("1L", "S, M, L", a wholesale size ratio). */
+  size: string;
+  /** Attributes only some trades have - colour, fabric, season, minimum order
+   *  and bulk price slabs. Kept as the server's own shape so nothing is lost
+   *  in translation between the form, the API and the till. */
+  attributes: Record<string, unknown>;
   price_includes_tax: boolean;
   /** Empty string when there is no photo — the tiles fall back to an initial. */
   /** Whether there is a picture to fetch from /api/inventory/{id}/image.
@@ -114,6 +121,11 @@ export function mapInventoryRow(row: ApiInventoryRow): ProductRow {
     tax_rate: toNumberOrNull(row.gst_rate),
     hsn_code: row.hsn_code ?? "",
     unit: row.unit ?? "",
+    size: row.size ?? "",
+    attributes:
+      row.attributes_json && typeof row.attributes_json === "object"
+        ? (row.attributes_json as Record<string, unknown>)
+        : {},
     price_includes_tax: row.price_includes_tax ?? true,
     has_image: row.has_image === true,
     status: row.status ?? "active",

@@ -42,6 +42,22 @@ class InventoryItem(SourceTrackedModel):
     reorder_level = models.PositiveIntegerField(blank=True, null=True)
     tombstone = models.BooleanField(default=False)
     source_meta_json = models.JSONField(default=dict, blank=True)
+    #: Attributes only some kinds of shop have.
+    #:
+    #: A garment retailer stocks a style in sizes and colours; a wholesaler
+    #: sells that style by the dozen with a minimum order and a price that
+    #: drops in bulk; a grocer has none of these. Giving each its own column
+    #: would mean a migration per business type and a table of mostly-empty
+    #: columns - and the list is not finished, because pharmacy wants batch and
+    #: expiry and restaurant wants a recipe.
+    #:
+    #: So they live here, under an ALLOWLIST enforced by the serializer. A JSON
+    #: column on a public write endpoint with no allowlist is a place for
+    #: arbitrary client data to accumulate until nobody knows what a row holds.
+    #:
+    #: Known keys: profile, colour, fabric, season, moq, price_tiers.
+    #: The selling unit is NOT here - `unit` above already holds it.
+    attributes_json = models.JSONField(default=dict, blank=True)
     # Product photo as a base64 data URI. Stored in the DB (not MEDIA_ROOT)
     # because the single-node Docker deploy only persists the database volume —
     # files written into the container are lost on every redeploy. Clients send
@@ -123,10 +139,42 @@ class InventoryStockLedger(SourceTrackedModel):
     )
     event_type = models.CharField(max_length=32, choices=EventType.choices)
     quantity_delta = models.DecimalField(max_digits=12, decimal_places=3)
+    #: What ONE of quantity_delta was, at the moment this row was written.
+    #:
+    #: The number alone does not say. "3" is three pieces or three dozen
+    #: depending on the item's unit - and the item's unit is a field a
+    #: shopkeeper can change. Change it from piece to dozen after a year of
+    #: trading and every historical row silently re-reads as twelve times what
+    #: it was, with nothing anywhere recording that it ever meant something
+    #: else.
+    #:
+    #: Snapshotted for the same reason SaleItem keeps name_snapshot and
+    #: hsn_snapshot: history has to stay readable without depending on a row
+    #: somebody may edit tomorrow.
+    #:
+    #: Blank on every row written before this existed, which is correct - we
+    #: genuinely do not know, and guessing "piece" would invent a fact.
+    unit_snapshot = models.CharField(max_length=32, blank=True)
     unit_cost = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
     unit_price = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
     note = models.TextField(blank=True)
     occurred_at = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        """Fill the unit from the item, unless the caller already said.
+
+        Here rather than at each of the eight places that write a stock
+        movement - sale, return, purchase, adjustment, opening balance, both
+        halves of a transfer, stocktake. One of them forgetting would leave a
+        gap nothing reports, and the gap only becomes visible years later when
+        somebody asks what a quantity meant.
+
+        Not a guard against bulk_create, which bypasses save() entirely. Rows
+        written that way must set it themselves.
+        """
+        if not self.unit_snapshot and self.item_id:
+            self.unit_snapshot = (getattr(self.item, "unit", "") or "").strip()
+        return super().save(*args, **kwargs)
 
     # Auto-scopes reads to the current shop when a Celery TenantTask is running;
     # a no-op in HTTP/admin/tests. Defense against a background job forgetting

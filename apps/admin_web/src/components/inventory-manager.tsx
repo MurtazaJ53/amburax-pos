@@ -1,5 +1,23 @@
 "use client";
 
+import {
+  BLANK_TIER,
+  DEFAULT_PROFILE_ID,
+  PRODUCT_PROFILES,
+  SELLING_UNITS,
+  cleanTiers,
+  labelFor,
+  missingRequired,
+  profileById,
+  profileForBusinessType,
+  ruleFor,
+  shows,
+  tierProblem,
+  type PriceTier,
+  type ProductFieldKey,
+  type ProductProfile,
+} from "@/lib/product-profiles";
+import { staggerDelay } from "@/lib/stagger";
 import React, { useEffect, useState, useMemo } from "react";
 import {
   Package,
@@ -87,6 +105,36 @@ interface InventoryManagerProps {
  *  Three groups, each answering a different question: what the thing is, what
  *  it costs, and how many there are.
  */
+/** A labelled field, with its label, asterisk and hint decided by the profile.
+ *
+ *  Written once so a field cannot end up required in the rules and unmarked on
+ *  screen - the two drifting apart is how a form comes to reject a save it
+ *  never explained. */
+function ProfileField({
+  profile,
+  field,
+  children,
+}: {
+  profile: ProductProfile;
+  field: ProductFieldKey;
+  children: React.ReactNode;
+}) {
+  const rule = ruleFor(profile, field);
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]">
+        {labelFor(profile, field)}
+      </label>
+      {children}
+      {rule.hint && (
+        <p className="mt-1 text-[11px] font-medium leading-relaxed text-[var(--text-tertiary)]">
+          {rule.hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function FormSection({ title, hint }: { title: string; hint: string }) {
   return (
     <div className="border-t border-[var(--border-soft)] pt-4 first:border-0 first:pt-0">
@@ -180,6 +228,32 @@ export function InventoryManager({
   //: switch, which is worse than uniformly missing: two items on the same
   //: shelf could mean different things depending on where they were entered.
   const [formPriceIncludesTax, setFormPriceIncludesTax] = useState(true);
+
+  /** Which form this product is being filled in on.
+   *
+   *  Not a property of the product so much as of the trade: a garment shop
+   *  needs colours and a wholesaler needs a minimum order, and asking a grocer
+   *  for either is noise they have to read past every time they add stock.
+   *
+   *  Stored with the product so reopening it shows the same form it was
+   *  created on. Switching it changes what is ASKED, never what is stored -
+   *  a fabric already filled in stays filled in. */
+  /** What this shop told us it sells, used only to pick the opening form. */
+  const [shopBusinessType, setShopBusinessType] = useState("");
+  const [formProfileId, setFormProfileId] = useState<string>(DEFAULT_PROFILE_ID);
+  const [formSize, setFormSize] = useState("");
+  const [formColour, setFormColour] = useState("");
+  const [formFabric, setFormFabric] = useState("");
+  const [formSeason, setFormSeason] = useState("");
+  const [formSellingUnit, setFormSellingUnit] = useState("piece");
+  const [formPiecesPerUnit, setFormPiecesPerUnit] = useState("");
+  const [formMoq, setFormMoq] = useState("");
+  const [formPriceTiers, setFormPriceTiers] = useState<PriceTier[]>([]);
+
+  const profile = useMemo(() => profileById(formProfileId), [formProfileId]);
+  const asks = (key: ProductFieldKey) => shows(profile, key);
+  const rule = (key: ProductFieldKey) => ruleFor(profile, key);
+  const tiersWarning = useMemo(() => tierProblem(formPriceTiers), [formPriceTiers]);
   //: The shop default, from its business type. Wholesale and service quote
   //: pre-tax because the buyer reclaims the GST as input credit; retail prices
   //: are MRP, which is inclusive by law.
@@ -194,6 +268,7 @@ export function InventoryManager({
         const data = await res.json();
         if (cancelled) return;
         const businessType = String(data?.business_type ?? "retail");
+        setShopBusinessType(businessType);
         setDefaultIncludesTax(!TAX_EXCLUSIVE_BUSINESS_TYPES.includes(businessType));
       } catch {
         // Falls back to inclusive, which is right for the retail majority.
@@ -438,6 +513,17 @@ export function InventoryManager({
     setFormReorderLevel("10");
     setFormHsnCode("");
     setFormImage("");
+    setFormSize("");
+    setFormColour("");
+    setFormFabric("");
+    setFormSeason("");
+    setFormSellingUnit("piece");
+    setFormPiecesPerUnit("");
+    setFormMoq("");
+    setFormPriceTiers([]);
+    // Opens on whatever this shop sells, so a wholesaler is not picking the
+    // same option every single time they add a design.
+    setFormProfileId(profileForBusinessType(shopBusinessType).id);
     setImageDirty(false);
     setExistingImageId(null);
     setImageError("");
@@ -459,6 +545,23 @@ export function InventoryManager({
     setFormStock(item.current_stock.toString());
     setFormReorderLevel((item.reorder_level ?? DEFAULT_REORDER_LEVEL).toString());
     setFormHsnCode(item.hsn_code || "");
+    // Reopen on the form this product was created on, not on the shop's
+    // default. A design saved under the wholesale form must come back with its
+    // slabs and its minimum order showing, or the shopkeeper is looking at a
+    // product whose own data the screen is not admitting to.
+    const saved = (item.attributes ?? {}) as Record<string, unknown>;
+    const text = (key: string) => String(saved[key] ?? "");
+    setFormProfileId(profileById(text("profile") || DEFAULT_PROFILE_ID).id);
+    setFormSize(item.size || "");
+    setFormColour(text("colour"));
+    setFormFabric(text("fabric"));
+    setFormSeason(text("season"));
+    setFormMoq(text("moq"));
+    setFormPiecesPerUnit(text("pieces_per_unit"));
+    setFormSellingUnit(item.unit || "piece");
+    setFormPriceTiers(
+      Array.isArray(saved.price_tiers) ? (saved.price_tiers as PriceTier[]) : [],
+    );
     // The list no longer carries the picture, so the preview points at the
     // image endpoint instead of holding its bytes.
     setFormImage("");
@@ -503,26 +606,75 @@ export function InventoryManager({
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    // Only what THIS profile asked for. A wholesaler blocked by a retail
+    // requirement they were never shown is a save that cannot be completed and
+    // cannot be explained.
+    const missing = missingRequired(profile, {
+      name: formName,
+      size: formSize,
+      colour: formColour,
+      hsn: formHsnCode,
+      costPrice: formCostPrice,
+      sellPrice: formSellingPrice,
+      sellingUnit: formSellingUnit,
+      moq: formMoq,
+      piecesPerUnit: formPiecesPerUnit,
+    });
+    if (missing.length > 0) {
+      say(
+        "Something is still missing",
+        `Fill in ${missing.map((key) => labelFor(profile, key).replace(" *", "")).join(", ")} before saving.`,
+        "warning",
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     const cost = parseFloat(formCostPrice) || 0;
     const selling = parseFloat(formSellingPrice) || 0;
     const stock = parseInt(formStock) || 0;
-    const _reorder = parseInt(formReorderLevel) || 10;
+    const reorder = parseInt(formReorderLevel) || 10;
     const tax = parseFloat(formTaxRate) || 0;
+
+    // Everything the profile asked for, in the shape the API stores.
+    //
+    // Deliberately NOT filtered by which fields are currently visible: a
+    // colour typed under the garment form and then hidden by switching to
+    // General is still true of the product, and dropping it would delete data
+    // the shopkeeper never asked to delete.
+    const attributes = {
+      profile: formProfileId,
+      colour: formColour.trim(),
+      fabric: formFabric.trim(),
+      season: formSeason.trim(),
+      moq: formMoq.trim(),
+      pieces_per_unit: formPiecesPerUnit.trim(),
+      price_tiers: cleanTiers(formPriceTiers),
+    };
 
     const payload = {
       name: formName,
       sku: formSku || `SKU-${Date.now().toString().slice(-4)}`,
       barcode: formBarcode,
       category: formCategory,
+      size: formSize.trim(),
+      unit: formSellingUnit,
       sell_price: selling.toFixed(2),
       opening_stock: stock,
+      reorder_level: reorder,
       private_cost_price: cost.toFixed(2),
       gst_rate: tax.toFixed(2),
       hsn_code: formHsnCode.trim(),
       price_includes_tax: formPriceIncludesTax,
+      attributes_json: attributes,
       ...(imageDirty ? { image_data: formImage } : {}),
     };
+
+    // The edit body is the create body minus the one field that only makes
+    // sense once. These were two hand-maintained lists, which is why size,
+    // unit and the reorder level reached neither of them.
+    const { opening_stock: _openingStock, ...editPayload } = payload;
 
     try {
       if (editingItem) {
@@ -530,18 +682,7 @@ export function InventoryManager({
         const res = await fetch(`/api/inventory/${editingItem.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: formName,
-            sku: formSku,
-            barcode: formBarcode,
-            category: formCategory,
-            sell_price: selling.toFixed(2),
-            private_cost_price: cost.toFixed(2),
-            gst_rate: tax.toFixed(2),
-            hsn_code: formHsnCode.trim(),
-            price_includes_tax: formPriceIncludesTax,
-            ...(imageDirty ? { image_data: formImage } : {}),
-          }),
+          body: JSON.stringify(editPayload),
         });
         if (!res.ok) {
           const errText = await res.text();
@@ -941,7 +1082,7 @@ export function InventoryManager({
                     <li
                       key={item.id}
                       className="animate-fade-in-up"
-                      style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}
+                      style={{ animationDelay: staggerDelay(index, { step: 25, cap: 12 }) }}
                     >
                       <button
                         type="button"
@@ -1332,6 +1473,37 @@ export function InventoryManager({
             </div>
 
             <form onSubmit={handleSaveProduct} className="p-6 space-y-4 overflow-y-auto">
+              {/* What kind of thing is being added.
+                  First, and above everything else, because it decides what the
+                  rest of the form even asks for. A shopkeeper who scrolls past
+                  it and fills in the wrong form has to start again. */}
+              <div className="rounded-[12px] border border-[var(--primary)]/25 bg-[var(--primary)]/8 p-3.5">
+                <label
+                  htmlFor="product-profile"
+                  className="mb-1.5 block font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-tertiary)]"
+                >
+                  Type of product
+                </label>
+                <select
+                  id="product-profile"
+                  value={formProfileId}
+                  onChange={(event) => setFormProfileId(event.target.value)}
+                  className="focus-ring w-full cursor-pointer rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-colors duration-200"
+                >
+                  {PRODUCT_PROFILES.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <p
+                  key={profile.id}
+                  className="animate-fade-in mt-1.5 text-[11px] font-semibold leading-relaxed text-[var(--text-secondary)]"
+                >
+                  {profile.summary}
+                </p>
+              </div>
+
               <FormSection title="What it is" hint="The name is the only part a customer sees on a receipt." />
 
               <div>
@@ -1497,6 +1669,64 @@ export function InventoryManager({
                 </div>
               </div>
 
+              {/* Fields only some trades have. Each one appears because the
+                  profile above asks for it, so a grocer never scrolls past a
+                  fabric box and a wholesaler is never left without a size
+                  ratio. Hidden is not cleared: what was typed stays stored. */}
+              {(asks("size") || asks("colour") || asks("fabric") || asks("season")) && (
+                <div key={`${profile.id}-trade`} className="animate-fade-in-up space-y-4">
+                  {asks("size") && (
+                    <ProfileField profile={profile} field="size">
+                      <input
+                        type="text"
+                        value={formSize}
+                        onChange={(event) => setFormSize(event.target.value)}
+                        placeholder={rule("size").placeholder}
+                        className="focus-ring w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-base)] px-3 py-2.5 text-sm text-[var(--text-primary)] transition-colors duration-200"
+                      />
+                    </ProfileField>
+                  )}
+
+                  {asks("colour") && (
+                    <ProfileField profile={profile} field="colour">
+                      <input
+                        type="text"
+                        value={formColour}
+                        onChange={(event) => setFormColour(event.target.value)}
+                        placeholder={rule("colour").placeholder}
+                        className="focus-ring w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-base)] px-3 py-2.5 text-sm text-[var(--text-primary)] transition-colors duration-200"
+                      />
+                    </ProfileField>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {asks("fabric") && (
+                      <ProfileField profile={profile} field="fabric">
+                        <input
+                          type="text"
+                          value={formFabric}
+                          onChange={(event) => setFormFabric(event.target.value)}
+                          placeholder={rule("fabric").placeholder}
+                          className="focus-ring w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-base)] px-3 py-2.5 text-sm text-[var(--text-primary)] transition-colors duration-200"
+                        />
+                      </ProfileField>
+                    )}
+
+                    {asks("season") && (
+                      <ProfileField profile={profile} field="season">
+                        <input
+                          type="text"
+                          value={formSeason}
+                          onChange={(event) => setFormSeason(event.target.value)}
+                          placeholder={rule("season").placeholder}
+                          className="focus-ring w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-base)] px-3 py-2.5 text-sm text-[var(--text-primary)] transition-colors duration-200"
+                        />
+                      </ProfileField>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <FormSection title="Price and tax" hint="Cost is never shown to a customer. Selling price is what they pay." />
 
               <div>
@@ -1595,6 +1825,160 @@ export function InventoryManager({
                       return `Customer pays ₹${(taxable + tax).toFixed(2)} = ₹${taxable.toFixed(2)} + ₹${tax.toFixed(2)} GST`;
                     })()}
                   </p>
+                </div>
+              )}
+
+              {/* How it is sold, and what a bulk order costs.
+                  The structural difference between retail and wholesale: a
+                  dealer orders in dozens rather than pieces, and the price per
+                  piece falls as the order grows. */}
+              {(asks("sellingUnit") || asks("piecesPerUnit") || asks("moq") || asks("priceTiers")) && (
+                <div key={profile.id + "-selling"} className="animate-fade-in-up space-y-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    {asks("sellingUnit") && (
+                      <ProfileField profile={profile} field="sellingUnit">
+                        <select
+                          value={formSellingUnit}
+                          onChange={(event) => setFormSellingUnit(event.target.value)}
+                          className="focus-ring w-full cursor-pointer rounded-[10px] border border-[var(--border)] bg-[var(--bg-base)] px-3 py-2.5 text-sm text-[var(--text-primary)] transition-colors duration-200"
+                        >
+                          {SELLING_UNITS.map((unit) => (
+                            <option key={unit.value} value={unit.value}>
+                              {unit.label}
+                            </option>
+                          ))}
+                        </select>
+                      </ProfileField>
+                    )}
+
+                    {asks("piecesPerUnit") && (
+                      <ProfileField profile={profile} field="piecesPerUnit">
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          inputMode="numeric"
+                          value={formPiecesPerUnit}
+                          onChange={(event) => setFormPiecesPerUnit(event.target.value)}
+                          placeholder={rule("piecesPerUnit").placeholder}
+                          className="tnum focus-ring w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-base)] px-3 py-2.5 text-sm text-[var(--text-primary)] transition-colors duration-200"
+                        />
+                      </ProfileField>
+                    )}
+
+                    {asks("moq") && (
+                      <ProfileField profile={profile} field="moq">
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          inputMode="numeric"
+                          value={formMoq}
+                          onChange={(event) => setFormMoq(event.target.value)}
+                          placeholder={rule("moq").placeholder}
+                          className="tnum focus-ring w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-base)] px-3 py-2.5 text-sm text-[var(--text-primary)] transition-colors duration-200"
+                        />
+                      </ProfileField>
+                    )}
+                  </div>
+
+                  {asks("priceTiers") && (
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]">
+                        {labelFor(profile, "priceTiers")}
+                      </label>
+
+                      <div className="space-y-2">
+                        {formPriceTiers.map((tier, index) => (
+                          <div key={index} className="animate-fade-in flex flex-wrap items-center gap-2">
+                            <span className="shrink-0 text-[11px] font-bold text-[var(--text-tertiary)]">
+                              From
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              inputMode="numeric"
+                              aria-label={"Slab " + (index + 1) + " minimum quantity"}
+                              value={tier.min_quantity}
+                              onChange={(event) =>
+                                setFormPriceTiers((previous) =>
+                                  previous.map((row, position) =>
+                                    position === index
+                                      ? { ...row, min_quantity: event.target.value }
+                                      : row,
+                                  ),
+                                )
+                              }
+                              className="tnum focus-ring w-20 rounded-[10px] border border-[var(--border)] bg-[var(--bg-base)] px-2.5 py-2 text-sm text-[var(--text-primary)] transition-colors duration-200"
+                            />
+                            <span className="shrink-0 text-[11px] font-bold text-[var(--text-tertiary)]">
+                              {formSellingUnit}, at
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              inputMode="decimal"
+                              aria-label={"Slab " + (index + 1) + " price per piece"}
+                              value={tier.price_per_piece}
+                              onChange={(event) =>
+                                setFormPriceTiers((previous) =>
+                                  previous.map((row, position) =>
+                                    position === index
+                                      ? { ...row, price_per_piece: event.target.value }
+                                      : row,
+                                  ),
+                                )
+                              }
+                              className="tnum focus-ring w-24 rounded-[10px] border border-[var(--border)] bg-[var(--bg-base)] px-2.5 py-2 text-sm text-[var(--text-primary)] transition-colors duration-200"
+                            />
+                            <span className="shrink-0 text-[11px] font-bold text-[var(--text-tertiary)]">
+                              each
+                            </span>
+                            <button
+                              type="button"
+                              aria-label={"Remove slab " + (index + 1)}
+                              onClick={() =>
+                                setFormPriceTiers((previous) =>
+                                  previous.filter((_, position) => position !== index),
+                                )
+                              }
+                              className="focus-ring ml-auto shrink-0 cursor-pointer rounded-lg p-1.5 text-[var(--text-tertiary)] transition-colors duration-200 hover:text-[var(--error)]"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormPriceTiers((previous) => [...previous, { ...BLANK_TIER }])
+                        }
+                        className="focus-ring mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-1.5 text-[11.5px] font-bold text-[var(--text-secondary)] transition-colors duration-200 hover:text-[var(--text-primary)]"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add a slab
+                      </button>
+
+                      {/* A slab that gets dearer in bulk is almost always a
+                          typo, and it only ever surfaces as an argument with a
+                          dealer. Said now, while it can still be fixed. */}
+                      {tiersWarning && (
+                        <p className="animate-fade-in mt-2 text-[11px] font-bold leading-relaxed text-[var(--warning-strong)]">
+                          {tiersWarning}
+                        </p>
+                      )}
+
+                      {rule("priceTiers").hint && !tiersWarning && (
+                        <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-[var(--text-tertiary)]">
+                          {rule("priceTiers").hint}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

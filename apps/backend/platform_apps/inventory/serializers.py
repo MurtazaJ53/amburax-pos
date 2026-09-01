@@ -15,6 +15,7 @@ from platform_apps.inventory.sku_views import (
     taken_codes,
 )
 from platform_apps.inventory.image_views import MAX_IMAGE_BYTES, parse_data_uri
+from platform_apps.inventory.attributes import clean_attributes
 from platform_apps.inventory.models import InventoryItem, InventoryItemPrivate, InventoryStockLedger
 
 
@@ -98,6 +99,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             "status",
             "tombstone",
             "source_meta_json",
+            "attributes_json",
             "image_data",
             "has_image",
             "stock_on_hand",
@@ -112,6 +114,16 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             "private_last_purchase_date",
         )
         read_only_fields = ("id", "stock_on_hand", "created_at")
+
+    def validate_attributes_json(self, value):
+        """Keep only the attributes we have agreed to store.
+
+        Coerced rather than rejected. This column is written by four clients on
+        their own release cycles, and a phone running last month's build must
+        still be able to save a product - it simply saves the keys this server
+        understands.
+        """
+        return clean_attributes(value)
 
     def get_has_image(self, obj) -> bool:
         """Whether there is a picture to fetch, without sending it.
