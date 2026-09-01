@@ -166,37 +166,6 @@ export function findDuplicates(
     .sort((a, b) => b.rows.length - a.rows.length);
 }
 
-/** Rows whose identity already exists in the shop.
- *
- *  Separate from findDuplicates because the two need different words: one is
- *  "your file repeats itself", the other is "this is already in your shop",
- *  and only the second risks a second copy of something real.
- */
-export function findExisting(
-  rows: Record<string, string>[],
-  kind: ImportKind,
-  existing: Iterable<string>,
-): DuplicateGroup[] {
-  const known = new Set(
-    [...existing].map((value) => (value ?? "").trim().toLowerCase()).filter(Boolean),
-  );
-  if (known.size === 0) return [];
-
-  const hits = new Map<string, number[]>();
-  rows.forEach((row, index) => {
-    const identity = identityOf(row, kind);
-    if (!identity || !known.has(identity)) return;
-    const list = hits.get(identity);
-    if (list) list.push(index + 1);
-    else hits.set(identity, [index + 1]);
-  });
-
-  return [...hits.entries()].map(([value, rowNumbers]) => ({
-    value,
-    rows: rowNumbers,
-  }));
-}
-
 /** A short, plain sentence for the confirmation step.
  *
  *  Counted in things a shopkeeper recognises rather than in rows and fields,

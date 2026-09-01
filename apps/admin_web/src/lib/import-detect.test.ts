@@ -11,7 +11,6 @@ import {
   contradicts,
   detectKind,
   findDuplicates,
-  findExisting,
   identityOf,
   summarise,
 } from "./import-detect";
@@ -144,26 +143,6 @@ describe("findDuplicates", () => {
 
   it("finds nothing in a clean file", () => {
     expect(findDuplicates([{ name: "A" }, { name: "B" }], "products")).toEqual([]);
-  });
-});
-
-describe("findExisting", () => {
-  it("flags a row that is already in the shop", () => {
-    const groups = findExisting([{ sku: "RICE-01" }], "products", ["rice-01"]);
-    expect(groups).toHaveLength(1);
-    expect(groups[0].rows).toEqual([1]);
-  });
-
-  it("ignores case when comparing", () => {
-    expect(findExisting([{ name: "Rice" }], "products", ["RICE"])).toHaveLength(1);
-  });
-
-  it("finds nothing when the shop is empty", () => {
-    expect(findExisting([{ name: "Rice" }], "products", [])).toEqual([]);
-  });
-
-  it("does not flag rows that are genuinely new", () => {
-    expect(findExisting([{ name: "Sugar" }], "products", ["rice"])).toEqual([]);
   });
 });
 

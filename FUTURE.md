@@ -27,10 +27,26 @@ account by **email** (this project has no usernames, and Django resolves by
 `USERNAME_FIELD`), and the password it sets is one the real sign-in endpoint
 accepts. Before those tests it was an assumption.
 
-Doing this properly needs SMTP first. A reset flow that emails a link, on a
-deployment where mail silently goes nowhere, would be one more control that
-looks like it works — which is the failure this whole codebase has been
-spending its time removing. So: mail server, then reset, in that order.
+Doing this properly needs working mail first. A reset flow that emails a link,
+on a deployment where mail silently goes nowhere, would be one more control
+that looks like it works — which is the failure this whole codebase has been
+spending its time removing. So: mail, then reset, in that order.
+
+**Updated 1 September 2026: mail is no longer the blocker it was.** There is
+no SMTP and there never will be — this project sends through Resend, and it is
+already wired: `platform_apps/common/emailer.py` posts to the Resend API, and
+production refuses to boot without `RESEND_API_KEY`. The key **is** set on the
+droplet. Creating an invite returns a real Resend error, not a skip:
+
+```
+422: Invalid `to` field. Please use our testing email address
+     instead of domains like `example.com`.
+```
+
+That is Resend's sandbox refusing to send from an unverified domain, which is
+the only thing left. Verify a domain, set `RESEND_FROM` to an address on it,
+restart the api container — then password reset is ordinary work with a
+working transport underneath it, rather than a control pretending to function.
 
 **Before the pilot**, tell the client plainly that password recovery goes
 through the operator, and make sure somebody other than them has the shop's

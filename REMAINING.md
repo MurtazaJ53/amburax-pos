@@ -1,10 +1,10 @@
 # Remaining work
 
 What is outstanding right now, most important first. Everything here was
-checked against the code on 27 August 2026, not written from memory.
+checked against the code on 1 September 2026, not written from memory.
 
 Current state: **all commits pushed** to `pos`
-(`github.com/MurtazaJ53/amburax-pos`). Backend 1,119 tests green, web 601
+(`github.com/MurtazaJ53/amburax-pos`). Backend 1,474 tests green, web 713
 green, types clean, production build clean.
 
 > Supersedes `docs/02_ROADMAP_AND_REMAINING.md`, which was last updated on
@@ -12,19 +12,25 @@ green, types clean, production build clean.
 
 ---
 
-## 1. None of it has been used in a browser
+## 1. ~~None of it has been used in a browser~~ — mostly closed
 
-**The biggest gap, and the only one nobody but you can close.**
+Three rounds of browser testing on 27 Aug – 1 Sep drove the live deployment
+with real data: three shops, 285 products, 200 customers, 500 sales, 100
+expenses. That covered registration, the import screen, POS (cash, khata,
+barcode, wholesale units), returns of both refund kinds, expenses, the day
+book, P&L, GSTR-1, the Load more buttons on Stock and Customers, the SKU
+generator, data-health tiles, staff invite and join, and a staff sale.
 
-Everything in this repository is verified by tests, types and a production
-build. No person has clicked:
+It found what tests do not: a till that could not sell a third of the
+catalogue, inventory tiles disagreeing with the dashboard by ₹13 lakh, a
+credit sale that left no debt, receipts printing an invented address, and
+five separate cases of correct code that nothing called.
 
-- the import screen's wrong-kind warning, duplicate list, rehearsal or undo
-- the data-health check tiles
-- the receipt branding settings (logo, brand colour)
-- the "Load more" buttons on Stock, Sales and Customers
+**Still not clicked by anyone:**
+
 - the transfers redesign
-- the SKU generator on the label screen
+- the import screen's wrong-kind warning and undo
+- the receipt branding settings (logo, brand colour)
 
 Every bug found in this session came from **reading** code, not from tests: a
 compose file that would have discarded product photos, a `@staticmethod`
