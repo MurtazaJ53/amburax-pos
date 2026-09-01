@@ -133,7 +133,7 @@ that already hold them are unaffected.
 | Item | Why |
 |---|---|
 | Delete `findExisting` in `lib/import-detect.ts` | Dead code I wrote. The rehearsal's `updated` count replaced it, produced by the real matching rules rather than a second guess at them. Only its own test references it. |
-| Verify rehearsal counts across chunks | A file over 500 rows rehearses in chunks and the counts are summed client-side. I fixed exactly this class of bug for batches in `0336e74` and have not proven the same is right here. |
+| ~~Verify rehearsal counts across chunks~~ — **done, correct** | Proven on 1 Sep with a 600-row file: 550 unique SKUs plus 50 duplicates placed deliberately *after* the 500-row boundary, so they land in the second chunk. Two `/import` calls, and the result was `550 added · 50 updated · 0 skipped` — the duplicates counted as updates, not as a second creation. The rehearsal also listed all 50 with row numbers spanning the boundary (`ct-0000 (rows 1, 551)`), so duplicate detection runs over the whole file rather than per chunk. The feared divergence cannot happen: each chunk is written before the next is processed, so a later chunk sees what an earlier one created. |
 | One unexplained test failure | Seen once in a full backend run, not reproducible in five runs since. I removed the one nondeterminism I had introduced — a fixture deriving a phone number from `hash()`, which Python randomises per process. Likely that. **Not proven.** |
 
 ---
