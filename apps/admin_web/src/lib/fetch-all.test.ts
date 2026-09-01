@@ -135,4 +135,113 @@ describe("fetching every page", () => {
     server([{ rows: [], next: null }]);
     expect(await fetchAllPages("/api/inventory")).toEqual([]);
   });
+
+  /** The ceiling, and the silence around it.
+   *
+   *  25 pages of 200 rows is 5,000 products, and a real shop reached it: a
+   *  catalogue of about five thousand sits exactly on the line. Past it the
+   *  function returned a short list that looked precisely like a complete
+   *  one - the same defect it was written to fix, one order of magnitude
+   *  further out. These pin the difference between "that is all of it" and
+   *  "that is all I was willing to fetch".
+   */
+  describe("when there is more than it will fetch", () => {
+    /** A server with no end: every page offers another. */
+    function endlessServer() {
+      let issued = 0;
+      const fetchMock = vi.fn(async () => {
+        issued += 1;
+        return {
+          ok: true,
+          json: async () => rows(issued * 200, 200),
+          headers: { get: () => `cursor-${issued}` },
+        } as unknown as Response;
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      return fetchMock;
+    }
+
+    it("says so instead of returning a short list quietly", async () => {
+      endlessServer();
+      const incomplete = vi.fn();
+
+      await fetchAllPages("/api/inventory", { onIncomplete: incomplete });
+
+      expect(incomplete).toHaveBeenCalledTimes(1);
+    });
+
+    it("says how many it did load, so the screen can be specific", async () => {
+      endlessServer();
+      const incomplete = vi.fn();
+
+      const loaded = await fetchAllPages("/api/inventory", { onIncomplete: incomplete });
+
+      expect(incomplete).toHaveBeenCalledWith(loaded.length);
+    });
+
+    it("still hands back everything it managed to read", async () => {
+      // Truncated is not the same as failed. The till has to open.
+      endlessServer();
+
+      const loaded = await fetchAllPages("/api/inventory", { onIncomplete: vi.fn() });
+
+      expect(loaded.length).toBe(5000);
+    });
+
+    it("does not cry wolf when the walk finished properly", async () => {
+      // The bug this nearly shipped with: the cursor variable is still set
+      // after the last successful request, so testing it directly would
+      // report every complete walk as truncated.
+      server([
+        { rows: rows(0, 200), next: "c1" },
+        { rows: rows(200, 85), next: null },
+      ]);
+      const incomplete = vi.fn();
+
+      await fetchAllPages("/api/inventory", { onIncomplete: incomplete });
+
+      expect(incomplete).not.toHaveBeenCalled();
+    });
+
+    it("does not cry wolf on a single-page list", async () => {
+      server([{ rows: rows(0, 12), next: null }]);
+      const incomplete = vi.fn();
+
+      await fetchAllPages("/api/inventory", { onIncomplete: incomplete });
+
+      expect(incomplete).not.toHaveBeenCalled();
+    });
+
+    it("does not report a caller's own ceiling as a truncation", async () => {
+      // `max` is the caller saying "this is enough", which is a different
+      // thing from the walk running out of room.
+      endlessServer();
+      const incomplete = vi.fn();
+
+      await fetchAllPages("/api/inventory", { max: 50, onIncomplete: incomplete });
+
+      expect(incomplete).not.toHaveBeenCalled();
+    });
+
+    it("does not report a stalled server as a truncation", async () => {
+      // A repeated cursor means the server stopped making progress. That is
+      // its own fault and its own message, not "there is more to read".
+      server([
+        { rows: rows(0, 200), next: "same" },
+        { rows: rows(200, 200), next: "same" },
+      ]);
+      const incomplete = vi.fn();
+
+      await fetchAllPages("/api/inventory", { onIncomplete: incomplete });
+
+      expect(incomplete).not.toHaveBeenCalled();
+    });
+
+    it("works for callers that pass no handler at all", async () => {
+      // Six callers predate this option and none of them should break.
+      endlessServer();
+
+      await expect(fetchAllPages("/api/inventory")).resolves.toHaveLength(5000);
+    });
+  });
 });

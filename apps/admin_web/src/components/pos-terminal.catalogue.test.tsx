@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 /** Does the till actually go and fetch the rest of the shop?
  *
@@ -128,11 +128,57 @@ describe("the till loading the catalogue", () => {
     // The shopkeeper's version of the same question, and the one they
     // actually asked: searching for a product with 228 on the shelf was
     // answered with "Nothing matches".
+    //
+    // Typed rather than looked for in the grid, because the grid is capped at
+    // a hundred tiles now and this product is the 285th. That cap is exactly
+    // why the search has to reach past what is drawn - the two changes have
+    // to hold together, and this test is where they meet.
     await renderTill();
+    await waitFor(() => expect(inventoryRequests.length).toBe(3));
+
+    const search = await screen.findByPlaceholderText(/Scan barcode or search/i);
+    fireEvent.change(search, { target: { value: "Tata Tea" } });
 
     await waitFor(
       () => expect(screen.getAllByText("Tata Tea dozen").length).toBeGreaterThan(0),
       { timeout: 3000 },
+    );
+  });
+
+  it("draws a screenful rather than the whole shop", async () => {
+    // The lag. Five thousand products became five thousand tiles, each with
+    // an image, before the cashier had typed anything.
+    //
+    // Asked as "is the 151st product in the document", because counting
+    // rendered nodes turned out to be a test that passed with the cap taken
+    // out - it measured nothing. This one names a product past the cap and
+    // asks whether it is there.
+    await renderTill();
+    await waitFor(() => expect(inventoryRequests.length).toBe(3));
+
+    expect(screen.queryByText("Product 150")).toBeNull();
+    // ...and one inside it is, so the cap is a cap and not a broken grid.
+    expect(screen.queryByText("Product 5")).not.toBeNull();
+  });
+
+  it("still finds a capped-out product when it is searched for", async () => {
+    // The cap must never become the paging bug in a new costume.
+    await renderTill();
+    await waitFor(() => expect(inventoryRequests.length).toBe(3));
+
+    const search = await screen.findByPlaceholderText(/Scan barcode or search/i);
+    fireEvent.change(search, { target: { value: "Product 150" } });
+
+    await waitFor(() => expect(screen.queryByText("Product 150")).not.toBeNull());
+  });
+
+  it("says how many matched, so a cap is never mistaken for an empty shop", async () => {
+    // The whole reason the paging defect survived a shop floor was that
+    // nothing on screen was wrong - there was simply less of it.
+    await renderTill();
+
+    await waitFor(() =>
+      expect(screen.getByText(/Showing 100 of 285/)).toBeTruthy(),
     );
   });
 
@@ -143,5 +189,43 @@ describe("the till loading the catalogue", () => {
     await renderTill();
 
     await waitFor(() => expect(customerRequests.length).toBeGreaterThan(0));
+  });
+
+  it("says so when the shop is bigger than it can load", async () => {
+    // The ceiling is 25 pages of 200 rows, and a real shop of about five
+    // thousand products is sitting on it. Past that the till holds most of
+    // the shop and looks exactly like it holds all of it - which is the
+    // original defect, one order of magnitude further out.
+    let issued = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.startsWith("/api/settings")) {
+          return new Response(JSON.stringify({ features: {} }), { status: 200 });
+        }
+        if (url.startsWith("/api/inventory")) {
+          issued += 1;
+          const headers = new Headers({ "X-Next-Cursor": `c-${issued}` });
+          return new Response(JSON.stringify([row(issued)]), { status: 200, headers });
+        }
+        return new Response("[]", { status: 200 });
+      }),
+    );
+
+    await renderTill();
+
+    await waitFor(
+      () => expect(screen.getByText(/too large to load in full/i)).toBeTruthy(),
+      { timeout: 5000 },
+    );
+  });
+
+  it("stays quiet when the whole shop did load", async () => {
+    // A warning that shows on every ordinary shop is a warning nobody reads.
+    await renderTill();
+    await waitFor(() => expect(inventoryRequests.length).toBe(3));
+
+    expect(screen.queryByText(/too large to load in full/i)).toBeNull();
   });
 });

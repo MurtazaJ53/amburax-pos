@@ -13,6 +13,7 @@ import {
   CreditCard,
   LayoutGrid,
   List,
+  AlertTriangle,
 } from "lucide-react";
 import { formatCurrency, formatQuantity } from "@/lib/utils";
 import { isOversell, oversellSummary, resultingStock } from "@/lib/oversell";
@@ -27,6 +28,7 @@ import type {
 import type { ProductItem } from "@/components/inventory-manager";
 import { useT } from "@/lib/i18n";
 import { fetchAllPages } from "@/lib/fetch-all";
+import { belowMinimum, lineTotalAt, pricingFor, sellsInPacks, slabApplied, unitPriceAt } from "@/lib/line-pricing";
 import { mapInventoryRow } from "@/lib/inventory-rows";
 import { findExistingCustomer } from "@/lib/customer-match";
 import type { NewCustomerDetails } from "@/lib/customer-match";
@@ -40,6 +42,17 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 
+
+/** How many product tiles the till draws at once.
+ *
+ *  A screenful and then some. The grid is for browsing and for the handful of
+ *  things a shop sells constantly; everything else is reached by typing, and
+ *  a cashier who scrolls past a hundred tiles looking for one product was
+ *  always going to be faster searching for it.
+ *
+ *  This is a rendering limit, never a search limit: the search runs over
+ *  every product loaded, and only the drawing is capped. */
+const VISIBLE_PRODUCTS = 100;
 
 /** An inventory row as the API returns it; only the fields read here. */
 type ApiInventoryRow = {
@@ -101,6 +114,13 @@ export function PosTerminal({
 
   const [products, setProducts] = useState<ProductItem[]>(mappedInitialProducts);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers ?? []);
+  /** True when the shop is larger than the till is willing to fetch.
+   *
+   *  Not a loading state and not an error - the till works, it simply does
+   *  not hold the whole shop. It has to be visible, because that is
+   *  indistinguishable from holding the whole shop until a product goes
+   *  missing at the counter. */
+  const [catalogueTruncated, setCatalogueTruncated] = useState(false);
   
   const [searchQuery, setSearchQuery] = useState("");
   /** Photo tiles or a compact list. A shop with four hundred items scrolls a
@@ -309,12 +329,27 @@ export function PosTerminal({
    *  anything failing: the post-sale copy kept working, so the till healed
    *  after the first bill of the day and the defect only showed before it. */
   const loadCatalogue = useCallback(async () => {
+    let truncated = false;
     const [invData, customerData] = await Promise.all([
-      fetchAllPages<ApiInventoryRow>("/api/inventory"),
-      fetchAllPages<Customer>("/api/customers"),
+      // Walking the whole catalogue has a ceiling of its own - 5,000 rows -
+      // and a real shop is sitting on it. Being told is the entire point: a
+      // till holding 5,000 of 5,200 products behaves exactly like one holding
+      // all of them, right up until somebody is told the shop does not stock
+      // something that is on its own shelf.
+      fetchAllPages<ApiInventoryRow>("/api/inventory", {
+        onIncomplete: () => {
+          truncated = true;
+        },
+      }),
+      fetchAllPages<Customer>("/api/customers", {
+        onIncomplete: () => {
+          truncated = true;
+        },
+      }),
     ]);
     setProducts(invData.map(mapInventoryRow));
     setCustomers(customerData);
+    setCatalogueTruncated(truncated);
   }, []);
 
   /** Say so when the catalogue could not be loaded.
@@ -412,6 +447,24 @@ export function PosTerminal({
     return result;
   }, [products, selectedCategory, searchQuery]);
 
+  /** What actually gets drawn.
+   *
+   *  Every match used to become a tile. On a shop of five thousand products
+   *  that is five thousand tiles carrying five thousand images, in the
+   *  document before the cashier has typed anything: slow to paint, slow to
+   *  scroll, and rebuilt on every keystroke as the search narrows.
+   *
+   *  Nobody reads past the first screen of a grid anyway - they type. So draw
+   *  the first page of matches and say how many there are. The count below is
+   *  of MATCHES, not of tiles, so a cap can never be misread as a shop that
+   *  has run out of things to sell. */
+  const visibleProducts = useMemo(
+    () => filteredProducts.slice(0, VISIBLE_PRODUCTS),
+    [filteredProducts],
+  );
+
+  const hiddenCount = filteredProducts.length - visibleProducts.length;
+
   // Cart operations
   /**
    * A code read from the camera.
@@ -435,36 +488,64 @@ export function PosTerminal({
     setSearchQuery(code.trim());
   };
 
+  /** Reprice a line for a new quantity.
+   *
+   *  Wholesale is why this exists. The unit price is not a property of the
+   *  product, it is a property of the ORDER: a dozen costs twelve pieces, and
+   *  the piece price drops once the order is big enough. Fixing the price when
+   *  the line was added meant three dozen billed as three pieces - a bill
+   *  twelve times too small, with every number on screen multiplying
+   *  correctly.
+   *
+   *  A product with no pricing rules - which is every product in every shop
+   *  that has not touched the wholesale form - comes back with exactly the
+   *  numbers it had before. */
+  const repriced = (item: CartItem, quantity: number): CartItem => {
+    if (!item.pricing) {
+      return {
+        ...item,
+        quantity,
+        total_price: quantity * item.unit_price - item.discount_amount,
+      };
+    }
+    return {
+      ...item,
+      quantity,
+      unit_price: unitPriceAt(item.pricing, quantity),
+      total_price: lineTotalAt(item.pricing, quantity) - item.discount_amount,
+    };
+  };
+
   const addToCart = (product: ProductItem) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.product_id === product.id);
       if (existing) {
         return prev.map((item) =>
-          item.product_id === product.id
-            ? {
-                ...item,
-                quantity: item.quantity + 1,
-                total_price: (item.quantity + 1) * item.unit_price - item.discount_amount,
-              }
-            : item
+          item.product_id === product.id ? repriced(item, item.quantity + 1) : item,
         );
       }
+      const pricing = pricingFor(
+        product.attributes,
+        product.selling_price,
+        product.unit || "piece",
+      );
       const newItem: CartItem = {
         id: `cart-${Date.now()}-${Math.random()}`,
         product_id: product.id,
         name: product.name,
         sku: product.sku,
         barcode: product.barcode || "",
-        unit_price: product.selling_price,
+        unit_price: unitPriceAt(pricing, 1),
         cost_price: product.cost_price ?? 0,
         tax_rate: product.tax_rate ?? 0,
         quantity: 1,
         discount_amount: 0,
-        total_price: product.selling_price,
+        total_price: lineTotalAt(pricing, 1),
         available_stock: product.current_stock,
         is_tracked: product.is_tracked,
         unit: product.unit || "",
         price_includes_tax: product.price_includes_tax ?? true,
+        pricing,
       };
       return [...prev, newItem];
     });
@@ -480,15 +561,7 @@ export function PosTerminal({
     // rather than off by a fraction of a paisa that nobody can explain.
     newQty = Math.round(newQty * 1000) / 1000;
     setCart((prev) =>
-      prev.map((item) =>
-        item.id === cartItemId
-          ? {
-              ...item,
-              quantity: newQty,
-              total_price: newQty * item.unit_price - item.discount_amount,
-            }
-          : item
-      )
+      prev.map((item) => (item.id === cartItemId ? repriced(item, newQty) : item)),
     );
   };
 
@@ -729,6 +802,41 @@ ${errorMessage(
           ))}
         </div>
 
+        {/* The shop is bigger than the till could load.
+            Loud, because everything else on this screen looks completely
+            normal in this state - which is exactly how a till came to be
+            unable to sell eighty-five products without anybody noticing. */}
+        {catalogueTruncated && (
+          <p
+            role="status"
+            className="flex items-start gap-2 border-b border-[var(--warning)]/30 bg-[var(--warning)]/10 px-3.5 py-2 text-[11.5px] font-bold leading-relaxed text-[var(--warning-strong)]"
+          >
+            <AlertTriangle className="mt-px h-3.5 w-3.5 flex-none" aria-hidden="true" />
+            <span>
+              This shop is too large to load in full — some products may not be
+              found by searching. Scan the barcode, or look the item up in Stock.
+            </span>
+          </p>
+        )}
+
+        {/* How many matched, and how many are drawn.
+            Said out loud because the difference between the two is exactly
+            the kind of quiet truncation that made the till unable to sell
+            eighty-five products while looking perfectly normal. A cashier who
+            can see "100 of 4,873" knows to keep typing; one who sees a grid
+            that simply stops has been told nothing. */}
+        {hiddenCount > 0 && (
+          <p className="flex items-center gap-1.5 border-b border-[var(--border-soft)] bg-[var(--bg-soft)] px-3.5 py-1.5 text-[11px] font-bold text-[var(--text-tertiary)]">
+            <span className="tnum">
+              Showing {visibleProducts.length} of {filteredProducts.length.toLocaleString()}
+            </span>
+            <span aria-hidden="true">·</span>
+            <span className="font-semibold">
+              {searchQuery ? "keep typing to narrow it" : "search or scan to find the rest"}
+            </span>
+          </p>
+        )}
+
         {/* Product grid. A photo is read faster than a name at counter
             distance, so the tile leads with the picture and the text below
             only confirms it. Items with no photo fall back to their initial
@@ -743,7 +851,7 @@ ${errorMessage(
                   : "No products yet. Add them in Stock."}
               </p>
             ) : (
-              filteredProducts.map((prod) => (
+              visibleProducts.map((prod) => (
                 <button
                   key={prod.id}
                   onClick={() => addToCart(prod)}
@@ -799,7 +907,7 @@ ${errorMessage(
                   : "No products yet. Add them in Stock."}
               </p>
             ) : (
-              filteredProducts.map((prod) => (
+              visibleProducts.map((prod) => (
                 <button
                   key={prod.id}
                   onClick={() => addToCart(prod)}
@@ -1035,11 +1143,35 @@ ${errorMessage(
               <div key={item.id} className="pt-3 first:pt-0 flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <h5 className="text-xs font-extrabold text-[var(--text-primary)] truncate">{item.name}</h5>
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
-                    <span>{formatCurrency(item.unit_price)}</span>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
+                    {/* Per WHAT. On a line sold by the dozen a bare price is
+                        the one number a dealer cannot check: the same figure
+                        means a piece or twelve of them. */}
+                    <span>
+                      {formatCurrency(item.unit_price)}
+                      {item.pricing && sellsInPacks(item.pricing) ? ` / ${item.pricing.unit}` : ""}
+                    </span>
                     <span>•</span>
                     <span>GST {item.tax_rate}%</span>
+                    {/* Why the price moved. A price that changes when one more
+                        dozen is added, with nothing said, reads as the till
+                        making things up. */}
+                    {item.pricing && slabApplied(item.pricing, item.quantity).applied && (
+                      <span className="animate-fade-in rounded-md bg-[var(--success)]/12 px-1.5 py-0.5 text-[9.5px] font-extrabold text-[var(--success-strong)]">
+                        Bulk {formatCurrency(slabApplied(item.pricing, item.quantity).piecePrice)}/pc
+                      </span>
+                    )}
                   </div>
+                  {/* Below the shop's own minimum order.
+                      Said, never enforced. A wholesaler letting one dealer take
+                      half a carton is making a commercial decision, and a till
+                      that refuses it is a till they work around - the same
+                      reason this product allows an oversell. */}
+                  {item.pricing && belowMinimum(item.pricing, item.quantity) > 0 && (
+                    <p className="animate-fade-in mt-1 text-[10px] font-bold leading-relaxed text-[var(--warning-strong)]">
+                      Minimum order is {item.pricing.minimumOrder} {item.pricing.unit}.
+                    </p>
+                  )}
 
                   {/* Named at the moment it happens. An oversell that only
                       shows up in a report next week never gets corrected. */}

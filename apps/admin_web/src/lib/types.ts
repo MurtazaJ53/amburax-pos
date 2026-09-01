@@ -1,3 +1,5 @@
+import type { LinePricing } from "@/lib/line-pricing";
+
 export type BusinessHubPlanTier = "starter" | "growth" | "pro";
 
 export type SessionUser = {
@@ -426,12 +428,24 @@ export type Customer = {
   home_address?: string;
   total_spent?: string;
   balance?: string;
+  /** The most this customer may owe. Absent means the shop never set one,
+   *  which is not the same as a limit of zero - most retail khata runs on
+   *  trust with no number attached, and inventing one would warn about a
+   *  figure the shop never agreed to. */
+  credit_limit?: string | null;
+  /** Days to pay. Wholesale runs on 30, 60 or 90; retail khata usually has no
+   *  agreed date at all. */
+  credit_terms_days?: number | null;
+  /** Already owing more than the limit, decided by the server so the till, the
+   *  khata list and any report cannot disagree about who is over. */
+  credit_over_limit?: boolean;
+  /** What is left to spend on credit. Null when no limit is set. */
+  credit_headroom?: string | null;
   notes?: string;
   status?: string;
   tombstone?: boolean;
   source_meta_json?: Record<string, unknown>;
   address?: string;
-  credit_limit?: number;
   balance_amount?: number;
   total_spend?: number;
   last_order_at?: string;
@@ -1597,6 +1611,14 @@ export type CartItem = {
    *  "1.25", which on a weighed line is the difference between a price a
    *  customer can check and a number they cannot. */
   unit?: string;
+  /** How this line is priced when the shop does not sell in ones.
+   *
+   *  Wholesale quantities are in dozens or cartons while the price is quoted
+   *  per piece, and that price falls in bulk - so the line has to be repriced
+   *  every time the quantity changes rather than fixed when it was added.
+   *  Absent on every ordinary product, which then prices exactly as it always
+   *  did. See lib/line-pricing.ts. */
+  pricing?: LinePricing;
   /** Whether unit_price already contains GST. Defaults to true — the Indian
    *  MRP convention, and InventoryItem.price_includes_tax's default. Getting
    *  this wrong overcharges the customer by the tax rate. */

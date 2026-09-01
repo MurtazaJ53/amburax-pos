@@ -30,15 +30,32 @@ export type FetchAllOptions = {
   /** Ceiling on rows returned, across all pages. */
   max?: number;
   signal?: AbortSignal;
+  /** Called when the walk stopped with pages still unread.
+   *
+   *  The ceiling is real - 25 pages of 200 rows is 5,000 - and a shop can
+   *  reach it. Without this the function returns a short list that looks
+   *  exactly like a complete one: the very defect it was written to fix,
+   *  reappearing one order of magnitude further out. A caller that passes
+   *  this can say so on screen; one that does not is no worse off than it
+   *  was. */
+  onIncomplete?: (loaded: number) => void;
 };
 
 export async function fetchAllPages<T = unknown>(
   path: string,
   options: FetchAllOptions = {},
 ): Promise<T[]> {
-  const { limit, params, max, signal } = options;
+  const { limit, params, max, signal, onIncomplete } = options;
   const rows: T[] = [];
   let cursor: string | null = null;
+  /** A cursor handed to us that we have NOT spent yet.
+   *
+   *  Cleared at the top of every request and set only when the server offers
+   *  a further page, so after the loop it is non-null in exactly one case:
+   *  the page budget ran out while there was still more to read. Asking
+   *  "is `cursor` set" instead would be wrong - the last successful request
+   *  leaves it set on a perfectly complete walk. */
+  let unspentCursor: string | null = null;
 
   for (let page = 0; page < MAX_PAGES; page++) {
     const query = new URLSearchParams(params ?? {});
@@ -57,6 +74,10 @@ export async function fetchAllPages<T = unknown>(
     }
     rows.push(...(body as T[]));
 
+    // This page is spent. Anything below that stops the walk leaves it clear,
+    // which is what makes the check after the loop mean what it says.
+    unspentCursor = null;
+
     const next = response.headers.get("X-Next-Cursor");
     if (!next) break;
     if (max !== undefined && rows.length >= max) break;
@@ -64,6 +85,15 @@ export async function fetchAllPages<T = unknown>(
     // what we have beats looping forever in somebody's browser.
     if (next === cursor) break;
     cursor = next;
+    unspentCursor = next;
+  }
+
+  // Reached only by running out of pages with more to read. A walk that ended
+  // because the server said there was no next page is complete; one cut short
+  // by `max` was cut short on purpose by the caller; one that stopped on a
+  // repeated cursor stopped because the server was not making progress.
+  if (unspentCursor) {
+    onIncomplete?.(rows.length);
   }
 
   return max === undefined ? rows : rows.slice(0, max);
