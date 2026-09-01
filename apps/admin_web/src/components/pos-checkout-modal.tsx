@@ -10,6 +10,7 @@ import {
   CheckCircle,
   Copy,
   ArrowRight,
+  AlertTriangle,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { SplitPaymentTender, Customer } from "@/lib/types";
@@ -136,6 +137,39 @@ export function PosCheckoutModal({
   /** Credit needs somebody to collect from. Cash, card and UPI do not, so a
    *  walk-in is never interrogated for a name to hand over a hundred rupees. */
   const needsCustomer = customerRequired(numKhata);
+
+  /** Where this customer stands against their credit limit if this bill goes
+   *  on khata.
+   *
+   *  Warned about, never blocked. The counter is the worst place in the world
+   *  to refuse a dealer: the goods are counted out, they are standing there,
+   *  and the person who could authorise the exception is the owner, who is not
+   *  at the till. A till that refuses gets worked around, and a till that gets
+   *  worked around records nothing at all.
+   *
+   *  So the number goes in front of the cashier, loudly, and the sale still
+   *  completes. The same reasoning that lets this product oversell stock. */
+  const creditWarning = (() => {
+    if (numKhata <= 0 || !selectedCustomer) return null;
+    const rawLimit = selectedCustomer.credit_limit;
+    if (rawLimit === null || rawLimit === undefined || String(rawLimit).trim() === "") {
+      return null;
+    }
+    const limit = Number(rawLimit);
+    if (!Number.isFinite(limit)) return null;
+
+    const owed =
+      Number(selectedCustomer.balance ?? selectedCustomer.balance_amount ?? 0) || 0;
+    const projected = owed + numKhata;
+    if (projected <= limit) return null;
+
+    return {
+      alreadyOver: owed > limit,
+      over: projected - limit,
+      limit,
+      projected,
+    };
+  })();
   const matchedCustomer = useMemo(
     () => findExistingCustomer(customers, typedName, typedPhone),
     [customers, typedName, typedPhone],
@@ -738,6 +772,21 @@ export function PosCheckoutModal({
                       Already owed: {formatCurrency(selectedCustomer.balance_amount ?? 0)}. This
                       bill adds to that.
                     </p>
+                  )}
+                  {/* Past what the shop agreed to lend them.
+                      A warning, not a refusal - see creditWarning above. The
+                      figures are named so a cashier can read them out to the
+                      dealer rather than relaying "the computer says no". */}
+                  {creditWarning && (
+                    <div className="animate-fade-in flex items-start gap-2.5 rounded-[14px] border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-4 py-3">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--warning-strong)]" />
+                      <p className="m-0 text-[12.5px] font-semibold leading-relaxed text-[var(--warning-strong)]">
+                        {creditWarning.alreadyOver
+                          ? `Already over their ${formatCurrency(creditWarning.limit)} credit limit. This bill takes them to ${formatCurrency(creditWarning.projected)}.`
+                          : `This bill puts them ${formatCurrency(creditWarning.over)} over their ${formatCurrency(creditWarning.limit)} credit limit.`}{" "}
+                        You can still take it.
+                      </p>
+                    </div>
                   )}
                 </>
               )}

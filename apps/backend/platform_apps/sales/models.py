@@ -60,6 +60,21 @@ class Sale(SourceTrackedModel):
     customer_phone_snapshot = models.CharField(max_length=32, blank=True)
     footer_note = models.TextField(blank=True)
     buyer_gstin = models.CharField(max_length=15, blank=True, null=True, help_text="GSTIN of the buyer for B2B sales")
+    #: Who is carrying the goods, and under what paperwork.
+    #:
+    #: Retail never needs any of this - the customer walks out with the bag.
+    #: Wholesale dispatches by transport, and when a dealer rings up asking
+    #: where their lot is, the LR number is the only thing that answers.
+    #:
+    #: All four are recorded rather than validated. This system does not talk
+    #: to the government e-way bill portal and must not pretend it does: the
+    #: number is generated there, and what is stored here is the shopkeeper's
+    #: note of it so the bill and the paperwork can be matched later. A field
+    #: that looked like it filed the return would be far worse than no field.
+    transporter_name = models.CharField(max_length=120, blank=True)
+    lr_number = models.CharField(max_length=64, blank=True)
+    vehicle_number = models.CharField(max_length=32, blank=True)
+    eway_bill_number = models.CharField(max_length=32, blank=True)
     note = models.TextField(blank=True)
     sale_date = models.DateField()
     occurred_at = models.DateTimeField()
@@ -227,6 +242,21 @@ class SaleReturn(SourceTrackedModel):
     refund_amount = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal("0.00")
     )
+    #: Do the goods go back on the shelf?
+    #:
+    #: Almost always yes, which is why this defaults to True and every return
+    #: written before it existed reads as True - that is exactly what they did.
+    #:
+    #: False is the wholesale damage claim. A dealer receiving a torn or soiled
+    #: lot is credited for it, but the goods are scrap: they are not coming
+    #: back to be sold to somebody else. Restocking them anyway inflates stock
+    #: with items that cannot be sold, and the shop finds out at the next
+    #: stocktake months later, with no way to tell which count was wrong.
+    #:
+    #: Retail exchanges are the opposite case and keep the default: a shirt
+    #: swapped for a larger size is perfectly sellable and belongs back on the
+    #: rail immediately.
+    restock_goods = models.BooleanField(default=True)
     note = models.TextField(blank=True)
     occurred_at = models.DateTimeField()
 

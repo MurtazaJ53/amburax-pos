@@ -92,6 +92,14 @@ export function SaleReturnSheet({
   const [entered, setEntered] = useState<Record<string, string>>({});
   const [mode, setMode] = useState<string>("CASH");
   const [note, setNote] = useState("");
+  /** Do the goods go back on the shelf?
+   *
+   *  Yes almost always, so it starts checked. The exception is the wholesale
+   *  damage claim: a dealer sent a torn or soiled lot is credited for it, but
+   *  the goods are scrap and are not going to be sold to somebody else.
+   *  Restocking them anyway inflates stock with unsellable items, and the shop
+   *  only finds out at the next stocktake months later. */
+  const [restock, setRestock] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -158,7 +166,7 @@ export function SaleReturnSheet({
       const res = await fetch(`/api/sales/${saleId}/return`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lines, refund_mode: mode, note: note.trim() }),
+        body: JSON.stringify({ lines, refund_mode: mode, note: note.trim(), restock_goods: restock }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || "Could not process this return.");
@@ -326,6 +334,29 @@ export function SaleReturnSheet({
                   );
                 })}
               </div>
+
+              {/* Whether the goods are sellable again.
+                  Separate from the refund method on purpose: the money and the
+                  goods are two different decisions, and a damage claim credits
+                  the dealer for stock nobody will ever sell. */}
+              <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-soft)] px-3 py-2.5 transition-colors duration-200 hover:border-[var(--border)]">
+                <input
+                  type="checkbox"
+                  checked={restock}
+                  onChange={(e) => setRestock(e.target.checked)}
+                  className="focus-ring mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[var(--primary)]"
+                />
+                <span className="min-w-0">
+                  <span className="block text-xs font-extrabold text-[var(--text-primary)]">
+                    Put these back into stock
+                  </span>
+                  <span className="block text-[10px] font-semibold leading-relaxed text-[var(--text-tertiary)]">
+                    {restock
+                      ? "The goods are sellable again."
+                      : "Damaged or written off — the customer is still credited, but stock does not go up."}
+                  </span>
+                </span>
+              </label>
             </div>
 
             <input

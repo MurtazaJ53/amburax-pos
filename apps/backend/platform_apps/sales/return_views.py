@@ -78,6 +78,7 @@ def _serialize(sale_return: SaleReturn) -> dict:
         "receipt_number": sale_return.sale.receipt_number,
         "refund_mode": sale_return.refund_mode,
         "refund_amount": str(sale_return.refund_amount),
+        "restock_goods": sale_return.restock_goods,
         "note": sale_return.note,
         "occurred_at": sale_return.occurred_at.isoformat(),
         "lines": [
@@ -206,6 +207,12 @@ class SaleReturnCreateView(APIView):
             actor_user=request.user,
             reference=str(request.data.get("reference") or _reference())[:32],
             refund_mode=mode,
+            # Goods go back on the shelf unless the caller says otherwise.
+            # Defaulting to True keeps every existing client - including the
+            # Flutter builds already on shop phones - behaving exactly as they
+            # did, while letting a wholesaler record a damage claim that
+            # credits the dealer without restocking scrap.
+            restock_goods=bool(request.data.get("restock_goods", True)),
             note=str(request.data.get("note") or "")[:2000],
             occurred_at=now,
         )
@@ -260,7 +267,10 @@ class SaleReturnCreateView(APIView):
                 line_total=line_total,
             )
 
-            if item.inventory_item_id:
+            # No ledger row at all for a damage claim, rather than a row of
+            # zero. A zero movement would read as "we checked and nothing
+            # changed", when what happened is that the goods were written off.
+            if item.inventory_item_id and sale_return.restock_goods:
                 InventoryStockLedger.objects.create(
                     shop=shop,
                     item_id=item.inventory_item_id,

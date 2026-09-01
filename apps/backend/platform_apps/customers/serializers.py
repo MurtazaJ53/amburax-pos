@@ -6,6 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
+from platform_apps.customers import credit
 from platform_apps.customers.models import Customer, CustomerLedgerEntry
 
 
@@ -29,6 +30,9 @@ class CustomerSerializer(serializers.ModelSerializer):
         write_only=True,
     )
 
+    credit_over_limit = serializers.SerializerMethodField()
+    credit_headroom = serializers.SerializerMethodField()
+
     class Meta:
         model = Customer
         fields = (
@@ -40,6 +44,10 @@ class CustomerSerializer(serializers.ModelSerializer):
             "home_address",
             "total_spent",
             "balance",
+            "credit_limit",
+            "credit_terms_days",
+            "credit_over_limit",
+            "credit_headroom",
             "loyalty_points",
             "last_reminded_at",
             "notes",
@@ -58,6 +66,20 @@ class CustomerSerializer(serializers.ModelSerializer):
         )
 
     @transaction.atomic
+    def get_credit_over_limit(self, obj) -> bool:
+        """Already owing more than the shop allowed.
+
+        Served rather than left to each screen to work out. The till, the khata
+        list and any report all have to agree about who is over, and three
+        copies of one comparison is three chances to disagree.
+        """
+        return credit.standing(obj.balance, obj.credit_limit).over_now
+
+    def get_credit_headroom(self, obj) -> str | None:
+        """What is left to spend on credit. Null when no limit is set."""
+        left = credit.standing(obj.balance, obj.credit_limit).headroom
+        return None if left is None else str(left)
+
     def create(self, validated_data):
         opening_balance = validated_data.pop("opening_balance", Decimal("0.00"))
         shop = self.context["shop"]

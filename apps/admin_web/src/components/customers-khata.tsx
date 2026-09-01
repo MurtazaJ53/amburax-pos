@@ -200,6 +200,14 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
    *  form serves both: the fields are identical, and a separate edit dialog
    *  would only be a second place for them to drift apart. */
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  /** The most this customer may owe, and how long they have to pay.
+   *
+   *  Both empty by default, and both stay empty for most retail khata, which
+   *  runs on trust with no number attached. Empty means "not set", which is a
+   *  different thing from a limit of zero - the till warns on the second and
+   *  says nothing about the first. */
+  const [newCreditLimit, setNewCreditLimit] = useState("");
+  const [newCreditTerms, setNewCreditTerms] = useState("");
 
   const openEditCustomer = (customer: Customer) => {
     setEditingCustomer(customer);
@@ -209,6 +217,10 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
     setNewNotes(customer.notes ?? "");
     setNewWorkAddress(customer.work_address ?? "");
     setNewHomeAddress(customer.home_address ?? "");
+    setNewCreditLimit(customer.credit_limit == null ? "" : String(customer.credit_limit));
+    setNewCreditTerms(
+      customer.credit_terms_days == null ? "" : String(customer.credit_terms_days),
+    );
     setSubmitError("");
     setIsAddCustomerOpen(true);
   };
@@ -229,6 +241,12 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
           notes: newNotes || "",
           work_address: newWorkAddress || "",
           home_address: newHomeAddress || "",
+          // Null, not zero, when the box is empty. Zero is a real limit - a
+          // shop saying this person pays cash - and storing it for "I did not
+          // fill this in" would warn on every credit sale they ever make.
+          credit_limit: newCreditLimit.trim() === "" ? null : newCreditLimit.trim(),
+          credit_terms_days:
+            newCreditTerms.trim() === "" ? null : Number(newCreditTerms.trim()),
         }),
       });
       if (!res.ok) {
@@ -259,6 +277,9 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
       work_address: newWorkAddress || "",
       home_address: newHomeAddress || "",
       opening_balance: parseFloat(newOpeningBalance) || 0,
+      credit_limit: newCreditLimit.trim() === "" ? null : newCreditLimit.trim(),
+      credit_terms_days:
+        newCreditTerms.trim() === "" ? null : Number(newCreditTerms.trim()),
     };
 
     try {
@@ -284,6 +305,8 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
       setNewEmail("");
       setNewNotes("");
       setNewOpeningBalance("0");
+      setNewCreditLimit("");
+      setNewCreditTerms("");
 
       // Refresh customers list and summary
       const updatedList = await fetch("/api/customers").then((r) => r.json());
@@ -937,6 +960,59 @@ export function CustomersKhata({ initialCustomers, initialSummary }: CustomersKh
                   placeholder="Optional. Stored encrypted, like the phone number."
                   className="w-full rounded-xl border border-[var(--border-soft)] bg-[var(--bg-soft)] px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
                 />
+              </div>
+
+              {/* What this customer may owe, and when they have to settle.
+                  Optional, and left blank for most retail khata - a shop that
+                  has not set a number has not decided one, and the till stays
+                  quiet rather than inventing a figure to warn about. */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="customer-credit-limit"
+                    className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]"
+                  >
+                    Credit limit
+                  </label>
+                  <input
+                    id="customer-credit-limit"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={newCreditLimit}
+                    onChange={(e) => setNewCreditLimit(e.target.value)}
+                    placeholder="No limit"
+                    className="tnum focus-ring w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-base)] px-3 py-2.5 text-sm text-[var(--text-primary)] transition-colors duration-200"
+                  />
+                  <p className="mt-1 text-[11px] font-medium leading-relaxed text-[var(--text-tertiary)]">
+                    The till warns past this. It never refuses the sale.
+                  </p>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="customer-credit-terms"
+                    className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]"
+                  >
+                    Payment terms
+                  </label>
+                  <select
+                    id="customer-credit-terms"
+                    value={newCreditTerms}
+                    onChange={(e) => setNewCreditTerms(e.target.value)}
+                    className="focus-ring w-full cursor-pointer rounded-[10px] border border-[var(--border)] bg-[var(--bg-base)] px-3 py-2.5 text-sm text-[var(--text-primary)] transition-colors duration-200"
+                  >
+                    <option value="">No agreed date</option>
+                    <option value="15">15 days</option>
+                    <option value="30">30 days</option>
+                    <option value="60">60 days</option>
+                    <option value="90">90 days</option>
+                  </select>
+                  <p className="mt-1 text-[11px] font-medium leading-relaxed text-[var(--text-tertiary)]">
+                    How wholesale trade runs. Retail khata usually has none.
+                  </p>
+                </div>
               </div>
 
               <div>

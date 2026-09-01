@@ -33,6 +33,23 @@ class Customer(SourceTrackedModel):
     home_address = encrypt(models.TextField(blank=True, default=""))
     total_spent = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    # The most this customer may owe before somebody should think about it.
+    #
+    # Retail khata runs on trust and rarely has a number attached, so NULL
+    # means "no limit set" rather than "a limit of zero" - the difference
+    # between a shop that has not thought about it and a shop that has decided
+    # this person pays cash.
+    #
+    # Wholesale is where it earns its place: dealers buy repeatedly on credit,
+    # and the exposure to one dealer is the single number that decides whether
+    # a wholesaler survives a bad season.
+    credit_limit = models.DecimalField(
+        max_digits=12, decimal_places=2, blank=True, null=True
+    )
+    # How long this customer has to pay. Wholesale trade runs on 30, 60 or 90
+    # day terms; retail khata usually has no agreed date at all, which is what
+    # NULL means.
+    credit_terms_days = models.PositiveIntegerField(blank=True, null=True)
     # Loyalty points currently available to redeem. Whole points only: fractional
     # points confuse customers and invite rounding disputes at the counter.
     loyalty_points = models.PositiveIntegerField(default=0)
