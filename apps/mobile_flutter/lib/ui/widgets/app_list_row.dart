@@ -47,70 +47,85 @@ class AppListRow extends StatelessWidget {
     final theme = Theme.of(context);
     final c = toneColorsOf(context, tone);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: Radii.mdAll,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Gap.sm,
-            vertical: Gap.sm,
-          ),
-          child: Row(
-            children: <Widget>[
-              if (leadingIcon != null) ...<Widget>[
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: c.background,
-                    borderRadius: Radii.mdAll,
-                    border: Border.all(
-                      color: c.border,
-                      width: Strokes.hairline,
+    return Semantics(
+      button: onTap != null,
+      enabled: onTap != null,
+      // Announced as one node. Without this the row reads out as up to four
+      // unrelated fragments, and the tag on the right lands before the title
+      // it belongs to.
+      label: subtitle == null ? title : '$title. $subtitle',
+      excludeSemantics: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: Radii.mdAll,
+          child: ConstrainedBox(
+            // A single-line row is 12 + 20 + 12 = 44 tall, under the 48 a
+            // thumb needs. Rows with a subtitle already clear it; this only
+            // affects the short ones.
+            constraints: const BoxConstraints(minHeight: TapTarget.min),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: Gap.sm,
+                vertical: Gap.sm,
+              ),
+              child: Row(
+                children: <Widget>[
+                  if (leadingIcon != null) ...<Widget>[
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: c.background,
+                        borderRadius: Radii.mdAll,
+                        border: Border.all(
+                          color: c.border,
+                          width: Strokes.hairline,
+                        ),
+                      ),
+                      child: Icon(leadingIcon, size: 19, color: c.foreground),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          title,
+                          style: theme.textTheme.titleSmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (subtitle != null) ...<Widget>[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle!,
+                            style: theme.textTheme.bodySmall,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                  child: Icon(leadingIcon, size: 19, color: c.foreground),
-                ),
-                const SizedBox(width: Gap.sm),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(
-                      title,
-                      style: theme.textTheme.titleSmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (subtitle != null) ...<Widget>[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle!,
-                        style: theme.textTheme.bodySmall,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                  if (trailing != null) ...<Widget>[
+                    const SizedBox(width: Gap.xs),
+                    trailing!,
                   ],
-                ),
+                  if (showChevron && onTap != null) ...<Widget>[
+                    const SizedBox(width: Gap.xxs),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: colors.textTertiary,
+                    ),
+                  ],
+                ],
               ),
-              if (trailing != null) ...<Widget>[
-                const SizedBox(width: Gap.xs),
-                trailing!,
-              ],
-              if (showChevron && onTap != null) ...<Widget>[
-                const SizedBox(width: Gap.xxs),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: colors.textTertiary,
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
@@ -153,10 +168,7 @@ class AppEmptyState extends StatelessWidget {
     final c = toneColorsOf(context, tone);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: Gap.lg,
-        vertical: Gap.xl,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.xl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[

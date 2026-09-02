@@ -82,13 +82,6 @@ abstract final class TapTarget {
   static const double large = 56;
 }
 
-/// Motion. Short and few — a till that animates is a till that feels slow.
-abstract final class Motion {
-  static const Duration fast = Duration(milliseconds: 120);
-  static const Duration normal = Duration(milliseconds: 200);
-  static const Curve curve = Curves.easeOutCubic;
-}
-
 /// Layout breakpoints. The app targets phones and tablets only.
 abstract final class Breakpoints {
   /// Below this, drop to single-column and shrink paddings.
