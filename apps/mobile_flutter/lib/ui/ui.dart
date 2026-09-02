@@ -25,3 +25,4 @@ export 'widgets/app_list_row.dart';
 export 'widgets/app_screen.dart';
 export 'widgets/app_tag.dart';
 export 'widgets/money_text.dart';
+export 'widgets/quantity_stepper.dart';

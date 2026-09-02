@@ -25,6 +25,16 @@ String formatMinor(int minorUnits, {RegionProfile? region}) {
   return _format(minorUnits / divisor, r, _fractionDigits(r) > 0);
 }
 
+/// Formats a quantity the way a shopkeeper writes one: `3`, not `3.0`, but
+/// `1.5` kept as `1.5`.
+///
+/// Whole numbers lose the decimal because most of what crosses a counter is
+/// counted, not weighed — a receipt reading "3.0 soap" looks like a machine
+/// wrote it. Fractions survive intact because the ones that occur are real:
+/// 1.5 kg of onions off the scale, half a dozen eggs.
+String formatQuantity(num value) =>
+    value == value.roundToDouble() ? value.toStringAsFixed(0) : '$value';
+
 /// Compact currency for dense surfaces: `£950`, `£1.2k`, `£3.4M`.
 String formatCurrencyCompact(num amount, {RegionProfile? region}) {
   final r = region ?? activeRegion;

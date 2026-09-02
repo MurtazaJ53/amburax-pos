@@ -29,6 +29,7 @@ import '../../../core/tax/gst.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../ui/ui.dart';
 import '../../shell/presentation/mobile_surface.dart';
 import 'checkout_payment_sheet.dart';
 import 'pos_catalog_grouping.dart';
@@ -255,7 +256,7 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
   void _warnLowStock(String name, double stock) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Only ${_fmtQty(stock)} of $name left in stock.'),
+        content: Text('Only ${formatQuantity(stock)} of $name left in stock.'),
         duration: const Duration(seconds: 2),
         backgroundColor: AppPalette.warning,
       ),
@@ -386,7 +387,7 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
                                     ),
                                   ),
                                   Text(
-                                    '${formatCurrency(v.price)} · stock ${_fmtQty(v.stock)}',
+                                    '${formatCurrency(v.price)} · stock ${formatQuantity(v.stock)}',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: v.isLowStock
@@ -400,13 +401,13 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
                               ),
                             ),
                             qty > 0
-                                ? _QtyStepper(
+                                ? QuantityStepper(
                                     quantity: qty,
-                                    onInc: () {
+                                    onIncrement: () {
                                       _changeQtyById(v.id, 1);
                                       setSheetState(() {});
                                     },
-                                    onDec: () {
+                                    onDecrement: () {
                                       _changeQtyById(v.id, -1);
                                       setSheetState(() {});
                                     },
@@ -1959,7 +1960,7 @@ class _ProductCard extends StatelessWidget {
                       top: 8,
                       right: 8,
                       child: _MiniBadge(
-                        label: '×${_fmtQty(qtyInCart)}',
+                        label: '×${formatQuantity(qtyInCart)}',
                         color: AppPalette.primary,
                       ),
                     ),
@@ -1983,7 +1984,7 @@ class _ProductCard extends StatelessWidget {
                   Text(
                     category.isNotEmpty
                         ? category
-                        : '${_fmtQty(item.stock)} in stock',
+                        : '${formatQuantity(item.stock)} in stock',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -2095,7 +2096,7 @@ class _VariantGroupCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${_fmtQty(group.totalStock)} in stock',
+                  '${formatQuantity(group.totalStock)} in stock',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -2282,7 +2283,7 @@ class _CardStepper extends StatelessWidget {
             ),
           ),
           Text(
-            _fmtQty(quantity),
+            formatQuantity(quantity),
             style: const TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 15,
@@ -2370,82 +2371,6 @@ class _AddButton extends StatelessWidget {
 }
 
 /// Show a quantity without a trailing ".0" (e.g. 2, not 2.0; 1.5 stays 1.5).
-String _fmtQty(num v) =>
-    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
-
-class _QtyStepper extends StatelessWidget {
-  const _QtyStepper({
-    required this.quantity,
-    required this.onInc,
-    required this.onDec,
-    this.onTapQty,
-  });
-
-  final double quantity;
-  final VoidCallback onInc;
-  final VoidCallback onDec;
-
-  /// Tap the number to type an exact (fractional) quantity.
-  final VoidCallback? onTapQty;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppPalette.primary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppPalette.primary.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          _StepButton(icon: Icons.remove_rounded, onTap: onDec),
-          GestureDetector(
-            onTap: onTapQty,
-            child: SizedBox(
-              width: 34,
-              child: Text(
-                _fmtQty(quantity),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
-                  color: AppPalette.primary,
-                  decoration: onTapQty == null
-                      ? null
-                      : TextDecoration.underline,
-                  decorationColor: AppPalette.primary,
-                ),
-              ),
-            ),
-          ),
-          _StepButton(icon: Icons.add_rounded, onTap: onInc),
-        ],
-      ),
-    );
-  }
-}
-
-class _StepButton extends StatelessWidget {
-  const _StepButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: SizedBox(
-        width: 40,
-        height: 44,
-        child: Icon(icon, size: 20, color: AppPalette.primary),
-      ),
-    );
-  }
-}
-
 class _ScanButton extends StatelessWidget {
   const _ScanButton({required this.onTap});
 
@@ -2697,7 +2622,7 @@ class _CartSheet extends StatefulWidget {
 class _CartSheetState extends State<_CartSheet> {
   /// Ask for an exact quantity (supports decimals, e.g. 1.5 kg).
   Future<double?> _promptQuantity(BuildContext context, PosCartItem line) async {
-    final controller = TextEditingController(text: _fmtQty(line.quantity));
+    final controller = TextEditingController(text: formatQuantity(line.quantity));
     final result = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -3312,11 +3237,11 @@ class _CartLine extends StatelessWidget {
               ],
             ),
           ),
-          _QtyStepper(
+          QuantityStepper(
             quantity: line.quantity,
-            onInc: onInc,
-            onDec: onDec,
-            onTapQty: onEditQty,
+            onIncrement: onInc,
+            onDecrement: onDec,
+            onTapQuantity: onEditQty,
           ),
         ],
       ),
