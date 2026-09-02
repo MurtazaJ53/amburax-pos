@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -11,7 +10,6 @@ import '../../../core/models/mobile_session.dart';
 import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 class SettingsPulseScreen extends ConsumerStatefulWidget {
@@ -157,38 +155,38 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
         children: <Widget>[
-          MobileScreenLead(
+          AppScreenLead(
             title: 'Track live owner tasks',
             subtitle:
                 'Acknowledge, resolve, or reopen workspace signals before stock, sync, or behavior issues spread into the day.',
-            icon: Icons.auto_awesome_rounded,
-            accent: AppPalette.primary,
-            primaryTag: AppTag(
-              label: openSignals.isEmpty
-                  ? 'Desk calm'
-                  : '${openSignals.length} open',
-              icon: openSignals.isEmpty
-                  ? Icons.check_circle_rounded
-                  : Icons.notification_important_rounded,
-              tone: openSignals.isEmpty ? AppTone.success : AppTone.primary,
-            ),
-            secondaryTag: AppTag(
-              label: pulse == null
-                  ? (pulseAsync.isLoading ? 'Refreshing' : 'Unavailable')
-                  : pulse.stats.criticalAnomalyCount > 0
-                  ? '${pulse.stats.criticalAnomalyCount} critical'
-                  : '${pulse.stats.warningAnomalyCount} watch',
-              icon: pulse == null
-                  ? Icons.sync_rounded
-                  : pulse.stats.criticalAnomalyCount > 0
-                  ? Icons.crisis_alert_rounded
-                  : Icons.monitor_heart_rounded,
-              tone: pulse == null
-                  ? AppTone.primary
-                  : pulse.stats.criticalAnomalyCount > 0
-                  ? AppTone.danger
-                  : AppTone.warning,
-            ),
+            tags: <Widget>[
+              AppTag(
+                label: openSignals.isEmpty
+                    ? 'Desk calm'
+                    : '${openSignals.length} open',
+                icon: openSignals.isEmpty
+                    ? Icons.check_circle_rounded
+                    : Icons.notification_important_rounded,
+                tone: openSignals.isEmpty ? AppTone.success : AppTone.primary,
+              ),
+              AppTag(
+                label: pulse == null
+                    ? (pulseAsync.isLoading ? 'Refreshing' : 'Unavailable')
+                    : pulse.stats.criticalAnomalyCount > 0
+                    ? '${pulse.stats.criticalAnomalyCount} critical'
+                    : '${pulse.stats.warningAnomalyCount} watch',
+                icon: pulse == null
+                    ? Icons.sync_rounded
+                    : pulse.stats.criticalAnomalyCount > 0
+                    ? Icons.crisis_alert_rounded
+                    : Icons.monitor_heart_rounded,
+                tone: pulse == null
+                    ? AppTone.primary
+                    : pulse.stats.criticalAnomalyCount > 0
+                    ? AppTone.danger
+                    : AppTone.warning,
+              ),
+            ],
           ),
           const SizedBox(height: 18),
           if (!hasFreshSecurityWindow)

@@ -75,16 +75,27 @@ class AppScreen extends StatelessWidget {
 
 /// The block at the top of a screen that says what it is for.
 ///
-/// Replaces `MobileScreenLead` (14 call sites). Flatter than its predecessor:
-/// no bordered card, no icon tile, because on a pushed screen the app-bar title
-/// already names the page and repeating it in a box wasted the first 90px of
-/// every screen.
+/// Replaces `MobileScreenLead`. Flatter than its predecessor: no bordered
+/// card and no icon tile, both of which cost the first 90px of every screen.
+///
+/// [title] was not here at first, on the reasoning that the app-bar title
+/// already names the page. The call sites disproved that. A lead saying
+/// "Local owner mode is active" or "Protect owner and admin controls" is
+/// making a statement about the shop's current state, not repeating the page
+/// name — and on the security screen two of them appear on one page, which a
+/// single app-bar title cannot do. So it is optional: omit it where the page
+/// name would only be said twice.
 class AppScreenLead extends StatelessWidget {
   const AppScreenLead({
     super.key,
     required this.subtitle,
+    this.title,
     this.tags = const <Widget>[],
   });
+
+  /// A statement about what is true right now, not the page's name. Omit when
+  /// it would only repeat the app bar.
+  final String? title;
 
   /// One sentence on what this screen is for, in the shopkeeper's words.
   final String subtitle;
@@ -100,6 +111,10 @@ class AppScreenLead extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
+        if (title != null) ...<Widget>[
+          Text(title!, style: theme.textTheme.titleMedium),
+          const SizedBox(height: Gap.xxs),
+        ],
         Text(subtitle, style: theme.textTheme.bodyMedium),
         if (tags.isNotEmpty) ...<Widget>[
           const SizedBox(height: Gap.sm),

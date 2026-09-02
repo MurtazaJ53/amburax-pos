@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,7 +11,6 @@ import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/runtime/mobile_runtime_config.dart';
 import '../../../core/security/app_lock.dart';
 import '../../../core/session/mobile_session_controller.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 class SettingsSecurityScreen extends ConsumerStatefulWidget {
@@ -251,17 +249,17 @@ class _SettingsSecurityScreenState
           children: const <Widget>[
             AppLockPanel(),
             SizedBox(height: 18),
-            MobileScreenLead(
+            AppScreenLead(
               title: 'Local owner mode is active',
               subtitle:
                   'Backend deployment is paused, so MFA, passkeys, remote session wipe, and server-side session invalidation stay disabled in this APK.',
-              icon: Icons.offline_bolt_rounded,
-              accent: AppPalette.warning,
-              primaryTag: AppTag(
-                label: 'LOCAL-FIRST',
-                icon: Icons.lock_open_rounded,
-                tone: AppTone.warning,
-              ),
+              tags: <Widget>[
+                AppTag(
+                  label: 'LOCAL-FIRST',
+                  icon: Icons.lock_open_rounded,
+                  tone: AppTone.warning,
+                ),
+              ],
             ),
             SizedBox(height: 18),
             AppPanel(
@@ -316,30 +314,30 @@ class _SettingsSecurityScreenState
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
         children: <Widget>[
-          MobileScreenLead(
+          AppScreenLead(
             title: 'Protect owner and admin controls',
             subtitle:
                 'Use an authenticator app before opening Workspace plan, Advanced ops, or other sensitive business-control surfaces.',
-            icon: Icons.verified_user_rounded,
-            accent: AppPalette.primary,
-            primaryTag: AppTag(
-              label: status == null
-                  ? 'Loading'
-                  : status.totpEnabled
-                  ? 'MFA enabled'
-                  : status.totpPendingEnrollment
-                  ? 'Setup pending'
-                  : 'MFA not set',
-              icon: Icons.security_rounded,
-              tone: AppTone.primary,
-            ),
-            secondaryTag: AppTag(
-              label: hasFreshWindow ? 'Window open' : 'Verify needed',
-              icon: hasFreshWindow
-                  ? Icons.verified_rounded
-                  : Icons.lock_clock_rounded,
-              tone: hasFreshWindow ? AppTone.success : AppTone.warning,
-            ),
+            tags: <Widget>[
+              AppTag(
+                label: status == null
+                    ? 'Loading'
+                    : status.totpEnabled
+                    ? 'MFA enabled'
+                    : status.totpPendingEnrollment
+                    ? 'Setup pending'
+                    : 'MFA not set',
+                icon: Icons.security_rounded,
+                tone: AppTone.primary,
+              ),
+              AppTag(
+                label: hasFreshWindow ? 'Window open' : 'Verify needed',
+                icon: hasFreshWindow
+                    ? Icons.verified_rounded
+                    : Icons.lock_clock_rounded,
+                tone: hasFreshWindow ? AppTone.success : AppTone.warning,
+              ),
+            ],
           ),
           const SizedBox(height: 18),
           const AppLockPanel(),

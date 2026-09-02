@@ -12,7 +12,6 @@ import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/runtime/mobile_runtime_config.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 class SettingsAttendanceScreen extends ConsumerStatefulWidget {
@@ -155,7 +154,7 @@ class _SettingsAttendanceScreenState
                       icon: Icons.fact_check_rounded,
                     ),
                     const SizedBox(height: 16),
-                    MobileSheetSection(
+                    AppPanel(
                       title: 'Today',
                       child: Column(
                         children: <Widget>[
@@ -369,27 +368,27 @@ class _SettingsAttendanceScreenState
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
         children: <Widget>[
-          MobileScreenLead(
+          AppScreenLead(
             title: session.isOwnerLike ? 'Attendance desk' : 'My attendance',
             subtitle: session.isOwnerLike
                 ? 'Review who is on the floor, mark today for the team, and keep staffing visible without opening a separate HR system.'
                 : 'Mark your shift, review your recent attendance, and keep your daily operator access connected to this workspace.',
-            icon: Icons.fact_check_rounded,
-            accent: AppPalette.primary,
-            primaryTag: AppTag(
-              label: session.displayRoleLabel,
-              icon: Icons.badge_rounded,
-              tone: AppTone.success,
-            ),
-            secondaryTag: AppTag(
-              label: todayRecord == null
-                  ? 'Unmarked today'
-                  : _statusLabel(todayRecord.status).toUpperCase(),
-              icon: todayRecord == null
-                  ? Icons.event_busy_rounded
-                  : Icons.event_available_rounded,
-              tone: todayRecord == null ? AppTone.warning : AppTone.success,
-            ),
+            tags: <Widget>[
+              AppTag(
+                label: session.displayRoleLabel,
+                icon: Icons.badge_rounded,
+                tone: AppTone.success,
+              ),
+              AppTag(
+                label: todayRecord == null
+                    ? 'Unmarked today'
+                    : _statusLabel(todayRecord.status).toUpperCase(),
+                icon: todayRecord == null
+                    ? Icons.event_busy_rounded
+                    : Icons.event_available_rounded,
+                tone: todayRecord == null ? AppTone.warning : AppTone.success,
+              ),
+            ],
           ),
           const SizedBox(height: 18),
           if (_message != null) ...<Widget>[

@@ -11,7 +11,6 @@ import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/sync/mobile_sync_coordinator.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 class SettingsExpensesScreen extends ConsumerStatefulWidget {
@@ -129,7 +128,7 @@ class _SettingsExpensesScreenState
                       icon: Icons.payments_rounded,
                     ),
                     const SizedBox(height: 16),
-                    MobileSheetSection(
+                    AppPanel(
                       title: L.of(context).expDetails,
                       child: Column(
                         children: <Widget>[
@@ -365,24 +364,24 @@ class _SettingsExpensesScreenState
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
         children: <Widget>[
-          MobileScreenLead(
+          AppScreenLead(
             title: session.isOwnerLike ? 'Store spend desk' : 'Store expenses',
             subtitle:
                 'Track outgoing spend, capture payment references, and keep day-to-day business costs visible from the same product.',
-            icon: Icons.payments_rounded,
-            accent: AppPalette.warning,
-            primaryTag: AppTag(
-              label: shop.planLabel,
-              icon: Icons.workspace_premium_rounded,
-              tone: AppTone.warning,
-            ),
-            secondaryTag: AppTag(
-              label: expenses.isEmpty
-                  ? (expensesAsync.isLoading ? 'Refreshing' : 'No entries')
-                  : '${expenses.length} entries',
-              icon: Icons.receipt_long_rounded,
-              tone: AppTone.primary,
-            ),
+            tags: <Widget>[
+              AppTag(
+                label: shop.planLabel,
+                icon: Icons.workspace_premium_rounded,
+                tone: AppTone.warning,
+              ),
+              AppTag(
+                label: expenses.isEmpty
+                    ? (expensesAsync.isLoading ? 'Refreshing' : 'No entries')
+                    : '${expenses.length} entries',
+                icon: Icons.receipt_long_rounded,
+                tone: AppTone.primary,
+              ),
+            ],
           ),
           const SizedBox(height: 18),
           if (_message != null) ...<Widget>[

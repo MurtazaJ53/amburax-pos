@@ -12,7 +12,6 @@ import '../../../core/models/mobile_session.dart';
 import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 class SettingsSessionsScreen extends ConsumerStatefulWidget {
@@ -186,24 +185,24 @@ class _SettingsSessionsScreenState
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
         children: <Widget>[
-          MobileScreenLead(
+          AppScreenLead(
             title: 'Review workspace devices',
             subtitle:
                 'See which phones are trusted, which need review, and revoke or wipe access when a device should no longer touch this workspace.',
-            icon: Icons.devices_rounded,
-            accent: AppPalette.primary,
-            primaryTag: AppTag(
-              label: '${sessions.length} known',
-              icon: Icons.smartphone_rounded,
-              tone: AppTone.primary,
-            ),
-            secondaryTag: AppTag(
-              label: riskyCount > 0 ? '$riskyCount risky' : 'Trust stable',
-              icon: riskyCount > 0
-                  ? Icons.crisis_alert_rounded
-                  : Icons.verified_rounded,
-              tone: riskyCount > 0 ? AppTone.danger : AppTone.success,
-            ),
+            tags: <Widget>[
+              AppTag(
+                label: '${sessions.length} known',
+                icon: Icons.smartphone_rounded,
+                tone: AppTone.primary,
+              ),
+              AppTag(
+                label: riskyCount > 0 ? '$riskyCount risky' : 'Trust stable',
+                icon: riskyCount > 0
+                    ? Icons.crisis_alert_rounded
+                    : Icons.verified_rounded,
+                tone: riskyCount > 0 ? AppTone.danger : AppTone.success,
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           if (session.isOwnerLike && sessions.length > 1)

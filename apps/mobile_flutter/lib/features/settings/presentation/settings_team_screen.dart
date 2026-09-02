@@ -10,7 +10,6 @@ import '../../../core/models/mobile_session.dart';
 import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/runtime/mobile_runtime_config.dart';
 import '../../../core/session/mobile_session_controller.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import 'invite_share_sheet.dart';
 import 'permission_editor_screen.dart';
 import '../../../ui/ui.dart';
@@ -75,22 +74,22 @@ class SettingsTeamScreen extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
         children: <Widget>[
-          MobileScreenLead(
+          AppScreenLead(
             title: 'Connect staff to ${shop.name}',
             subtitle:
                 'Add the exact email a staff member will use to sign in. Business Hub will attach that person to this workspace and keep role control with owner/admin users.',
-            icon: Icons.groups_rounded,
-            accent: AppPalette.primary,
-            primaryTag: AppTag(
-              label: shop.planLabel,
-              icon: Icons.workspace_premium_rounded,
-              tone: AppTone.warning,
-            ),
-            secondaryTag: AppTag(
-              label: session.displayRoleLabel,
-              icon: Icons.badge_rounded,
-              tone: AppTone.success,
-            ),
+            tags: <Widget>[
+              AppTag(
+                label: shop.planLabel,
+                icon: Icons.workspace_premium_rounded,
+                tone: AppTone.warning,
+              ),
+              AppTag(
+                label: session.displayRoleLabel,
+                icon: Icons.badge_rounded,
+                tone: AppTone.success,
+              ),
+            ],
           ),
           const SizedBox(height: 18),
           AppPanel(
@@ -280,7 +279,7 @@ class SettingsTeamScreen extends ConsumerWidget {
                       icon: Icons.person_add_alt_1_rounded,
                     ),
                     const SizedBox(height: 16),
-                    MobileSheetSection(
+                    AppPanel(
                       title: 'Member details',
                       child: Column(
                         children: <Widget>[
@@ -518,7 +517,7 @@ class SettingsTeamScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    MobileSheetSection(
+                    AppPanel(
                       title: 'Role and access',
                       child: Column(
                         children: <Widget>[

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 class PosScannerSheet extends StatefulWidget {
@@ -71,7 +70,7 @@ class _PosScannerSheetState extends State<PosScannerSheet> {
               ],
             ),
             const SizedBox(height: 16),
-            MobileSheetSection(
+            AppPanel(
               title: 'Scan live code',
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(26),
@@ -101,7 +100,7 @@ class _PosScannerSheetState extends State<PosScannerSheet> {
               ),
             ),
             const SizedBox(height: 16),
-            MobileSheetSection(
+            AppPanel(
               title: 'Type code manually',
               child: TextField(
                 controller: _manualCodeController,
