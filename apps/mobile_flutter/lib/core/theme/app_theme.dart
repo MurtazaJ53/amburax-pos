@@ -38,6 +38,12 @@ final class AppPalette {
   static const Color textTertiaryDark = Color(0xFF94A3B8);
   static const Color textDisabledDark = Color(0xFF64748B);
 
+  /// The pale ground a primary button sits on, and the ink that reads on it.
+  /// Light uses [primaryPale] + [primaryDark]; these are the dark-mode pair.
+  /// The ink matches the web's dark `--primary`.
+  static const Color primaryGroundDark = Color(0xFF0B3A52);
+  static const Color primaryInkDark = Color(0xFF7DD3FC);
+
   // Domain Colors
   static const Color revenue = success;
   static const Color expense = error;
@@ -83,9 +89,19 @@ class _ThemeTokens {
     required this.textSecondary,
     required this.textTertiary,
     required this.textDisabled,
+    required this.primaryGround,
+    required this.primaryInk,
   });
 
   final Brightness brightness;
+
+  /// The ground and ink a primary button uses. These are a pair and must stay
+  /// one: the app's whole visual argument is that a button is ink on a pale
+  /// ground rather than white on a dark fill, and a theme that supplied only
+  /// one of the two would break that in exactly one mode.
+  final Color primaryGround;
+  final Color primaryInk;
+
   final Color background;
   final Color backgroundSoft;
   final Color surface;
@@ -112,6 +128,8 @@ final class AppTheme {
       textSecondary: AppPalette.textSecondaryDark,
       textTertiary: AppPalette.textTertiaryDark,
       textDisabled: AppPalette.textDisabledDark,
+      primaryGround: AppPalette.primaryGroundDark,
+      primaryInk: AppPalette.primaryInkDark,
     ),
   );
 
@@ -128,6 +146,8 @@ final class AppTheme {
       textSecondary: AppPaletteLight.textSecondary,
       textTertiary: AppPaletteLight.textTertiary,
       textDisabled: AppPaletteLight.textDisabled,
+      primaryGround: AppPalette.primaryPale,
+      primaryInk: AppPalette.primaryDark,
     ),
   );
 
@@ -323,8 +343,8 @@ final class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppPalette.primaryPale,
-          foregroundColor: AppPalette.primaryDark,
+          backgroundColor: t.primaryGround,
+          foregroundColor: t.primaryInk,
           disabledBackgroundColor: t.surfaceStrong,
           disabledForegroundColor: t.textDisabled,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

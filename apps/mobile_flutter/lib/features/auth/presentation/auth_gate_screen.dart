@@ -285,8 +285,6 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
             child: ElevatedButton(
               onPressed: _isLoggingIn ? null : _handleCloudLogin,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppPalette.primaryPale,
-                foregroundColor: AppPalette.primaryDark,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -451,8 +449,6 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
             child: ElevatedButton(
               onPressed: _isLoggingIn ? null : _handleRegister,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppPalette.primaryPale,
-                foregroundColor: AppPalette.primaryDark,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -547,8 +543,6 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
             child: ElevatedButton(
               onPressed: _isLoggingIn ? null : _handleJoin,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppPalette.primaryPale,
-                foregroundColor: AppPalette.primaryDark,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),

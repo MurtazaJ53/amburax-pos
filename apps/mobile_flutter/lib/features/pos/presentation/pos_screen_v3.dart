@@ -2245,29 +2245,39 @@ class _CardAddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = toneColorsOf(context, AppTone.primary);
     return Material(
-      color: AppPalette.primary,
+      color: c.background,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          height: 38,
-          width: double.infinity,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Icon(icon, color: Colors.white, size: 18),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: c.border, width: Strokes.hairline),
+          ),
+          // 44, not 38. Still short of the 48 the rest of the app holds to,
+          // because raising it further changes the grid's aspect ratio and
+          // that belongs to the POS rebuild rather than a colour pass.
+          child: SizedBox(
+            height: 44,
+            width: double.infinity,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Icon(icon, color: c.foreground, size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: c.foreground,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -2373,16 +2383,23 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = toneColorsOf(context, AppTone.primary);
     return Material(
-      color: AppPalette.primary,
+      color: c.background,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        child: const SizedBox(
-          width: 46,
-          height: 46,
-          child: Icon(Icons.add_rounded, color: Colors.white, size: 26),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: c.border, width: Strokes.hairline),
+          ),
+          child: SizedBox(
+            width: TapTarget.min,
+            height: TapTarget.min,
+            child: Icon(Icons.add_rounded, color: c.foreground, size: 26),
+          ),
         ),
       ),
     );
@@ -2397,19 +2414,26 @@ class _ScanButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = toneColorsOf(context, AppTone.primary);
     return Material(
-      color: AppPalette.primary,
+      color: c.background,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: const SizedBox(
-          width: 54,
-          height: 54,
-          child: Icon(
-            Icons.qr_code_scanner_rounded,
-            color: Colors.white,
-            size: 26,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: c.border, width: Strokes.hairline),
+          ),
+          child: SizedBox(
+            width: TapTarget.large,
+            height: TapTarget.large,
+            child: Icon(
+              Icons.qr_code_scanner_rounded,
+              color: c.foreground,
+              size: 26,
+            ),
           ),
         ),
       ),
@@ -2431,8 +2455,9 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
+    final tone = toneColorsOf(context, AppTone.primary);
     return Material(
-      color: selected ? AppPalette.primaryPale : colors.surface,
+      color: selected ? tone.background : colors.surface,
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -2450,7 +2475,7 @@ class _CategoryChip extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: selected ? AppPalette.primaryDark : colors.textSecondary,
+              color: selected ? tone.foreground : colors.textSecondary,
             ),
           ),
         ),
@@ -3026,19 +3051,20 @@ class _MiniToggleChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tone = toneColorsOf(context, AppTone.primary);
     return Container(
       width: 34,
       height: 30,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: selected ? AppPalette.primaryPale : Colors.transparent,
+        color: selected ? tone.background : Colors.transparent,
         borderRadius: BorderRadius.circular(9),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontWeight: FontWeight.w800,
-          color: selected ? AppPalette.primaryDark : AppPalette.primary,
+          color: selected ? tone.foreground : AppPalette.primary,
         ),
       ),
     );

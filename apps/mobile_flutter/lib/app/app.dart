@@ -31,7 +31,7 @@ class BusinessHubMobileApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         themeMode: themeMode,
         theme: AppTheme.light,
-        darkTheme: AppTheme.light,
+        darkTheme: AppTheme.dark,
         home: const _StartupBootScreen(),
       ),
       error: (error, _) => MaterialApp(
@@ -39,7 +39,7 @@ class BusinessHubMobileApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         themeMode: themeMode,
         theme: AppTheme.light,
-        darkTheme: AppTheme.light,
+        darkTheme: AppTheme.dark,
         home: _StartupFailedScreen(
           message: error.toString(),
           onRetry: () => ref.invalidate(startupBootstrapProvider),
@@ -54,7 +54,7 @@ class BusinessHubMobileApp extends ConsumerWidget {
           debugShowCheckedModeBanner: false,
           themeMode: themeMode,
           theme: AppTheme.light,
-          darkTheme: AppTheme.light,
+          darkTheme: AppTheme.dark,
           // null locale = follow the device, so a phone already set to
           // Gujarati opens in Gujarati without hunting through settings.
           locale: ref.watch(localeControllerProvider).locale,

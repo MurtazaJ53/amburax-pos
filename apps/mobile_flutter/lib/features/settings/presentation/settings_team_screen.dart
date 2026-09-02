@@ -926,10 +926,7 @@ class _CloudInvitePanelState extends ConsumerState<_CloudInvitePanel> {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: _sending ? null : _send,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppPalette.primaryPale,
-                    foregroundColor: AppPalette.primaryDark,
-                  ),
+                  style: ElevatedButton.styleFrom(),
                   child: _sending
                       ? const SizedBox(
                           width: 18,

@@ -23,6 +23,7 @@ import '../../pos/presentation/pos_scanner_sheet.dart';
 import '../../../core/receipt/barcode_labels_pdf.dart';
 import 'reorder_list_screen.dart';
 import 'variant_product_sheet.dart';
+import '../../../ui/ui.dart';
 
 /// Redesigned Inventory Screen v3.0
 /// Simple, Clean, Premium, Professional
@@ -468,7 +469,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
   }) {
     return Material(
       color: isSelected
-          ? AppPalette.primaryPale
+          ? toneColorsOf(context, AppTone.primary).background
           : AppColors.of(context).surfaceStrong,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
@@ -482,7 +483,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: isSelected
-                  ? AppPalette.primaryDark
+                  ? toneColorsOf(context, AppTone.primary).foreground
                   : AppColors.of(context).textSecondary,
             ),
           ),

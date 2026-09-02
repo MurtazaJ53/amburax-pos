@@ -26,17 +26,25 @@ List<File> _dartFilesUnder(List<String> dirs) {
 
 String _name(File file) => file.path.split(RegExp(r'[/\\]')).last;
 
-/// Places where white genuinely is the right answer, each for a reason that
-/// is about the medium rather than the design.
-const Map<String, String> _allowedWhite = <String, String>{
+/// Places where white genuinely is the right answer, with a count.
+///
+/// The first version of this allowlisted whole files, which is how four solid
+/// blue buttons with white labels survived the pass that was meant to remove
+/// them: the POS file was exempt for its cart bar, so nothing else in its
+/// 3,400 lines was ever checked. Counting means an exemption covers only what
+/// was actually reviewed, and the next one added has to be argued for.
+const Map<String, ({int allowed, String reason})>
+_allowedWhite = <String, ({int allowed, String reason})>{
   // A QR code is read by a camera. It has to be dark on white to scan.
-  'upi_qr_view.dart': 'a QR code must be dark on white to scan',
+  'upi_qr_view.dart': (allowed: 1, reason: 'a QR must be dark on white'),
   // A camera viewfinder is not a surface the palette applies to.
-  'pos_scanner_sheet.dart': 'an overlay on a live camera preview',
+  'pos_scanner_sheet.dart': (allowed: 1, reason: 'live camera overlay'),
   // A small brand mark carrying a single glyph, like the web logo.
-  'auth_gate_screen.dart': 'the logo badge, a solid brand mark',
-  // The one deliberate solid surface: the control the till exists to reach.
-  'pos_screen_v3.dart': 'the cart bar, deliberately solid at 8.24:1',
+  'auth_gate_screen.dart': (allowed: 1, reason: 'the logo badge'),
+  // The cart bar is deliberately solid at 8.24:1, and the stock badges match
+  // the orange pills the web puts on the same cards.
+  'pos_screen_v3.dart': (allowed: 8, reason: 'cart bar and stock badges'),
+  'variant_product_sheet.dart': (allowed: 1, reason: 'badge on a solid tone'),
 };
 
 void main() {
@@ -68,12 +76,22 @@ void main() {
   });
 
   test('no screen writes white text except where white is the medium', () {
-    final offenders = <String>[
-      for (final file in files)
-        if (file.readAsStringSync().contains('Colors.white') &&
-            !_allowedWhite.containsKey(_name(file)))
-          _name(file),
-    ];
+    final offenders = <String>[];
+
+    for (final file in files) {
+      final name = _name(file);
+      final count = 'Colors.white'.allMatches(file.readAsStringSync()).length;
+      final allowance = _allowedWhite[name];
+
+      if (allowance == null) {
+        if (count > 0) offenders.add('$name ($count)');
+      } else if (count > allowance.allowed) {
+        offenders.add(
+          '$name has $count, only ${allowance.allowed} reviewed '
+          '(${allowance.reason})',
+        );
+      }
+    }
 
     expect(
       offenders,
@@ -82,9 +100,8 @@ void main() {
           'White text forces a dark fill to stay legible, and a dark fill is '
           'what made this app look heavy beside the web on the same palette. '
           'Use toneColorsOf(context, tone) — .foreground is ink, .background '
-          'is the pale ground it reads on. If white really is the medium '
-          '(a QR code, a camera overlay), add the file to _allowedWhite with '
-          'the reason.',
+          'is the pale ground it reads on. If white really is the medium, '
+          'raise the count for that file here and say why.',
     );
   });
 }

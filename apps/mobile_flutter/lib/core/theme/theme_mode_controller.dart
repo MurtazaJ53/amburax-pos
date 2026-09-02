@@ -1,28 +1,74 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Controls the app's light/dark presentation.
+import '../database/mobile_repository.dart';
+
+const String _kThemeModeKey = 'app_theme_mode';
+
+/// Controls the app's light/dark presentation, and remembers the choice.
 ///
-/// Defaults to [ThemeMode.system] so the app follows the device setting out of
-/// the box — important for POS staff who switch between a bright shop floor and
-/// a dim back office. Users can override via Settings. Persisting the override
-/// (e.g. to the drift settings store) is a follow-up; today the override lives
-/// for the session.
-final themeModeProvider =
-    NotifierProvider<ThemeModeController, ThemeMode>(ThemeModeController.new);
+/// Two things were wrong here and both are fixed together, because either one
+/// alone still leaves the setting looking broken.
+///
+/// The switch had nothing to switch to: `app.dart` passed `AppTheme.light` as
+/// both `theme` and `darkTheme`, so choosing Night rendered the light theme
+/// and the control appeared dead. `AppTheme.dark` existed the whole time and
+/// was simply never wired up.
+///
+/// And the choice did not survive a restart. The doc on the old version said
+/// persistence was "a follow-up"; a display preference that resets every time
+/// the app is opened is not a preference, so it now goes to the same settings
+/// store the language uses.
+///
+/// The default is [ThemeMode.system]. A shop floor at midday and a back office
+/// at closing are different rooms, and the phone already knows which one it is
+/// in. The old default pinned light with a comment saying the app was
+/// "light only" — it is not, and its own dark palette has tests.
+final themeModeProvider = NotifierProvider<ThemeModeController, ThemeMode>(
+  ThemeModeController.new,
+);
 
 class ThemeModeController extends Notifier<ThemeMode> {
-  // Business Hub is a blue-and-white (light only) app, so we pin light mode.
   @override
-  ThemeMode build() => ThemeMode.light;
-
-  void set(ThemeMode mode) => state = mode;
-
-  void toggle() {
-    state = switch (state) {
-      ThemeMode.light => ThemeMode.dark,
-      ThemeMode.dark => ThemeMode.light,
-      ThemeMode.system => ThemeMode.dark,
-    };
+  ThemeMode build() {
+    // Loads in the background; the app starts on the device setting and
+    // corrects itself a frame later if a choice was stored. Blocking startup
+    // on a settings read to avoid one repaint is the worse trade.
+    _load();
+    return ThemeMode.system;
   }
+
+  Future<void> _load() async {
+    final stored =
+        (await ref.read(shopRepositoryProvider).readSetting(_kThemeModeKey))
+            ?.trim();
+    final restored = _parse(stored);
+    if (restored != null) state = restored;
+  }
+
+  Future<void> set(ThemeMode mode) async {
+    state = mode;
+    await ref
+        .read(shopRepositoryProvider)
+        .writeSetting(_kThemeModeKey, mode.name);
+  }
+
+  Future<void> toggle() => set(switch (state) {
+    ThemeMode.light => ThemeMode.dark,
+    ThemeMode.dark => ThemeMode.light,
+    // From "follow the device", one tap should visibly change something, so
+    // it lands on the opposite of whatever the device is currently showing.
+    ThemeMode.system =>
+      WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+              Brightness.dark
+          ? ThemeMode.light
+          : ThemeMode.dark,
+  });
+
+  static ThemeMode? _parse(String? name) => switch (name) {
+    'light' => ThemeMode.light,
+    'dark' => ThemeMode.dark,
+    'system' => ThemeMode.system,
+    _ => null,
+  };
 }

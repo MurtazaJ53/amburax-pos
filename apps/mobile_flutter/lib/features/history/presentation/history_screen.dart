@@ -874,8 +874,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                     : 'PRINT RECEIPT',
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppPalette.primaryPale,
-                                foregroundColor: AppPalette.primaryDark,
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 16,
                                 ),
