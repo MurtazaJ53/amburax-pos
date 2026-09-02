@@ -11,6 +11,7 @@ import '../../../core/runtime/mobile_runtime_config.dart';
 import 'shop_switcher_screen.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/sync/mobile_sync_coordinator.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
 
@@ -23,6 +24,7 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppColors.of(context);
     final session = ref.watch(mobileSessionProvider).asData?.value;
     final shop =
         ref.watch(shopInfoProvider).asData?.value ?? ShopInfo.fallback();
@@ -297,7 +299,7 @@ class SettingsScreen extends ConsumerWidget {
               title: l.settingsAdminTools,
               subtitle: l.settingsAdminToolsSub,
               leadingIcon: Icons.tune_rounded,
-              accent: AppPalette.textTertiary,
+              accent: colors.textTertiary,
               onTap: () => context.push('/settings/admin'),
             ),
           ],
@@ -323,7 +325,7 @@ class SettingsScreen extends ConsumerWidget {
             child: Text(
               'Business Hub${version == null ? '' : ' · $version'}',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppPalette.textTertiary,
+                color: colors.textTertiary,
               ),
             ),
           ),
@@ -427,12 +429,13 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 12),
       child: Text(
         label.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppPalette.textTertiary,
+          color: colors.textTertiary,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.2,
         ),
@@ -456,17 +459,18 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final theme = Theme.of(context);
     return Padding(
       padding: EdgeInsets.only(bottom: last ? 0 : 14),
       child: Row(
         children: <Widget>[
-          Icon(icon, size: 20, color: AppPalette.textTertiary),
+          Icon(icon, size: 20, color: colors.textTertiary),
           const SizedBox(width: 12),
           Text(
             label,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: AppPalette.textTertiary,
+              color: colors.textTertiary,
             ),
           ),
           const Spacer(),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 
 class MobileStandaloneScaffold extends StatelessWidget {
@@ -16,18 +17,19 @@ class MobileStandaloneScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final compact = MediaQuery.sizeOf(context).width < 420;
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: <Color>[
-              AppPalette.background,
-              AppPalette.backgroundSoft,
-              AppPalette.backgroundSoft,
+              colors.background,
+              colors.backgroundSoft,
+              colors.backgroundSoft,
             ],
           ),
         ),
@@ -43,9 +45,9 @@ class MobileStandaloneScaffold extends StatelessWidget {
                 ),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: AppPalette.backgroundSoft.withValues(alpha: 0.94),
+                    color: colors.backgroundSoft.withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(compact ? 22 : 24),
-                    border: Border.all(color: AppPalette.borderSoft),
+                    border: Border.all(color: colors.borderSoft),
                   ),
                   child: Padding(
                     padding: EdgeInsets.symmetric(
@@ -58,11 +60,11 @@ class MobileStandaloneScaffold extends StatelessWidget {
                           width: compact ? 44 : 48,
                           height: compact ? 44 : 48,
                           decoration: BoxDecoration(
-                            color: AppPalette.surfaceStrong,
+                            color: colors.surfaceStrong,
                             borderRadius: BorderRadius.circular(
                               compact ? 15 : 18,
                             ),
-                            border: Border.all(color: AppPalette.borderSoft),
+                            border: Border.all(color: colors.borderSoft),
                           ),
                           child: IconButton(
                             onPressed: () => Navigator.of(context).maybePop(),
@@ -70,7 +72,7 @@ class MobileStandaloneScaffold extends StatelessWidget {
                               Icons.arrow_back_rounded,
                               size: compact ? 20 : 24,
                             ),
-                            color: AppPalette.textPrimary,
+                            color: colors.textPrimary,
                             padding: EdgeInsets.zero,
                           ),
                         ),
@@ -123,13 +125,14 @@ class MobileHeroBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final theme = Theme.of(context);
     final compact = MediaQuery.sizeOf(context).width < 420;
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(compact ? 24 : 30),
-        color: AppPalette.surface,
-        border: Border.all(color: AppPalette.borderSoft),
+        color: colors.surface,
+        border: Border.all(color: colors.borderSoft),
         boxShadow: const <BoxShadow>[
           BoxShadow(
             color: Color(0x24000000),
@@ -177,7 +180,7 @@ class MobileHeroBanner extends StatelessWidget {
                     Text(
                       eyebrow.toUpperCase(),
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: AppPalette.textTertiary,
+                        color: colors.textTertiary,
                         fontWeight: FontWeight.w900,
                         letterSpacing: compact ? 1.4 : 1.8,
                       ),
@@ -203,7 +206,7 @@ class MobileHeroBanner extends StatelessWidget {
                       maxLines: compact ? 3 : null,
                       overflow: compact ? TextOverflow.ellipsis : null,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: AppPalette.textSecondary,
+                        color: colors.textSecondary,
                         height: compact ? 1.4 : 1.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -257,6 +260,7 @@ class MobilePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final theme = Theme.of(context);
     final compact = MediaQuery.sizeOf(context).width < 420;
     final headerChildren = <Widget>[
@@ -274,9 +278,9 @@ class MobilePanel extends StatelessWidget {
     ];
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surface.withValues(alpha: 0.86),
+        color: colors.surface.withValues(alpha: 0.86),
         borderRadius: BorderRadius.circular(compact ? 20 : 24),
-        border: Border.all(color: AppPalette.borderSoft.withValues(alpha: 0.72)),
+        border: Border.all(color: colors.borderSoft.withValues(alpha: 0.72)),
         boxShadow: const <BoxShadow>[
           BoxShadow(
             color: Color(0x22000000),
@@ -320,13 +324,14 @@ class MobileScreenLead extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final theme = Theme.of(context);
     final compact = MediaQuery.sizeOf(context).width < 420;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surface.withValues(alpha: 0.72),
+        color: colors.surface.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(compact ? 20 : 24),
-        border: Border.all(color: AppPalette.borderSoft.withValues(alpha: 0.64)),
+        border: Border.all(color: colors.borderSoft.withValues(alpha: 0.64)),
       ),
       child: Padding(
         padding: EdgeInsets.all(compact ? 16 : 18),
@@ -365,7 +370,7 @@ class MobileScreenLead extends StatelessWidget {
                       Text(
                         subtitle,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppPalette.textTertiary,
+                          color: colors.textTertiary,
                           fontWeight: FontWeight.w600,
                           height: 1.4,
                         ),
@@ -412,6 +417,7 @@ class MobileMetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final theme = Theme.of(context);
     final compact = MediaQuery.sizeOf(context).width < 420;
     return Material(
@@ -421,9 +427,9 @@ class MobileMetricCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(compact ? 20 : 24),
         child: Ink(
           decoration: BoxDecoration(
-            color: AppPalette.surfaceStrong,
+            color: colors.surfaceStrong,
             borderRadius: BorderRadius.circular(compact ? 20 : 24),
-            border: Border.all(color: AppPalette.borderSoft),
+            border: Border.all(color: colors.borderSoft),
           ),
           child: Padding(
             padding: EdgeInsets.all(compact ? 12 : 18),
@@ -453,7 +459,7 @@ class MobileMetricCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.labelSmall?.copyWith(
-                                color: AppPalette.textTertiary,
+                                color: colors.textTertiary,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 1.0,
                               ),
@@ -481,7 +487,7 @@ class MobileMetricCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppPalette.textTertiary,
+                            color: colors.textTertiary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -504,7 +510,7 @@ class MobileMetricCard extends StatelessWidget {
                       Text(
                         label.toUpperCase(),
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: AppPalette.textTertiary,
+                          color: colors.textTertiary,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 1.25,
                         ),
@@ -522,7 +528,7 @@ class MobileMetricCard extends StatelessWidget {
                         Text(
                           caption!,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppPalette.textTertiary,
+                            color: colors.textTertiary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -556,6 +562,7 @@ class MobileActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final theme = Theme.of(context);
     final compact = MediaQuery.sizeOf(context).width < 420;
     return Material(
@@ -572,7 +579,7 @@ class MobileActionCard extends StatelessWidget {
               colors: <Color>[
                 accent.withValues(alpha: 0.34),
                 accent.withValues(alpha: 0.14),
-                AppPalette.surfaceStrong,
+                colors.surfaceStrong,
               ],
             ),
             border: Border.all(color: accent.withValues(alpha: 0.26)),
@@ -600,7 +607,7 @@ class MobileActionCard extends StatelessWidget {
                   Text(
                     kicker!.toUpperCase(),
                     style: theme.textTheme.labelSmall?.copyWith(
-                      color: AppPalette.textPrimary.withValues(alpha: 0.76),
+                      color: colors.textPrimary.withValues(alpha: 0.76),
                       fontWeight: FontWeight.w900,
                       letterSpacing: compact ? 1.1 : 1.4,
                     ),
@@ -621,7 +628,7 @@ class MobileActionCard extends StatelessWidget {
                   maxLines: compact ? 3 : null,
                   overflow: compact ? TextOverflow.ellipsis : null,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppPalette.textSecondary,
+                    color: colors.textSecondary,
                     fontWeight: FontWeight.w700,
                     height: 1.4,
                   ),
@@ -694,6 +701,7 @@ class MobileEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 18),
@@ -703,10 +711,10 @@ class MobileEmptyState extends StatelessWidget {
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color: AppPalette.backgroundSoft,
+              color: colors.backgroundSoft,
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(icon, color: AppPalette.textSecondary, size: 26),
+            child: Icon(icon, color: colors.textSecondary, size: 26),
           ),
           const SizedBox(height: 16),
           Text(
@@ -720,7 +728,7 @@ class MobileEmptyState extends StatelessWidget {
           Text(
             body,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: AppPalette.textTertiary,
+              color: colors.textTertiary,
               fontWeight: FontWeight.w600,
             ),
             textAlign: TextAlign.center,
@@ -751,12 +759,13 @@ class MobileSheetHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final theme = Theme.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong,
+        color: colors.surfaceStrong,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppPalette.borderSoft),
+        border: Border.all(color: colors.borderSoft),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -784,7 +793,7 @@ class MobileSheetHeader extends StatelessWidget {
                         Text(
                           eyebrow!.toUpperCase(),
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: AppPalette.textTertiary,
+                            color: colors.textTertiary,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 1.15,
                           ),
@@ -802,7 +811,7 @@ class MobileSheetHeader extends StatelessWidget {
                       Text(
                         subtitle,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppPalette.textSecondary,
+                          color: colors.textSecondary,
                           fontWeight: FontWeight.w600,
                           height: 1.4,
                         ),
@@ -843,6 +852,7 @@ class MobileListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final theme = Theme.of(context);
     return Material(
       color: Colors.transparent,
@@ -851,9 +861,9 @@ class MobileListTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         child: Ink(
           decoration: BoxDecoration(
-            color: AppPalette.surfaceStrong.withValues(alpha: 0.66),
+            color: colors.surfaceStrong.withValues(alpha: 0.66),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppPalette.borderSoft.withValues(alpha: 0.62)),
+            border: Border.all(color: colors.borderSoft.withValues(alpha: 0.62)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -890,7 +900,7 @@ class MobileListTile extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppPalette.textTertiary,
+                          color: colors.textTertiary,
                           fontWeight: FontWeight.w600,
                           height: 1.35,
                         ),
@@ -903,9 +913,9 @@ class MobileListTile extends StatelessWidget {
                   trailing!,
                 ] else if (onTap != null) ...<Widget>[
                   const SizedBox(width: 10),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right_rounded,
-                    color: AppPalette.textTertiary,
+                    color: colors.textTertiary,
                   ),
                 ],
               ],
@@ -986,11 +996,12 @@ class MobileSheetSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong.withValues(alpha: 0.72),
+        color: colors.surfaceStrong.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppPalette.borderSoft.withValues(alpha: 0.64)),
+        border: Border.all(color: colors.borderSoft.withValues(alpha: 0.64)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),

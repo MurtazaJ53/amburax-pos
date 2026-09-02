@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/backend/backend_api_client.dart';
 import '../../../core/models/mobile_models.dart';
 import '../../../core/session/mobile_session_controller.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
 
@@ -134,8 +135,9 @@ class _ShopCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Material(
-      color: AppPalette.surface,
+      color: colors.surface,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -145,7 +147,7 @@ class _ShopCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isCurrent ? AppPalette.primary : AppPalette.border,
+              color: isCurrent ? AppPalette.primary : colors.border,
               width: isCurrent ? 2 : 1,
             ),
           ),
@@ -171,8 +173,8 @@ class _ShopCard extends StatelessWidget {
                             fontWeight: FontWeight.w700, fontSize: 15)),
                     const SizedBox(height: 2),
                     Text('${shop.roleLabel} · ${shop.shopPlanTier}',
-                        style: const TextStyle(
-                            color: AppPalette.textTertiary, fontSize: 12.5)),
+                        style: TextStyle(
+                            color: colors.textTertiary, fontSize: 12.5)),
                   ],
                 ),
               ),
@@ -183,8 +185,8 @@ class _ShopCard extends StatelessWidget {
                   accent: AppPalette.success,
                 )
               else
-                const Icon(Icons.chevron_right_rounded,
-                    color: AppPalette.textTertiary),
+                Icon(Icons.chevron_right_rounded,
+                    color: colors.textTertiary),
             ],
           ),
         ),

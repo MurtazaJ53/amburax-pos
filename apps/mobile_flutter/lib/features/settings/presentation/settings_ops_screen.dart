@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -2340,6 +2341,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
     required PilotDiagnosticsSnapshot diagnosticsSnapshot,
     required PilotReadinessReport readinessReport,
   }) async {
+    final colors = AppColors.of(context);
     final notesController = TextEditingController();
     final outcomes = <String, PilotSmokeCheckOutcome>{
       for (final check in defaultPilotSmokeChecks)
@@ -2433,7 +2435,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                                   'Pass ${preview.passedCount} | Fail ${preview.failedCount} | Pending ${preview.pendingCount}',
                                   style: Theme.of(context).textTheme.labelLarge
                                       ?.copyWith(
-                                        color: AppPalette.textSecondary,
+                                        color: colors.textSecondary,
                                         fontWeight: FontWeight.w800,
                                       ),
                                 ),
@@ -3469,6 +3471,7 @@ class _PilotSmokeCheckCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final tone = switch (outcome) {
       PilotSmokeCheckOutcome.passed => AppPalette.success,
       PilotSmokeCheckOutcome.failed => AppPalette.error,
@@ -3526,7 +3529,7 @@ class _PilotSmokeCheckCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong,
+        color: colors.surfaceStrong,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
@@ -3604,6 +3607,7 @@ class _CloseoutToggleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final tone = value
         ? (dangerWhenTrue ? AppPalette.error : AppPalette.success)
         : (dangerWhenTrue ? AppPalette.success : AppPalette.warning);
@@ -3612,7 +3616,7 @@ class _CloseoutToggleCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong,
+        color: colors.surfaceStrong,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
@@ -3692,6 +3696,7 @@ class _OutboxAttentionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final tone = entry.isFailed
         ? AppPalette.error
         : entry.isSyncing
@@ -3706,7 +3711,7 @@ class _OutboxAttentionRow extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong,
+        color: colors.surfaceStrong,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: tone.withValues(alpha: 0.18)),
       ),
@@ -3788,11 +3793,12 @@ class _SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppPalette.surfaceStrong,
+          color: colors.surfaceStrong,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
         ),
@@ -3847,6 +3853,7 @@ class _DomainSettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final tone = switch (state.pilotSignoffStatus) {
       'production_safe' => AppPalette.success,
       'ready_for_cutover' => AppPalette.primary,
@@ -3856,7 +3863,7 @@ class _DomainSettingsRow extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong,
+        color: colors.surfaceStrong,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),

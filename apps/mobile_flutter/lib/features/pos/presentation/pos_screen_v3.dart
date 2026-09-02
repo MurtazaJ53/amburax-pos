@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../../../core/widgets/adaptive_layout.dart';
 
 import '../../../l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
@@ -1342,75 +1343,123 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
         ref.watch(posCatalogPageProvider(catalogFilter)).asData?.value ??
         const <InventoryCatalogItem>[];
 
-    final entries = items.isEmpty ? const [] : groupCatalog(items);
+    final allEntries = items.isEmpty ? const [] : groupCatalog(items);
+    final entries = allEntries.take(100).toList(growable: false);
+
+    final mainContent = CustomScrollView(
+      slivers: <Widget>[
+        SliverToBoxAdapter(child: _buildHeader(context, items)),
+        if (categories.isNotEmpty)
+          SliverToBoxAdapter(child: _buildCategoryFilters(categories)),
+        SliverToBoxAdapter(child: _buildFavouritesStrip()),
+        SliverToBoxAdapter(child: _buildQuickWeighGrid(items)),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+        if (items.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _EmptyCatalog(searching: _search.isNotEmpty),
+          )
+        else
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, AdaptiveLayout.isPhone(context) && _cart.isEmpty ? 24 : 108),
+            sliver: SliverGrid.builder(
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.60,
+              ),
+              itemCount: entries.length,
+              itemBuilder: (context, index) {
+                final entry = entries[index];
+                if (entry is VariantGroup) {
+                  return _VariantGroupCard(
+                    group: entry,
+                    qtyInCart: entry.variants.fold<double>(
+                      0,
+                      (sum, v) => sum + _qtyInCart(v.id),
+                    ),
+                    onTap: () => _openVariantPicker(entry),
+                  );
+                }
+                final item = entry as InventoryCatalogItem;
+                return _ProductCard(
+                  item: item,
+                  qtyInCart: _qtyInCart(item.id),
+                  onAdd: () => _addToCart(item),
+                  onInc: () => _changeQtyById(item.id, 1),
+                  onDec: () => _changeQtyById(item.id, -1),
+                  onLongPress: () => _toggleFavourite(item),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+
+    Widget cartPane() => _CartSheet(
+          cart: _cart,
+          inline: true,
+          onChangeQty: _changeQtyById,
+          onSetQty: _setLineQuantity,
+          onSetLineDiscount: _setLineDiscount,
+          gstSummary: () => _gstSummary,
+          grossTotal: () => _cartTotal,
+          discountAmount: () => _discountAmount,
+          netTotal: () => _netTotal,
+          discountController: _discountController,
+          isPercent: () => _discountIsPercent,
+          onToggleType: () =>
+              setState(() => _discountIsPercent = !_discountIsPercent),
+          customerNameController: _customerNameController,
+          customerPhoneController: _customerPhoneController,
+          saleDate: () => _saleDate,
+          onCheckout: () => _openCheckout(),
+          onPickDate: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: _saleDate ?? DateTime.now(),
+              firstDate: DateTime(2020),
+              lastDate: DateTime.now(),
+            );
+            if (picked != null && mounted) {
+              setState(() => _saleDate = picked);
+            }
+          },
+          onPickCustomer: _pickCustomer,
+        );
 
     return Scaffold(
       backgroundColor: colors.background,
-      // The header, filters, favourites and quick-weigh rows now live inside
-      // the scroll view, so they slide up out of the way as the operator scrolls
-      // the product list — many more products stay on screen during a busy sale.
       body: SafeArea(
         bottom: false,
-        child: CustomScrollView(
-          slivers: <Widget>[
-            SliverToBoxAdapter(child: _buildHeader(context, items)),
-            if (categories.isNotEmpty)
-              SliverToBoxAdapter(child: _buildCategoryFilters(categories)),
-            SliverToBoxAdapter(child: _buildFavouritesStrip()),
-            SliverToBoxAdapter(child: _buildQuickWeighGrid(items)),
-            const SliverToBoxAdapter(child: SizedBox(height: 8)),
-            if (items.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: _EmptyCatalog(searching: _search.isNotEmpty),
-              )
-            else
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(16, 0, 16, _cart.isEmpty ? 24 : 108),
-                sliver: SliverGrid.builder(
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.60,
-                  ),
-                  itemCount: entries.length,
-                  itemBuilder: (context, index) {
-                    final entry = entries[index];
-                    if (entry is VariantGroup) {
-                      return _VariantGroupCard(
-                        group: entry,
-                        qtyInCart: entry.variants.fold<double>(
-                          0,
-                          (sum, v) => sum + _qtyInCart(v.id),
-                        ),
-                        onTap: () => _openVariantPicker(entry),
-                      );
-                    }
-                    final item = entry as InventoryCatalogItem;
-                    return _ProductCard(
-                      item: item,
-                      qtyInCart: _qtyInCart(item.id),
-                      onAdd: () => _addToCart(item),
-                      onInc: () => _changeQtyById(item.id, 1),
-                      onDec: () => _changeQtyById(item.id, -1),
-                      onLongPress: () => _toggleFavourite(item),
-                    );
-                  },
-                ),
-              ),
-          ],
+        child: AdaptiveLayout(
+          phone: (_) => mainContent,
+          tablet: (_) => Row(
+            children: <Widget>[
+              Expanded(flex: 6, child: mainContent),
+              VerticalDivider(width: 1, color: colors.border),
+              Expanded(flex: 4, child: cartPane()),
+            ],
+          ),
+          desktop: (_) => Row(
+            children: <Widget>[
+              Expanded(flex: 7, child: mainContent),
+              VerticalDivider(width: 1, color: colors.border),
+              Expanded(flex: 4, child: cartPane()),
+            ],
+          ),
         ),
       ),
-      bottomNavigationBar: _cart.isEmpty
-          ? null
-          : _CartBar(
+      bottomNavigationBar: AdaptiveLayout.isPhone(context) && _cart.isNotEmpty
+          ? _CartBar(
               count: _cartCount,
               total: _cartTotal,
               saving: _saving,
               onTap: _openCart,
-            ),
+            )
+          : null,
     );
   }
 
@@ -2617,7 +2666,12 @@ class _CartSheet extends StatefulWidget {
     required this.saleDate,
     required this.onPickDate,
     required this.onPickCustomer,
+    this.onCheckout,
+    this.inline = false,
   });
+
+  final VoidCallback? onCheckout;
+  final bool inline;
 
   final List<PosCartItem> cart;
   final void Function(String id, int delta) onChangeQty;
@@ -2769,19 +2823,15 @@ class _CartSheetState extends State<_CartSheet> {
     final theme = Theme.of(context);
     final gst = widget.gstSummary();
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.75,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: colors.background,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            children: <Widget>[
+    Widget buildContent(ScrollController? scrollController) {
+      return Container(
+        decoration: BoxDecoration(
+          color: colors.background,
+          borderRadius: widget.inline ? BorderRadius.zero : const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          children: <Widget>[
+            if (!widget.inline) ...<Widget>[
               const SizedBox(height: 10),
               Container(
                 width: 40,
@@ -2791,6 +2841,7 @@ class _CartSheetState extends State<_CartSheet> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
+            ],
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 child: Row(
@@ -2894,12 +2945,27 @@ class _CartSheetState extends State<_CartSheet> {
                 total: widget.netTotal(),
                 onPay: widget.cart.isEmpty
                     ? null
-                    : () => Navigator.of(context).pop('checkout'),
+                    : () {
+                        if (widget.inline) {
+                           if (widget.onCheckout != null) widget.onCheckout!();
+                        } else {
+                           Navigator.of(context).pop('checkout');
+                        }
+                      },
               ),
             ],
           ),
         );
-      },
+    }
+
+    if (widget.inline) return buildContent(null);
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) => buildContent(scrollController),
     );
   }
 }

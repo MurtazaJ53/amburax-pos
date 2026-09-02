@@ -14,6 +14,7 @@ class AdminToolsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppColors.of(context);
     final pending = ref.watch(pendingOutboxCountProvider).asData?.value ?? 0;
     final syncCoordinator = ref.watch(mobileSyncCoordinatorProvider);
 
@@ -22,11 +23,11 @@ class AdminToolsScreen extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
         children: <Widget>[
-          const MobileScreenLead(
+          MobileScreenLead(
             title: 'Admin tools',
             subtitle: 'Advanced operations for owners and admins.',
             icon: Icons.tune_rounded,
-            accent: AppPalette.textTertiary,
+            accent: colors.textTertiary,
           ),
           const SizedBox(height: 22),
           MobileListTile(

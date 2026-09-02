@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -212,6 +213,7 @@ class SettingsTeamScreen extends ConsumerWidget {
     required MobileSession session,
     required String shopName,
   }) async {
+    final colors = AppColors.of(context);
     if (!session.hasShop) {
       return;
     }
@@ -225,7 +227,7 @@ class SettingsTeamScreen extends ConsumerWidget {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppPalette.background,
+      backgroundColor: colors.background,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
@@ -429,6 +431,7 @@ class SettingsTeamScreen extends ConsumerWidget {
     required MobileSession session,
     required WorkspaceTeamMemberRecord member,
   }) async {
+    final colors = AppColors.of(context);
     if (!session.hasShop) {
       return;
     }
@@ -451,7 +454,7 @@ class SettingsTeamScreen extends ConsumerWidget {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppPalette.background,
+      backgroundColor: colors.background,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
@@ -670,11 +673,12 @@ class _TeamMemberRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppPalette.surfaceStrong,
+          color: colors.surfaceStrong,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
         ),
@@ -853,6 +857,7 @@ class _CloudInvitePanelState extends ConsumerState<_CloudInvitePanel> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return MobilePanel(
       title: 'Invite a teammate',
       action: const MobileTag(
@@ -869,7 +874,7 @@ class _CloudInvitePanelState extends ConsumerState<_CloudInvitePanel> {
             style: Theme.of(context)
                 .textTheme
                 .bodySmall
-                ?.copyWith(color: AppPalette.textSecondary),
+                ?.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -880,7 +885,7 @@ class _CloudInvitePanelState extends ConsumerState<_CloudInvitePanel> {
               labelText: 'Teammate email',
               isDense: true,
               filled: true,
-              fillColor: AppPalette.backgroundSoft,
+              fillColor: colors.backgroundSoft,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -898,7 +903,7 @@ class _CloudInvitePanelState extends ConsumerState<_CloudInvitePanel> {
                     labelText: 'Role',
                     isDense: true,
                     filled: true,
-                    fillColor: AppPalette.backgroundSoft,
+                    fillColor: colors.backgroundSoft,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,

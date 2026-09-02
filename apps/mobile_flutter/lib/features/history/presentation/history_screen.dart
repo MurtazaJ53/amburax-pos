@@ -567,10 +567,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     SalesRepository salesRepository,
     RecentSaleSummary sale,
   ) async {
+    final colors = AppColors.of(context);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppPalette.background,
+      backgroundColor: colors.background,
       builder: (context) {
         return SafeArea(
           child: Padding(
@@ -612,7 +613,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           MobileTag(
                             label: _syncLabel(detail.syncState),
                             icon: Icons.cloud_done_rounded,
-                            accent: _syncTone(detail.syncState),
+                            accent: _syncTone(context, detail.syncState),
                           ),
                           MobileTag(
                             label: detail.paymentMode,
@@ -1232,13 +1233,14 @@ class _SyncFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final activeColor = AppPalette.info;
     return Padding(
       padding: const EdgeInsets.only(right: 6),
       child: Material(
         color: active
             ? activeColor.withValues(alpha: 0.14)
-            : AppPalette.surfaceStrong,
+            : colors.surfaceStrong,
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           onTap: onTap,
@@ -1248,7 +1250,7 @@ class _SyncFilterChip extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: active ? activeColor : AppPalette.textTertiary,
+                color: active ? activeColor : colors.textTertiary,
                 fontWeight: FontWeight.w700,
                 fontSize: 12,
               ),
@@ -1268,7 +1270,8 @@ class _HistorySaleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = _syncTone(sale.syncState);
+    final colors = AppColors.of(context);
+    final tone = _syncTone(context, sale.syncState);
 
     return Material(
       color: Colors.transparent,
@@ -1277,7 +1280,7 @@ class _HistorySaleRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         child: Ink(
           decoration: BoxDecoration(
-            color: AppPalette.surfaceStrong.withValues(alpha: 0.66),
+            color: colors.surfaceStrong.withValues(alpha: 0.66),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
           ),
@@ -1488,9 +1491,10 @@ class _HistoryMetricTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong.withValues(alpha: 0.66),
+        color: colors.surfaceStrong.withValues(alpha: 0.66),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: tone.withValues(alpha: 0.18)),
       ),
@@ -1528,9 +1532,10 @@ class _HistoryPaymentMixRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong.withValues(alpha: 0.66),
+        color: colors.surfaceStrong.withValues(alpha: 0.66),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
@@ -1587,8 +1592,9 @@ class _SaleSummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
-      color: emphasize ? AppPalette.textPrimary : Colors.black.withValues(alpha: 0.72),
+      color: emphasize ? colors.textPrimary : Colors.black.withValues(alpha: 0.72),
       fontWeight: emphasize ? FontWeight.w900 : FontWeight.w600,
     );
     return Padding(
@@ -1630,13 +1636,13 @@ const List<String> _historyPaymentModes = <String>[
   'OTHERS',
 ];
 
-Color _syncTone(CommerceSyncState state) {
+Color _syncTone(BuildContext context, CommerceSyncState state) {
   return switch (state) {
     CommerceSyncState.synced => AppPalette.success,
     CommerceSyncState.queued => AppPalette.warning,
     CommerceSyncState.syncing => AppPalette.primary,
     CommerceSyncState.failed => AppPalette.warning,
-    CommerceSyncState.localOnly => AppPalette.textTertiary,
+    CommerceSyncState.localOnly => AppColors.of(context).textTertiary,
     CommerceSyncState.refunded => AppPalette.error,
   };
 }

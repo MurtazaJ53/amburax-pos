@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -109,6 +110,7 @@ class _SettingsAttendanceScreenState
     required MobileSession session,
     required List<WorkspaceTeamMemberRecord> members,
   }) async {
+    final colors = AppColors.of(context);
     if (!session.hasShop || members.isEmpty) {
       return;
     }
@@ -129,7 +131,7 @@ class _SettingsAttendanceScreenState
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppPalette.background,
+      backgroundColor: colors.background,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
@@ -624,6 +626,7 @@ class _AttendanceSessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final accent = switch (record.status) {
       'PRESENT' => AppPalette.success,
       'HALF_DAY' => AppPalette.primary,
@@ -633,7 +636,7 @@ class _AttendanceSessionCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong,
+        color: colors.surfaceStrong,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),

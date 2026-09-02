@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/runtime/mobile_runtime_config.dart';
 import '../../../core/region/gst_states.dart';
 import '../../../core/session/mobile_session_controller.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../pos/presentation/pos_scanner_sheet.dart';
 import '../../shell/presentation/mobile_surface.dart';
@@ -231,7 +232,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
   InputDecoration _fieldDecoration(String label) => InputDecoration(
         labelText: label,
         filled: true,
-        fillColor: AppPalette.backgroundSoft,
+        fillColor: AppColors.of(context).backgroundSoft,
         isDense: true,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -240,6 +241,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
       );
 
   Widget _buildCloudLoginPanel(BuildContext context) {
+    final colors = AppColors.of(context);
     return MobilePanel(
       title: 'Cloud Sign-in',
       action: const MobileTag(label: 'CLOUD', icon: Icons.cloud_outlined),
@@ -251,7 +253,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
             'Sign in to sync with the cloud backend.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppPalette.textSecondary,
+                  color: colors.textSecondary,
                   height: 1.5,
                 ),
           ),
@@ -319,7 +321,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
             style: Theme.of(context)
                 .textTheme
                 .bodySmall
-                ?.copyWith(color: AppPalette.textTertiary),
+                ?.copyWith(color: colors.textTertiary),
           ),
         ],
       ),
@@ -327,6 +329,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
   }
 
   Widget _buildCloudRegisterPanel(BuildContext context) {
+    final colors = AppColors.of(context);
     return MobilePanel(
       title: 'Create your shop',
       action: const MobileTag(
@@ -341,7 +344,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
             style: Theme.of(context)
                 .textTheme
                 .bodyMedium
-                ?.copyWith(color: AppPalette.textSecondary, height: 1.4),
+                ?.copyWith(color: colors.textSecondary, height: 1.4),
           ),
           const SizedBox(height: 18),
           TextField(
@@ -470,6 +473,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
   }
 
   Widget _buildCloudJoinPanel(BuildContext context) {
+    final colors = AppColors.of(context);
     return MobilePanel(
       title: 'Join a shop',
       action: const MobileTag(label: 'INVITE', icon: Icons.group_add_outlined),
@@ -483,7 +487,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
             style: Theme.of(context)
                 .textTheme
                 .bodyMedium
-                ?.copyWith(color: AppPalette.textSecondary, height: 1.4),
+                ?.copyWith(color: colors.textSecondary, height: 1.4),
           ),
           const SizedBox(height: 18),
           SizedBox(
@@ -561,6 +565,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final sessionAsync = ref.watch(mobileSessionProvider);
 
     return sessionAsync.when(
@@ -630,7 +635,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                           : 'Choose a 4-digit PIN to secure this terminal. You will use it every time you sign in.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppPalette.textSecondary,
+                        color: colors.textSecondary,
                         height: 1.5,
                       ),
                     ),
@@ -652,7 +657,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                           hintText: '----',
                           counterText: '',
                           filled: true,
-                          fillColor: AppPalette.backgroundSoft,
+                          fillColor: colors.backgroundSoft,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                             borderSide: BorderSide.none,
@@ -730,6 +735,7 @@ class _BrandHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final theme = Theme.of(context);
     return Column(
       children: [
@@ -766,7 +772,7 @@ class _BrandHero extends StatelessWidget {
           'Point of sale & business command center',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: AppPalette.textTertiary,
+            color: colors.textTertiary,
           ),
         ),
       ],
@@ -804,16 +810,17 @@ class _AuthScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Scaffold(
       body: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: <Color>[
-              AppPalette.background,
-              AppPalette.backgroundSoft,
-              AppPalette.background,
+              colors.background,
+              colors.backgroundSoft,
+              colors.background,
             ],
           ),
         ),
@@ -863,6 +870,7 @@ class _BrandedStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final theme = Theme.of(context);
     return MobilePanel(
       title: title,
@@ -882,7 +890,7 @@ class _BrandedStatus extends StatelessWidget {
           Text(
             subtitle,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: AppPalette.textSecondary,
+              color: colors.textSecondary,
               fontWeight: FontWeight.w700,
               height: 1.5,
             ),

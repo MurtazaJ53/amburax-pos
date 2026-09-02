@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -308,10 +309,11 @@ class _PlanSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final theme = Theme.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong,
+        color: colors.surfaceStrong,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
@@ -355,6 +357,7 @@ class _PlanTierCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final label = switch (planTier) {
       'starter' => 'Starter',
       'pro' => 'Pro',
@@ -393,7 +396,7 @@ class _PlanTierCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong,
+        color: colors.surfaceStrong,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),

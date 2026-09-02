@@ -12,6 +12,7 @@ import '../../../core/models/mobile_session.dart';
 import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/sync/mobile_sync_coordinator.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../settings/presentation/quick_settings_sheet.dart';
 
@@ -82,6 +83,7 @@ class _MobileShellScreenState extends ConsumerState<MobileShellScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final session = ref.watch(mobileSessionProvider).asData?.value;
     final shop =
         ref.watch(shopInfoProvider).asData?.value ?? ShopInfo.fallback();
@@ -105,14 +107,14 @@ class _MobileShellScreenState extends ConsumerState<MobileShellScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: DecoratedBox(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: <Color>[
-                AppPalette.background,
-                AppPalette.backgroundSoft,
-                AppPalette.backgroundSoft,
+                colors.background,
+                colors.backgroundSoft,
+                colors.backgroundSoft,
               ],
             ),
           ),
@@ -170,10 +172,10 @@ class _MobileShellScreenState extends ConsumerState<MobileShellScreen> {
                       ),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: AppPalette.surface.withValues(alpha: 0.85),
+                          color: colors.surface.withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(32),
                           border: Border.all(
-                            color: AppPalette.borderSoft.withValues(alpha: 0.5),
+                            color: colors.borderSoft.withValues(alpha: 0.5),
                           ),
                           boxShadow: [
                             BoxShadow(
@@ -257,6 +259,7 @@ class _ShellHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final theme = Theme.of(context);
     final statusTone = switch (syncStatus) {
       MobileSyncStatus.syncing => AppPalette.info,
@@ -282,9 +285,9 @@ class _ShellHeader extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surface.withValues(alpha: 0.78),
+        color: colors.surface.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(compact ? 20 : 22),
-        border: Border.all(color: AppPalette.borderSoft.withValues(alpha: 0.72)),
+        border: Border.all(color: colors.borderSoft.withValues(alpha: 0.72)),
       ),
       child: Padding(
         padding: EdgeInsets.symmetric(
@@ -320,7 +323,7 @@ class _ShellHeader extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelSmall?.copyWith(
-                      color: AppPalette.textTertiary,
+                      color: colors.textTertiary,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.5,
                     ),
@@ -362,18 +365,19 @@ class _HeaderIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Container(
       width: compact ? 40 : 44,
       height: compact ? 40 : 44,
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong.withValues(alpha: 0.76),
+        color: colors.surfaceStrong.withValues(alpha: 0.76),
         borderRadius: BorderRadius.circular(compact ? 14 : 16),
-        border: Border.all(color: AppPalette.borderSoft.withValues(alpha: 0.62)),
+        border: Border.all(color: colors.borderSoft.withValues(alpha: 0.62)),
       ),
       child: IconButton(
         onPressed: onPressed,
         icon: Icon(icon, size: compact ? 20 : 24),
-        color: AppPalette.textPrimary,
+        color: colors.textPrimary,
         padding: EdgeInsets.zero,
       ),
     );
@@ -444,7 +448,8 @@ class _NavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppPalette.primary : AppPalette.textSecondary;
+    final colors = AppColors.of(context);
+    final color = active ? AppPalette.primary : colors.textSecondary;
     final label = _localizedNavLabel(
       context,
       compact ? item.compactLabel : item.label,

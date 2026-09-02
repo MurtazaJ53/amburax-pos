@@ -36,16 +36,16 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color textDisabled;
 
   static const AppColors dark = AppColors(
-    background: AppPalette.background,
-    backgroundSoft: AppPalette.backgroundSoft,
-    surface: AppPalette.surface,
-    surfaceStrong: AppPalette.surfaceStrong,
-    borderSoft: AppPalette.borderSoft,
-    border: AppPalette.border,
-    textPrimary: AppPalette.textPrimary,
-    textSecondary: AppPalette.textSecondary,
-    textTertiary: AppPalette.textTertiary,
-    textDisabled: AppPalette.textDisabled,
+    background: AppPalette.backgroundDark,
+    backgroundSoft: AppPalette.backgroundSoftDark,
+    surface: AppPalette.surfaceDark,
+    surfaceStrong: AppPalette.surfaceStrongDark,
+    borderSoft: AppPalette.borderSoftDark,
+    border: AppPalette.borderDark,
+    textPrimary: AppPalette.textPrimaryDark,
+    textSecondary: AppPalette.textSecondaryDark,
+    textTertiary: AppPalette.textTertiaryDark,
+    textDisabled: AppPalette.textDisabledDark,
   );
 
   static const AppColors light = AppColors(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -393,6 +394,7 @@ class _WorkspaceSessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final subtitle = record.memberEmail.trim().isEmpty
         ? record.roleLabel
         : '${record.memberEmail} | ${record.roleLabel}';
@@ -402,7 +404,7 @@ class _WorkspaceSessionCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong,
+        color: colors.surfaceStrong,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),

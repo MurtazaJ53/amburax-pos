@@ -57,7 +57,7 @@ String relativeTime(DateTime? when, {DateTime? now}) {
 /// Semantic rather than decorative: a stock warning and a takings summary are
 /// different kinds of news, and a feed where everything looks the same is one
 /// nobody scans.
-Color toneFor(String type) {
+Color toneFor(BuildContext context, String type) {
   switch (type) {
     case 'stock':
     case 'warning':
@@ -69,7 +69,7 @@ Color toneFor(String type) {
     case 'success':
       return AppPalette.success;
     default:
-      return AppPalette.textTertiary;
+      return AppColors.of(context).textTertiary;
   }
 }
 
@@ -267,7 +267,7 @@ class _NotificationRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final tone = toneFor(row.type);
+    final tone = toneFor(context, row.type);
 
     return InkWell(
       onTap: onTap,

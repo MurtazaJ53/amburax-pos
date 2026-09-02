@@ -9,6 +9,7 @@ import '../core/database/local_database.dart';
 import '../core/router/app_router.dart';
 import '../core/security/app_lock.dart';
 import '../core/sync/mobile_sync_coordinator.dart';
+import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/theme_mode_controller.dart';
 
@@ -79,16 +80,17 @@ class _StartupBootScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Scaffold(
       body: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: <Color>[
-              AppPalette.background,
-              AppPalette.backgroundSoft,
-              AppPalette.background,
+              colors.background,
+              colors.backgroundSoft,
+              colors.background,
             ],
           ),
         ),
@@ -145,7 +147,7 @@ class _StartupBootScreen extends StatelessWidget {
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
-                                color: AppPalette.textSecondary,
+                                color: colors.textSecondary,
                                 fontWeight: FontWeight.w600,
                                 height: 1.45,
                               ),
@@ -177,16 +179,17 @@ class _StartupFailedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Scaffold(
       body: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: <Color>[
-              AppPalette.background,
-              AppPalette.backgroundSoft,
-              AppPalette.background,
+              colors.background,
+              colors.backgroundSoft,
+              colors.background,
             ],
           ),
         ),
@@ -233,7 +236,7 @@ class _StartupFailedScreen extends StatelessWidget {
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
-                                color: AppPalette.textSecondary,
+                                color: colors.textSecondary,
                                 fontWeight: FontWeight.w600,
                                 height: 1.45,
                               ),

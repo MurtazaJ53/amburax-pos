@@ -5,76 +5,64 @@ import 'app_colors.dart';
 
 /// Brand + semantic colours shared across light and dark themes.
 final class AppPalette {
-  // Neutrals (Foundation) — white/light (blue-and-white theme)
-  static const Color backgroundDeep = Color(0xFFEEF2F6);
-  static const Color background = Color(0xFFF8FAFC);
-  static const Color backgroundSoft = Color(0xFFF1F5F9);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceStrong = Color(0xFFF4F4F5);
-  static const Color borderSoft = Color(0xFFE4E4E7);
-  static const Color border = Color(0xFFD4D4D8);
-  static const Color borderStrong = Color(0xFFA1A1AA);
+  // Brand Colors
+  static const Color primary = Color(0xFF0369A1);
+  static const Color primaryHover = Color(0xFF075985);
+  static const Color primaryDark = Color(0xFF0C4A6E);
+  static const Color primaryLight = Color(0xFF0EA5E9);
+  
+  // Pale ground for buttons
+  static const Color primaryPale = Color(0xFFE0F2FE); 
 
-  // Text Hierarchy — dark ink on white
-  static const Color textPrimary = Color(0xFF0F172A);
-  static const Color textSecondary = Color(0xFF3F3F46);
-  static const Color textTertiary = Color(0xFF71717A);
-  static const Color textDisabled = Color(0xFFA1A1AA);
-
-  // Brand Colors (Business Hub sky-blue — carried over from the legacy app)
-  static const Color primary = Color(0xFF0EA5E9); // Sky 500 (hsl 199 89% 48%)
-  static const Color primaryHover = Color(0xFF0284C7); // Sky 600
-  static const Color primaryLight = Color(0xFF38BDF8); // Sky 400
-  static const Color primaryDark = Color(0xFF0369A1); // Sky 700
-
-  // Secondary accent kept within the blue family (was cyan).
-  static const Color accent = Color(0xFF0284C7); // Sky 600
-  static const Color accentHover = Color(0xFF0369A1); // Sky 700
-  static const Color accentLight = Color(0xFF38BDF8); // Sky 400
+  // Secondary accent
+  static const Color accent = Color(0xFF075985);
+  static const Color accentHover = Color(0xFF0C4A6E);
+  static const Color accentLight = Color(0xFF0369A1);
 
   // Semantic Colors
-  static const Color success = Color(0xFF10B981);
-  static const Color successLight = Color(0xFF34D399);
-  static const Color successDark = Color(0xFF059669);
+  static const Color success = Color(0xFF15803D);
+  static const Color warning = Color(0xFFB45309);
+  static const Color error = Color(0xFFB91C1C);
+  static const Color info = Color(0xFF1D4ED8);
 
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color warningLight = Color(0xFFFBBF24);
-  static const Color warningDark = Color(0xFFD97706);
-
-  static const Color error = Color(0xFFEF4444);
-  static const Color errorLight = Color(0xFFF87171);
-  static const Color errorDark = Color(0xFFDC2626);
-
-  static const Color info = Color(0xFF3B82F6);
-  static const Color infoLight = Color(0xFF60A5FA);
-  static const Color infoDark = Color(0xFF2563EB);
+  // Dark Theme Neutrals (Hand-crafted, not inverted)
+  static const Color backgroundDark = Color(0xFF0B1120);
+  static const Color backgroundSoftDark = Color(0xFF0F172A);
+  static const Color surfaceDark = Color(0xFF1E293B);
+  static const Color surfaceStrongDark = Color(0xFF334155);
+  static const Color borderSoftDark = Color(0xFF334155);
+  static const Color borderDark = Color(0xFF475569);
+  
+  static const Color textPrimaryDark = Color(0xFFF8FAFC);
+  static const Color textSecondaryDark = Color(0xFFCBD5E1);
+  static const Color textTertiaryDark = Color(0xFF94A3B8);
+  static const Color textDisabledDark = Color(0xFF64748B);
 
   // Domain Colors
-  static const Color revenue = Color(0xFF10B981);
-  static const Color expense = Color(0xFFEF4444);
-  static const Color inventory = Color(0xFF0EA5E9);
-  static const Color customer = Color(0xFF0284C7);
-  static const Color alert = Color(0xFFF59E0B);
+  static const Color revenue = success;
+  static const Color expense = error;
+  static const Color inventory = primary;
+  static const Color customer = primaryHover;
+  static const Color alert = warning;
 
   // Backward-compatible aliases used across existing screens.
-  static const Color panel = surface;
-  static const Color lineSoft = borderSoft;
+  static const Color panel = Color(0xFFFDFEFF);
+  static const Color lineSoft = Color(0xFFDCEAF5);
   static const Color coral = error;
 }
 
 /// Light-mode neutral/surface/text tokens.
 final class AppPaletteLight {
-  static const Color background = Color(0xFFF8FAFC);
-  static const Color backgroundSoft = Color(0xFFF1F5F9);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceStrong = Color(0xFFF4F4F5);
-  static const Color borderSoft = Color(0xFFE4E4E7);
-  static const Color border = Color(0xFFD4D4D8);
-  static const Color borderStrong = Color(0xFFA1A1AA);
+  static const Color background = Color(0xFFEFF6FC);
+  static const Color backgroundSoft = Color(0xFFF1F7FC);
+  static const Color surface = Color(0xFFFDFEFF);
+  static const Color surfaceStrong = Color(0xFFF1F7FC);
+  static const Color borderSoft = Color(0xFFDCEAF5);
+  static const Color border = Color(0xFFC5DCEC);
 
-  static const Color textPrimary = Color(0xFF0F172A);
-  static const Color textSecondary = Color(0xFF3F3F46);
-  static const Color textTertiary = Color(0xFF71717A);
+  static const Color textPrimary = Color(0xFF0F2942);
+  static const Color textSecondary = Color(0xFF3D5A73);
+  static const Color textTertiary = Color(0xFF64748B);
   static const Color textDisabled = Color(0xFFA1A1AA);
 }
 
@@ -110,16 +98,16 @@ final class AppTheme {
   static ThemeData get dark => _build(
         const _ThemeTokens(
           brightness: Brightness.dark,
-          background: AppPalette.background,
-          backgroundSoft: AppPalette.backgroundSoft,
-          surface: AppPalette.surface,
-          surfaceStrong: AppPalette.surfaceStrong,
-          borderSoft: AppPalette.borderSoft,
-          border: AppPalette.border,
-          textPrimary: AppPalette.textPrimary,
-          textSecondary: AppPalette.textSecondary,
-          textTertiary: AppPalette.textTertiary,
-          textDisabled: AppPalette.textDisabled,
+          background: AppPalette.backgroundDark,
+          backgroundSoft: AppPalette.backgroundSoftDark,
+          surface: AppPalette.surfaceDark,
+          surfaceStrong: AppPalette.surfaceStrongDark,
+          borderSoft: AppPalette.borderSoftDark,
+          border: AppPalette.borderDark,
+          textPrimary: AppPalette.textPrimaryDark,
+          textSecondary: AppPalette.textSecondaryDark,
+          textTertiary: AppPalette.textTertiaryDark,
+          textDisabled: AppPalette.textDisabledDark,
         ),
       );
 
@@ -329,8 +317,8 @@ final class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppPalette.primary,
-          foregroundColor: const Color(0xFFFFFFFF),
+          backgroundColor: AppPalette.primaryPale,
+          foregroundColor: AppPalette.primaryDark,
           disabledBackgroundColor: t.surfaceStrong,
           disabledForegroundColor: t.textDisabled,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

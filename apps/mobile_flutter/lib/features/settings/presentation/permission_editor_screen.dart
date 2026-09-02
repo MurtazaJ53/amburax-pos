@@ -8,6 +8,7 @@ import '../../../core/backend/backend_api_client.dart';
 import '../../../core/models/mobile_models.dart';
 import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/session/mobile_session_controller.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
 
@@ -193,6 +194,7 @@ class _PermissionEditorScreenState
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final visibleModules = _catalog.where((m) {
       if (_search.isEmpty) return true;
       final q = _search.toLowerCase();
@@ -257,7 +259,7 @@ class _PermissionEditorScreenState
                         prefixIcon: const Icon(Icons.search_rounded),
                         isDense: true,
                         filled: true,
-                        fillColor: AppPalette.backgroundSoft,
+                        fillColor: colors.backgroundSoft,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,

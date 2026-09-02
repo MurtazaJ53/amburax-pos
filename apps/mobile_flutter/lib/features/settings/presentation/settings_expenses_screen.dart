@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -92,6 +93,7 @@ class _SettingsExpensesScreenState
   }
 
   Future<void> _openAddExpenseSheet(BuildContext context) async {
+    final colors = AppColors.of(context);
     final categoryController = TextEditingController();
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
@@ -103,7 +105,7 @@ class _SettingsExpensesScreenState
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppPalette.background,
+      backgroundColor: colors.background,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
@@ -525,9 +527,10 @@ class _ExpenseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceStrong,
+        color: colors.surfaceStrong,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),

@@ -7,7 +7,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../app/app.dart';
 import '../core/diagnostics/crash_logger.dart';
-import '../core/theme/app_theme.dart';
+import '../core/theme/app_colors.dart';
 
 /// Cloud crash reporting.
 ///
@@ -75,8 +75,9 @@ class _FatalSurfaceFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return ColoredBox(
-      color: AppPalette.background,
+      color: colors.background,
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -84,7 +85,7 @@ class _FatalSurfaceFallback extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 420),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: AppPalette.surfaceStrong,
+                color: colors.surfaceStrong,
                 borderRadius: BorderRadius.circular(26),
                 border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
               ),
