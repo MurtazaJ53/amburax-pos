@@ -23,8 +23,9 @@ void main() {
   tearDown(() async => db.close());
 
   Future<int> count(String table) async {
-    final rows =
-        await db.customSelect('SELECT COUNT(*) AS c FROM $table;').get();
+    final rows = await db
+        .customSelect('SELECT COUNT(*) AS c FROM $table;')
+        .get();
     return rows.first.read<int>('c');
   }
 

@@ -57,7 +57,9 @@ List<XlsxSheet> readXlsx(List<int> bytes) {
   final relTargets = <String, String>{};
   final relsFile = find('xl/_rels/workbook.xml.rels');
   if (relsFile != null) {
-    for (final rel in XmlDocument.parse(text(relsFile)).findAllElements('Relationship')) {
+    for (final rel in XmlDocument.parse(
+      text(relsFile),
+    ).findAllElements('Relationship')) {
       final id = rel.getAttribute('Id');
       final target = rel.getAttribute('Target');
       if (id != null && target != null) relTargets[id] = target;
@@ -69,7 +71,9 @@ List<XlsxSheet> readXlsx(List<int> bytes) {
   if (workbookFile == null) return sheets;
 
   var fallbackIndex = 0;
-  for (final sheetEl in XmlDocument.parse(text(workbookFile)).findAllElements('sheet')) {
+  for (final sheetEl in XmlDocument.parse(
+    text(workbookFile),
+  ).findAllElements('sheet')) {
     fallbackIndex++;
     final name = sheetEl.getAttribute('name') ?? 'Sheet$fallbackIndex';
     final rid = sheetEl.getAttribute('r:id') ?? sheetEl.getAttribute('id');
@@ -108,7 +112,9 @@ List<List<String>> _parseSheet(String sheetXml, List<String> shared) {
         final raw = c.getElement('v')?.innerText ?? '';
         if (type == 's') {
           final idx = int.tryParse(raw);
-          value = (idx != null && idx >= 0 && idx < shared.length) ? shared[idx] : '';
+          value = (idx != null && idx >= 0 && idx < shared.length)
+              ? shared[idx]
+              : '';
         } else {
           value = raw;
         }

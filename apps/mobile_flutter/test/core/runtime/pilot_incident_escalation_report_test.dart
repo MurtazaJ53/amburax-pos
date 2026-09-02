@@ -8,9 +8,7 @@ import 'package:business_hub_mobile/core/sync/mobile_sync_coordinator.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  PilotDiagnosticsSnapshot buildDiagnostics({
-    int failedSales = 0,
-  }) {
+  PilotDiagnosticsSnapshot buildDiagnostics({int failedSales = 0}) {
     const runtime = AppRuntimeInfo(
       appName: 'Business Hub',
       packageName: 'com.example.businesshub',
@@ -52,86 +50,92 @@ void main() {
     );
   }
 
-  test('incident escalation report marks immediate escalation for rollback risk', () {
-    final diagnostics = buildDiagnostics(failedSales: 1);
-    final readiness = PilotReadinessReport.evaluate(
-      diagnosticsSnapshot: diagnostics,
-      attentionEntries: const <CommerceOutboxAttentionEntry>[
-        CommerceOutboxAttentionEntry(
-          commandId: 'sale-1',
-          commandType: 'sale_create',
-          syncStatus: 'failed',
-          attemptCount: 3,
-          updatedAt: 1714694400,
-          total: 700,
+  test(
+    'incident escalation report marks immediate escalation for rollback risk',
+    () {
+      final diagnostics = buildDiagnostics(failedSales: 1);
+      final readiness = PilotReadinessReport.evaluate(
+        diagnosticsSnapshot: diagnostics,
+        attentionEntries: const <CommerceOutboxAttentionEntry>[
+          CommerceOutboxAttentionEntry(
+            commandId: 'sale-1',
+            commandType: 'sale_create',
+            syncStatus: 'failed',
+            attemptCount: 3,
+            updatedAt: 1714694400,
+            total: 700,
+          ),
+        ],
+      );
+      final recovery = PilotRecoveryReport(
+        diagnosticsSnapshot: diagnostics,
+        attentionEntries: const <CommerceOutboxAttentionEntry>[
+          CommerceOutboxAttentionEntry(
+            commandId: 'sale-1',
+            commandType: 'sale_create',
+            syncStatus: 'failed',
+            attemptCount: 3,
+            updatedAt: 1714694400,
+            total: 700,
+            lastError: 'Balance mismatch',
+          ),
+        ],
+      );
+
+      final report = PilotIncidentEscalationReport(
+        diagnosticsSnapshot: diagnostics,
+        readinessReport: readiness,
+        recoveryReport: recovery,
+        answers: const PilotIncidentEscalationAnswers(
+          severity: 'sev1',
+          impactScope: 'single_shop',
+          checkoutBlocked: true,
+          moneyMovementRisk: true,
+          rollbackRequested: true,
+          notes: 'Checkout blocked and payment totals look unsafe.',
         ),
-      ],
-    );
-    final recovery = PilotRecoveryReport(
-      diagnosticsSnapshot: diagnostics,
-      attentionEntries: const <CommerceOutboxAttentionEntry>[
-        CommerceOutboxAttentionEntry(
-          commandId: 'sale-1',
-          commandType: 'sale_create',
-          syncStatus: 'failed',
-          attemptCount: 3,
-          updatedAt: 1714694400,
-          total: 700,
-          lastError: 'Balance mismatch',
+      );
+
+      expect(report.escalationDecisionLabel, 'IMMEDIATE ESCALATION');
+      expect(report.summary, contains('immediate escalation'));
+    },
+  );
+
+  test(
+    'incident escalation export includes severity and embedded sections',
+    () {
+      final diagnostics = buildDiagnostics();
+      final readiness = PilotReadinessReport.evaluate(
+        diagnosticsSnapshot: diagnostics,
+        attentionEntries: const <CommerceOutboxAttentionEntry>[],
+      );
+      final recovery = PilotRecoveryReport(
+        diagnosticsSnapshot: diagnostics,
+        attentionEntries: const <CommerceOutboxAttentionEntry>[],
+      );
+      final report = PilotIncidentEscalationReport(
+        diagnosticsSnapshot: diagnostics,
+        readinessReport: readiness,
+        recoveryReport: recovery,
+        answers: const PilotIncidentEscalationAnswers(
+          severity: 'sev2',
+          impactScope: 'wave',
+          checkoutBlocked: false,
+          moneyMovementRisk: false,
+          rollbackRequested: false,
+          notes: 'Support should watch this wave closely.',
         ),
-      ],
-    );
+      );
 
-    final report = PilotIncidentEscalationReport(
-      diagnosticsSnapshot: diagnostics,
-      readinessReport: readiness,
-      recoveryReport: recovery,
-      answers: const PilotIncidentEscalationAnswers(
-        severity: 'sev1',
-        impactScope: 'single_shop',
-        checkoutBlocked: true,
-        moneyMovementRisk: true,
-        rollbackRequested: true,
-        notes: 'Checkout blocked and payment totals look unsafe.',
-      ),
-    );
+      final text = report.toMultilineText();
 
-    expect(report.escalationDecisionLabel, 'IMMEDIATE ESCALATION');
-    expect(report.summary, contains('immediate escalation'));
-  });
-
-  test('incident escalation export includes severity and embedded sections', () {
-    final diagnostics = buildDiagnostics();
-    final readiness = PilotReadinessReport.evaluate(
-      diagnosticsSnapshot: diagnostics,
-      attentionEntries: const <CommerceOutboxAttentionEntry>[],
-    );
-    final recovery = PilotRecoveryReport(
-      diagnosticsSnapshot: diagnostics,
-      attentionEntries: const <CommerceOutboxAttentionEntry>[],
-    );
-    final report = PilotIncidentEscalationReport(
-      diagnosticsSnapshot: diagnostics,
-      readinessReport: readiness,
-      recoveryReport: recovery,
-      answers: const PilotIncidentEscalationAnswers(
-        severity: 'sev2',
-        impactScope: 'wave',
-        checkoutBlocked: false,
-        moneyMovementRisk: false,
-        rollbackRequested: false,
-        notes: 'Support should watch this wave closely.',
-      ),
-    );
-
-    final text = report.toMultilineText();
-
-    expect(text, contains('Business Hub pilot incident escalation pack'));
-    expect(text, contains('Severity: SEV2'));
-    expect(text, contains('Impact scope: ROLLOUT WAVE'));
-    expect(text, contains('Pilot scope: surat-wave-1'));
-    expect(text, contains('=== READINESS SIGNOFF ==='));
-    expect(text, contains('=== LAUNCH SNAPSHOT ==='));
-    expect(text, contains('=== RECOVERY REPORT ==='));
-  });
+      expect(text, contains('Business Hub pilot incident escalation pack'));
+      expect(text, contains('Severity: SEV2'));
+      expect(text, contains('Impact scope: ROLLOUT WAVE'));
+      expect(text, contains('Pilot scope: surat-wave-1'));
+      expect(text, contains('=== READINESS SIGNOFF ==='));
+      expect(text, contains('=== LAUNCH SNAPSHOT ==='));
+      expect(text, contains('=== RECOVERY REPORT ==='));
+    },
+  );
 }

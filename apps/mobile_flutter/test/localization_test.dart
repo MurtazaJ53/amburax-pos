@@ -43,8 +43,14 @@ void main() {
       test('$locale actually translated the user-facing strings', () {
         // Brand names and protocol names stay as-is on purpose.
         const allowedIdentical = <String>{
-          'appName', 'payUpi', 'payCard', 'langEnglish', 'langHindi',
-          'langGujarati', 'actionPrint', 'actionRefresh',
+          'appName',
+          'payUpi',
+          'payCard',
+          'langEnglish',
+          'langHindi',
+          'langGujarati',
+          'actionPrint',
+          'actionRefresh',
         };
         final target = _arb(locale);
         final untranslated = <String>[];

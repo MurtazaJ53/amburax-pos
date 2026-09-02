@@ -19,11 +19,14 @@ void main() {
       expect(parseImportDate('15/3/2024'), expected);
     });
 
-    test('lets an unambiguous month-first date win over the day-first default', () {
-      // 15 cannot be a month, so this must be March 15 - not "the 3rd of
-      // month 15", and not silently mangled into some other day.
-      expect(parseImportDate('03/15/2024'), DateTime(2024, 3, 15));
-    });
+    test(
+      'lets an unambiguous month-first date win over the day-first default',
+      () {
+        // 15 cannot be a month, so this must be March 15 - not "the 3rd of
+        // month 15", and not silently mangled into some other day.
+        expect(parseImportDate('03/15/2024'), DateTime(2024, 3, 15));
+      },
+    );
 
     test('falls back to day-first only when genuinely ambiguous', () {
       // Both <= 12: India-first means 5 March, not 3 May.

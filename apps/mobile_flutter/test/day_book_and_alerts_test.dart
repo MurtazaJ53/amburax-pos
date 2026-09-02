@@ -35,15 +35,21 @@ void main() {
       expect(rows.single.key, 'Cash');
     });
 
-    test('shows an unrecognised mode under its own key rather than hiding it', () {
-      // A payment method added on the server must not silently vanish from the
-      // day book, which would make Jama lines stop summing to the total.
-      final rows = jamaLines(<String, dynamic>{'WALLET': '50.00'});
-      expect(rows.single.key, 'WALLET');
-    });
+    test(
+      'shows an unrecognised mode under its own key rather than hiding it',
+      () {
+        // A payment method added on the server must not silently vanish from the
+        // day book, which would make Jama lines stop summing to the total.
+        final rows = jamaLines(<String, dynamic>{'WALLET': '50.00'});
+        expect(rows.single.key, 'WALLET');
+      },
+    );
 
     test('a day with nothing received lists nothing', () {
-      expect(jamaLines(<String, dynamic>{'CASH': '0.00', 'total': '0.00'}), isEmpty);
+      expect(
+        jamaLines(<String, dynamic>{'CASH': '0.00', 'total': '0.00'}),
+        isEmpty,
+      );
     });
   });
 
@@ -57,15 +63,18 @@ void main() {
   });
 
   group('sortForReading', () {
-    ShopNotification note(String id, {required bool read, required int daysAgo}) =>
-        ShopNotification(
-          id: id,
-          title: id,
-          message: '',
-          type: 'stock',
-          isRead: read,
-          createdAt: DateTime(2026, 8, 16).subtract(Duration(days: daysAgo)),
-        );
+    ShopNotification note(
+      String id, {
+      required bool read,
+      required int daysAgo,
+    }) => ShopNotification(
+      id: id,
+      title: id,
+      message: '',
+      type: 'stock',
+      isRead: read,
+      createdAt: DateTime(2026, 8, 16).subtract(Duration(days: daysAgo)),
+    );
 
     test('unread comes before read, however old', () {
       // Straight reverse-chronological buries an unread stock warning under a
@@ -84,10 +93,12 @@ void main() {
         note('read-old', read: true, daysAgo: 9),
         note('read-new', read: true, daysAgo: 2),
       ]);
-      expect(
-        sorted.map((n) => n.id),
-        <String>['unread-new', 'unread-old', 'read-new', 'read-old'],
-      );
+      expect(sorted.map((n) => n.id), <String>[
+        'unread-new',
+        'unread-old',
+        'read-new',
+        'read-old',
+      ]);
     });
 
     test('an alert with no timestamp sinks rather than throwing', () {
@@ -110,25 +121,39 @@ void main() {
     final now = DateTime(2026, 8, 16, 12, 0);
 
     test('reads the way somebody would say it', () {
-      expect(relativeTime(now.subtract(const Duration(seconds: 20)), now: now),
-          'just now');
-      expect(relativeTime(now.subtract(const Duration(minutes: 5)), now: now),
-          '5 min ago');
-      expect(relativeTime(now.subtract(const Duration(hours: 3)), now: now),
-          '3 hr ago');
-      expect(relativeTime(now.subtract(const Duration(days: 1)), now: now),
-          'yesterday');
-      expect(relativeTime(now.subtract(const Duration(days: 4)), now: now),
-          '4 days ago');
-      expect(relativeTime(now.subtract(const Duration(days: 15)), now: now),
-          '2 wk ago');
+      expect(
+        relativeTime(now.subtract(const Duration(seconds: 20)), now: now),
+        'just now',
+      );
+      expect(
+        relativeTime(now.subtract(const Duration(minutes: 5)), now: now),
+        '5 min ago',
+      );
+      expect(
+        relativeTime(now.subtract(const Duration(hours: 3)), now: now),
+        '3 hr ago',
+      );
+      expect(
+        relativeTime(now.subtract(const Duration(days: 1)), now: now),
+        'yesterday',
+      );
+      expect(
+        relativeTime(now.subtract(const Duration(days: 4)), now: now),
+        '4 days ago',
+      );
+      expect(
+        relativeTime(now.subtract(const Duration(days: 15)), now: now),
+        '2 wk ago',
+      );
     });
 
     test('a clock skewed into the future reads as just now, not a negative', () {
       // Device clocks drift. "-3 min ago" on an alert would look like a bug in
       // the alert rather than in the clock.
-      expect(relativeTime(now.add(const Duration(minutes: 3)), now: now),
-          'just now');
+      expect(
+        relativeTime(now.add(const Duration(minutes: 3)), now: now),
+        'just now',
+      );
     });
 
     test('no timestamp shows nothing rather than a placeholder', () {

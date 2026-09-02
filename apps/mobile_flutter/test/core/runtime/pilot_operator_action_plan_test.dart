@@ -165,6 +165,9 @@ void main() {
     );
 
     expect(plan.actionId, 'smoke_checklist');
-    expect(plan.toMultilineText(), contains('Recommended action: Run smoke checklist'));
+    expect(
+      plan.toMultilineText(),
+      contains('Recommended action: Run smoke checklist'),
+    );
   });
 }

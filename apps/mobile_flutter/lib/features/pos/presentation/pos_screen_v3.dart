@@ -1952,6 +1952,7 @@ class _ProductCard extends StatelessWidget {
     final badge = stockBadge(
       stock: item.stock,
       reorderLevel: item.effectiveReorderLevel,
+      isTracked: item.isTracked,
     );
 
     return GestureDetector(
@@ -2024,7 +2025,11 @@ class _ProductCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    stockCaption(stock: item.stock, unit: item.unit),
+                    stockCaption(
+                      stock: item.stock,
+                      unit: item.unit,
+                      isTracked: item.isTracked,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(

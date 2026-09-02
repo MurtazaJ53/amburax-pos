@@ -84,6 +84,7 @@ class MobileSyncCoordinator {
   final void Function(MobileSyncStatus status) setStatus;
 
   MobileSession? _session;
+
   /// Set when the server rejected our token (401). Sync stays paused — and no
   /// local data is touched — until the user signs in again.
   bool _needsReauth = false;
@@ -490,7 +491,8 @@ class MobileSyncCoordinator {
     final iso = now.toIso8601String();
     // Push the edit to the server (was local-only). Only for items that carry
     // a real server id; local-only items sync via their create instead.
-    if (MobileRuntimeConfig.backendSyncEnabled && _uuidPattern.hasMatch(itemId)) {
+    if (MobileRuntimeConfig.backendSyncEnabled &&
+        _uuidPattern.hasMatch(itemId)) {
       try {
         await _backendApiClient.updateInventoryItem(
           user: session.user,
@@ -513,8 +515,9 @@ class MobileSyncCoordinator {
         debugPrint('Backend inventory update failed: $error');
       }
     }
-    final normalizedCategory =
-        category.trim().isEmpty ? 'General' : category.trim();
+    final normalizedCategory = category.trim().isEmpty
+        ? 'General'
+        : category.trim();
     final payload = <String, dynamic>{
       'name': name.trim(),
       'price': sellPrice,
@@ -588,16 +591,12 @@ class MobileSyncCoordinator {
         debugPrint('Backend inventory delete failed: $error');
       }
     }
-    await _inventoryRepository.mergeInventoryDocument(
-      itemId,
-      <String, dynamic>{
-        'name': name,
-        'status': 'archived',
-        'tombstone': true,
-        'updatedAt': now.toIso8601String(),
-      },
-      updatedAt: now.millisecondsSinceEpoch,
-    );
+    await _inventoryRepository.mergeInventoryDocument(itemId, <String, dynamic>{
+      'name': name,
+      'status': 'archived',
+      'tombstone': true,
+      'updatedAt': now.toIso8601String(),
+    }, updatedAt: now.millisecondsSinceEpoch);
     setStatus(MobileSyncStatus.idle);
   }
 
@@ -626,7 +625,8 @@ class MobileSyncCoordinator {
         'tagline': (remote['tagline'] ?? current.tagline).toString(),
         'footer': (remote['footer'] ?? current.footer).toString(),
         'currency': (remote['currency_code'] ?? current.currency).toString(),
-        'business_phone': (remote['business_phone'] ?? current.phone).toString(),
+        'business_phone': (remote['business_phone'] ?? current.phone)
+            .toString(),
         'gstin': (remote['gstin'] ?? current.gstin).toString(),
         'upi_vpa': (remote['upi_vpa'] ?? current.upiVpa).toString(),
         'plan_tier': current.planTier,
@@ -687,21 +687,18 @@ class MobileSyncCoordinator {
       );
       final iso = DateTime.now().toIso8601String();
       for (final c in customers) {
-        await _customerRepository.mergeRemoteCustomerDocument(
-          c.id,
-          <String, dynamic>{
-            'name': c.name,
-            'phone': c.phone ?? '',
-            'email': c.email ?? '',
-            'notes': c.notes ?? '',
-            'status': c.status,
-            'balance': c.balance,
-            'total_spent': c.totalSpent,
-            'tombstone': false,
-            'updatedAt': iso,
-          },
-          updatedAt: now,
-        );
+        await _customerRepository
+            .mergeRemoteCustomerDocument(c.id, <String, dynamic>{
+              'name': c.name,
+              'phone': c.phone ?? '',
+              'email': c.email ?? '',
+              'notes': c.notes ?? '',
+              'status': c.status,
+              'balance': c.balance,
+              'total_spent': c.totalSpent,
+              'tombstone': false,
+              'updatedAt': iso,
+            }, updatedAt: now);
       }
 
       setStatus(MobileSyncStatus.idle);
@@ -1311,21 +1308,18 @@ class MobileSyncCoordinator {
       final now = DateTime.now().millisecondsSinceEpoch;
       final iso = DateTime.now().toIso8601String();
       for (final c in customers) {
-        await _customerRepository.mergeRemoteCustomerDocument(
-          c.id,
-          <String, dynamic>{
-            'name': c.name,
-            'phone': c.phone ?? '',
-            'email': c.email ?? '',
-            'notes': c.notes ?? '',
-            'status': c.status,
-            'balance': c.balance,
-            'total_spent': c.totalSpent,
-            'tombstone': false,
-            'updatedAt': iso,
-          },
-          updatedAt: now,
-        );
+        await _customerRepository
+            .mergeRemoteCustomerDocument(c.id, <String, dynamic>{
+              'name': c.name,
+              'phone': c.phone ?? '',
+              'email': c.email ?? '',
+              'notes': c.notes ?? '',
+              'status': c.status,
+              'balance': c.balance,
+              'total_spent': c.totalSpent,
+              'tombstone': false,
+              'updatedAt': iso,
+            }, updatedAt: now);
       }
       if (updateStatus) setStatus(MobileSyncStatus.idle);
     } catch (error) {
@@ -1597,8 +1591,10 @@ class MobileSyncCoordinator {
         final updatedAt = _toEpoch(
           sale['occurred_at'] ?? sale['updated_at'] ?? sale['sale_date'],
         );
-        await _salesRepository.mergeBackendSaleDocument(sale,
-            updatedAt: updatedAt);
+        await _salesRepository.mergeBackendSaleDocument(
+          sale,
+          updatedAt: updatedAt,
+        );
       }
     } catch (error) {
       debugPrint('Sales server search failed: $error');

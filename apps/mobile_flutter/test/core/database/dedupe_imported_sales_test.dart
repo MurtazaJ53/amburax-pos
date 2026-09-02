@@ -27,7 +27,9 @@ void main() {
     String? customer = 'Asha',
     bool tombstone = false,
   }) async {
-    await db.into(db.salesEntries).insert(
+    await db
+        .into(db.salesEntries)
+        .insert(
           SalesEntriesCompanion.insert(
             id: id,
             total: total,
@@ -51,10 +53,12 @@ void main() {
   }
 
   Future<bool> alive(String id) async {
-    final rows = await db.customSelect(
-      'SELECT tombstone FROM sales WHERE id = ?;',
-      variables: [Variable<String>(id)],
-    ).get();
+    final rows = await db
+        .customSelect(
+          'SELECT tombstone FROM sales WHERE id = ?;',
+          variables: [Variable<String>(id)],
+        )
+        .get();
     return rows.first.read<int>('tombstone') == 0;
   }
 
@@ -112,7 +116,9 @@ void main() {
     await addSale(id: 'import-sale-b');
     await sales.removeImportedSaleDuplicates();
 
-    final rows = await db.customSelect('SELECT COUNT(*) AS c FROM sales;').get();
+    final rows = await db
+        .customSelect('SELECT COUNT(*) AS c FROM sales;')
+        .get();
     expect(rows.first.read<int>('c'), 2, reason: 'row still present');
     expect(await alive('import-sale-b'), isFalse);
   });
@@ -125,14 +131,17 @@ void main() {
     expect(await sales.removeImportedSaleDuplicates(), 0);
   });
 
-  test('groups customers separately even at the same amount and date', () async {
-    await addSale(id: 'import-sale-a1', customer: 'Asha');
-    await addSale(id: 'import-sale-a2', customer: 'Asha');
-    await addSale(id: 'import-sale-r1', customer: 'Ravi');
+  test(
+    'groups customers separately even at the same amount and date',
+    () async {
+      await addSale(id: 'import-sale-a1', customer: 'Asha');
+      await addSale(id: 'import-sale-a2', customer: 'Asha');
+      await addSale(id: 'import-sale-r1', customer: 'Ravi');
 
-    final removed = await sales.removeImportedSaleDuplicates();
-    expect(removed, 1);
-    expect(await alive('import-sale-r1'), isTrue);
-    expect(await liveCount(), 2);
-  });
+      final removed = await sales.removeImportedSaleDuplicates();
+      expect(removed, 1);
+      expect(await alive('import-sale-r1'), isTrue);
+      expect(await liveCount(), 2);
+    },
+  );
 }

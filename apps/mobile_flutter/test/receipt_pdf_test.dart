@@ -15,15 +15,14 @@ SaleDetailItem _item({
   double discount = 0,
   double gstRate = 0,
   String? hsn,
-}) =>
-    SaleDetailItem(
-      name: name,
-      quantity: qty,
-      unitPrice: price,
-      lineDiscount: discount,
-      gstRate: gstRate,
-      hsnCode: hsn,
-    );
+}) => SaleDetailItem(
+  name: name,
+  quantity: qty,
+  unitPrice: price,
+  lineDiscount: discount,
+  gstRate: gstRate,
+  hsnCode: hsn,
+);
 
 SaleRecordDetail _sale({
   List<SaleDetailItem>? items,
@@ -33,7 +32,8 @@ SaleRecordDetail _sale({
   String? customerName,
   double amountReceived = 460,
 }) {
-  final lines = items ??
+  final lines =
+      items ??
       <SaleDetailItem>[
         _item(name: 'Smart Rn (100)', price: 70),
         _item(name: 'Smart Rn (110)', price: 80),
@@ -123,9 +123,7 @@ void main() {
     test('handles an empty cart and a very long item name', () async {
       final bytes = await buildReceiptPdf(
         _sale(
-          items: <SaleDetailItem>[
-            _item(name: 'A' * 120, price: 1),
-          ],
+          items: <SaleDetailItem>[_item(name: 'A' * 120, price: 1)],
           total: 1,
           amountReceived: 1,
         ),

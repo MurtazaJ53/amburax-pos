@@ -75,8 +75,9 @@ class WeightBarcode {
   /// Resolve the price to charge for one scanned line given the matched item's
   /// [itemRate] (per-unit / per-kg sell price). For a weight barcode this is
   /// rate × weight; for a price barcode it is the embedded amount directly.
-  double resolveLinePrice(double itemRate) =>
-      isWeight ? weighedLinePrice(rate: itemRate, weight: embeddedValue) : embeddedValue;
+  double resolveLinePrice(double itemRate) => isWeight
+      ? weighedLinePrice(rate: itemRate, weight: embeddedValue)
+      : embeddedValue;
 }
 
 /// Returns a [WeightBarcode] if [raw] is a price/weight-embedded scale barcode

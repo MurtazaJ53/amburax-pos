@@ -8,10 +8,13 @@ void main() {
     });
 
     test('supports drawer pin 5 and custom pulse timing', () {
-      expect(
-        cashDrawerKickBytes(pin: 1, onTime: 50, offTime: 100),
-        <int>[0x1B, 0x70, 0x01, 0x32, 0x64],
-      );
+      expect(cashDrawerKickBytes(pin: 1, onTime: 50, offTime: 100), <int>[
+        0x1B,
+        0x70,
+        0x01,
+        0x32,
+        0x64,
+      ]);
     });
 
     test('clamps timing bytes into a single byte', () {

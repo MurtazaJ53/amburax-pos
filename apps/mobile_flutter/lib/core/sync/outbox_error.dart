@@ -10,7 +10,10 @@ bool isPermanentOutboxRejection(int? statusCode) {
   if (statusCode == null) return false; // network / timeout -> transient
   // Transient 4xx: 401/403 = token expired (refresh + retry), 429 = rate limit,
   // 409 = domain not yet promoted to postgres_primary (cutover in progress).
-  if (statusCode == 401 || statusCode == 403 || statusCode == 409 || statusCode == 429) {
+  if (statusCode == 401 ||
+      statusCode == 403 ||
+      statusCode == 409 ||
+      statusCode == 429) {
     return false;
   }
   // 400 (bad request), 404 (unknown shop/route), 422 (validation) … -> permanent.

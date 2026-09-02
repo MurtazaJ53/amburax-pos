@@ -11,8 +11,18 @@
 library;
 
 const List<String> _monthNames = <String>[
-  'jan', 'feb', 'mar', 'apr', 'may', 'jun',
-  'jul', 'aug', 'sep', 'oct', 'nov', 'dec',
+  'jan',
+  'feb',
+  'mar',
+  'apr',
+  'may',
+  'jun',
+  'jul',
+  'aug',
+  'sep',
+  'oct',
+  'nov',
+  'dec',
 ];
 
 /// Excel/Sheets serial dates count days from 1899-12-30 (the offset already
@@ -24,7 +34,14 @@ final DateTime _excelEpoch = DateTime(1899, 12, 30);
 const int _minExcelSerial = 1; // 1899-12-31
 const int _maxExcelSerial = 80000; // ~2119
 
-DateTime? _build(int year, int month, int day, [int h = 0, int m = 0, int s = 0]) {
+DateTime? _build(
+  int year,
+  int month,
+  int day, [
+  int h = 0,
+  int m = 0,
+  int s = 0,
+]) {
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
   final dt = DateTime(year, month, day, h, m, s);
   // DateTime rolls overflow forward (Feb 31 -> Mar 3); reject instead of
@@ -79,8 +96,9 @@ DateTime? parseImportDate(String? raw) {
   // Split off a trailing time component so "15/03/2024 14:30" works.
   var datePart = value;
   var hour = 0, minute = 0, second = 0;
-  final timeMatch =
-      RegExp(r'(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?$').firstMatch(value);
+  final timeMatch = RegExp(
+    r'(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?$',
+  ).firstMatch(value);
   if (timeMatch != null) {
     hour = int.parse(timeMatch.group(1)!);
     minute = int.parse(timeMatch.group(2)!);
@@ -95,15 +113,19 @@ DateTime? parseImportDate(String? raw) {
 
   // 3. Named months: "15 Mar 2024", "Mar 15, 2024", "15-March-2024".
   final named = RegExp(r'^([A-Za-z]+)$');
-  final tokens = datePart.split(RegExp(r'[\s,\-/.]+')).where((t) => t.isNotEmpty).toList();
+  final tokens = datePart
+      .split(RegExp(r'[\s,\-/.]+'))
+      .where((t) => t.isNotEmpty)
+      .toList();
   if (tokens.length == 3) {
     final monthToken = tokens.firstWhere(
       (t) => named.hasMatch(t),
       orElse: () => '',
     );
     if (monthToken.isNotEmpty) {
-      final monthIndex =
-          _monthNames.indexOf(monthToken.toLowerCase().substring(0, 3).toString());
+      final monthIndex = _monthNames.indexOf(
+        monthToken.toLowerCase().substring(0, 3).toString(),
+      );
       if (monthIndex < 0) return null;
       final numbers = tokens
           .where((t) => t != monthToken)
@@ -112,14 +134,26 @@ DateTime? parseImportDate(String? raw) {
           .toList();
       if (numbers.length != 2) return null;
       // The larger / 4-digit token is the year.
-      final year = numbers[0] > 31 || numbers[0] > numbers[1] ? numbers[0] : numbers[1];
+      final year = numbers[0] > 31 || numbers[0] > numbers[1]
+          ? numbers[0]
+          : numbers[1];
       final day = year == numbers[0] ? numbers[1] : numbers[0];
-      return _build(_expandYear(year), monthIndex + 1, day, hour, minute, second);
+      return _build(
+        _expandYear(year),
+        monthIndex + 1,
+        day,
+        hour,
+        minute,
+        second,
+      );
     }
   }
 
   // 4. Numeric triples: a/b/c with / - or . separators.
-  final parts = datePart.split(RegExp(r'[\-/.]')).where((t) => t.isNotEmpty).toList();
+  final parts = datePart
+      .split(RegExp(r'[\-/.]'))
+      .where((t) => t.isNotEmpty)
+      .toList();
   if (parts.length != 3) return null;
   final nums = parts.map(int.tryParse).toList();
   if (nums.any((n) => n == null)) return null;

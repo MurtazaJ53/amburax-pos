@@ -41,7 +41,8 @@ void main() {
     unawaited(() async {
       await for (final request in server) {
         final path = request.uri.path;
-        final auth = request.headers.value(HttpHeaders.authorizationHeader) ?? '';
+        final auth =
+            request.headers.value(HttpHeaders.authorizationHeader) ?? '';
         seen.add((path, auth));
 
         if (path == '/session/token/refresh/') {
@@ -54,10 +55,12 @@ void main() {
             ..add('renewed-token');
           request.response
             ..statusCode = 200
-            ..write(jsonEncode(<String, String>{
-              'access': 'renewed-token',
-              'refresh': 'renewed-refresh',
-            }));
+            ..write(
+              jsonEncode(<String, String>{
+                'access': 'renewed-token',
+                'refresh': 'renewed-refresh',
+              }),
+            );
           await request.response.close();
           continue;
         }
@@ -66,7 +69,9 @@ void main() {
         if (!valid.contains(presented)) {
           request.response
             ..statusCode = 401
-            ..write(jsonEncode(<String, String>{'detail': 'Session was signed out.'}));
+            ..write(
+              jsonEncode(<String, String>{'detail': 'Session was signed out.'}),
+            );
           await request.response.close();
           continue;
         }
@@ -81,26 +86,26 @@ void main() {
   tearDown(() async => server.close(force: true));
 
   User userWith(String token) => User(
-        uid: 'u1',
-        email: 'owner@example.com',
-        displayName: 'Owner',
-        authToken: token,
-      );
+    uid: 'u1',
+    email: 'owner@example.com',
+    displayName: 'Owner',
+    authToken: token,
+  );
 
   BackendApiClient clientWith({
     required String storedRefresh,
     void Function(String access, String refresh)? onStored,
-  }) =>
-      BackendApiClient(
-        baseUrl: baseUrl,
-        readRefreshToken: () async => storedRefresh,
-        onTokensRefreshed: (access, refresh) async =>
-            onStored?.call(access, refresh),
-      );
+  }) => BackendApiClient(
+    baseUrl: baseUrl,
+    readRefreshToken: () async => storedRefresh,
+    onTokensRefreshed: (access, refresh) async =>
+        onStored?.call(access, refresh),
+  );
 
   test('a valid token is not refreshed', () async {
-    await clientWith(storedRefresh: 'r1')
-        .fetchShopSettings(user: userWith('good-token'), shopId: 's1');
+    await clientWith(
+      storedRefresh: 'r1',
+    ).fetchShopSettings(user: userWith('good-token'), shopId: 's1');
 
     expect(refreshCalls, 0);
   });
@@ -114,8 +119,9 @@ void main() {
     expect(refreshCalls, 1);
     expect(refreshTokenSent, 'r1');
 
-    final shopCalls =
-        seen.where((e) => e.$1 != '/session/token/refresh/').toList();
+    final shopCalls = seen
+        .where((e) => e.$1 != '/session/token/refresh/')
+        .toList();
     expect(shopCalls, hasLength(2));
     // The retry must carry the new token. Reusing the User's in-memory token
     // would loop until the attempt limit and then fail anyway.
@@ -158,24 +164,31 @@ void main() {
     expect(refreshCalls, 1);
   });
 
-  test('a dead refresh token surfaces the original 401, not a refresh error', () async {
-    // Nothing can be done from here — the sync coordinator's heartbeat owns
-    // signing the app out. What must not happen is a confusing error from the
-    // recovery attempt replacing the real one.
-    final client = BackendApiClient(
-      baseUrl: baseUrl,
-      readRefreshToken: () async => '',
-      onTokensRefreshed: (_, _) async {},
-    );
+  test(
+    'a dead refresh token surfaces the original 401, not a refresh error',
+    () async {
+      // Nothing can be done from here — the sync coordinator's heartbeat owns
+      // signing the app out. What must not happen is a confusing error from the
+      // recovery attempt replacing the real one.
+      final client = BackendApiClient(
+        baseUrl: baseUrl,
+        readRefreshToken: () async => '',
+        onTokensRefreshed: (_, _) async {},
+      );
 
-    await expectLater(
-      client.fetchShopSettings(user: userWith('stale-token'), shopId: 's1'),
-      throwsA(
-        isA<BackendApiException>().having((e) => e.statusCode, 'statusCode', 401),
-      ),
-    );
-    expect(refreshCalls, 0);
-  });
+      await expectLater(
+        client.fetchShopSettings(user: userWith('stale-token'), shopId: 's1'),
+        throwsA(
+          isA<BackendApiException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            401,
+          ),
+        ),
+      );
+      expect(refreshCalls, 0);
+    },
+  );
 
   test('a client with no refresh hook behaves as before', () async {
     // Tests and any other construction site pass neither callback, and must

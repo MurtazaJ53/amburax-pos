@@ -22,16 +22,21 @@ Map<String, String> _sale({
 }
 
 const List<String> _keys = <String>[
-  'date', 'total', 'discount', 'payment', 'customerName', 'customerPhone',
+  'date',
+  'total',
+  'discount',
+  'payment',
+  'customerName',
+  'customerPhone',
 ];
 
 String _id(Map<String, String> row, Map<String, int> occ) => importRowId(
-      'import-sale',
-      row,
-      _keys,
-      occurrences: occ,
-      reference: row['reference'],
-    );
+  'import-sale',
+  row,
+  _keys,
+  occurrences: occ,
+  reference: row['reference'],
+);
 
 void main() {
   group('stableRowKey', () {
@@ -40,7 +45,11 @@ void main() {
       // so every re-import created new sales instead of updating them.
       final a = <String, String>{'x': '1'};
       final b = <String, String>{'x': '1'};
-      expect(a.hashCode == b.hashCode, isFalse, reason: 'Map.hashCode is identity-based');
+      expect(
+        a.hashCode == b.hashCode,
+        isFalse,
+        reason: 'Map.hashCode is identity-based',
+      );
       expect(stableRowKey(<String>['1']), stableRowKey(<String>['1']));
     });
 

@@ -11,17 +11,16 @@ ReorderItem _item({
   String? unit,
   String? sku,
   double? costPrice,
-}) =>
-    ReorderItem(
-      id: 'i1',
-      name: name,
-      category: 'Winter',
-      stock: stock,
-      reorderLevel: reorderLevel,
-      unit: unit,
-      sku: sku,
-      costPrice: costPrice,
-    );
+}) => ReorderItem(
+  id: 'i1',
+  name: name,
+  category: 'Winter',
+  stock: stock,
+  reorderLevel: reorderLevel,
+  unit: unit,
+  sku: sku,
+  costPrice: costPrice,
+);
 
 void main() {
   group('suggested quantity', () {
@@ -104,14 +103,18 @@ void main() {
     });
 
     test('an empty list does not produce a blank order', () {
-      final message =
-          buildReorderMessage(shopName: 'T. N', items: <ReorderItem>[]);
+      final message = buildReorderMessage(
+        shopName: 'T. N',
+        items: <ReorderItem>[],
+      );
       expect(message, contains('Nothing to reorder'));
     });
 
     test('an unnamed shop still reads sensibly', () {
-      final message =
-          buildReorderMessage(shopName: '  ', items: <ReorderItem>[_item()]);
+      final message = buildReorderMessage(
+        shopName: '  ',
+        items: <ReorderItem>[_item()],
+      );
       expect(message, contains('our shop'));
     });
   });

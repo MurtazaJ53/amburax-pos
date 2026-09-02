@@ -75,9 +75,7 @@ void main() {
           capturedAt: DateTime.utc(2026, 5, 2, 9, 30),
         );
 
-    final decoded = PilotEvidenceTrackerState.fromJson(
-      tracker.toJson(),
-    );
+    final decoded = PilotEvidenceTrackerState.fromJson(tracker.toJson());
 
     expect(decoded.capturedCoreCount, tracker.capturedCoreCount);
     expect(decoded.latestCapturedArtifact?.id, 'rollout_evidence');
@@ -154,23 +152,29 @@ void main() {
     expect(report, contains('Wave 1 shift A'));
   });
 
-  test('withoutArchivedSessions preserves active session and clears history', () {
-    final tracker = const PilotEvidenceTrackerState()
-        .ensureSession(
-          defaultLabel: 'Wave 1 shift A',
-          startedAt: DateTime.utc(2026, 5, 2, 7, 30),
-        )
-        .markCaptured('pilot_snapshot', capturedAt: DateTime.utc(2026, 5, 2, 8))
-        .startFreshSession(
-          sessionLabel: 'Wave 1 shift B',
-          startedAt: DateTime.utc(2026, 5, 2, 12),
-        )
-        .withoutArchivedSessions();
+  test(
+    'withoutArchivedSessions preserves active session and clears history',
+    () {
+      final tracker = const PilotEvidenceTrackerState()
+          .ensureSession(
+            defaultLabel: 'Wave 1 shift A',
+            startedAt: DateTime.utc(2026, 5, 2, 7, 30),
+          )
+          .markCaptured(
+            'pilot_snapshot',
+            capturedAt: DateTime.utc(2026, 5, 2, 8),
+          )
+          .startFreshSession(
+            sessionLabel: 'Wave 1 shift B',
+            startedAt: DateTime.utc(2026, 5, 2, 12),
+          )
+          .withoutArchivedSessions();
 
-    expect(tracker.archivedSessions, isEmpty);
-    expect(tracker.sessionLabel, 'Wave 1 shift B');
-    expect(tracker.hasStoredState, isTrue);
-  });
+      expect(tracker.archivedSessions, isEmpty);
+      expect(tracker.sessionLabel, 'Wave 1 shift B');
+      expect(tracker.hasStoredState, isTrue);
+    },
+  );
 
   test('archive pack text includes active and archived sections', () {
     final tracker = const PilotEvidenceTrackerState()
@@ -198,10 +202,7 @@ void main() {
           defaultLabel: 'Wave 1 shift A',
           startedAt: DateTime.utc(2026, 5, 2, 7, 30),
         )
-        .markCaptured(
-          'pilot_snapshot',
-          capturedAt: DateTime.utc(2026, 5, 2, 8),
-        )
+        .markCaptured('pilot_snapshot', capturedAt: DateTime.utc(2026, 5, 2, 8))
         .markCaptured(
           'readiness_signoff',
           capturedAt: DateTime.utc(2026, 5, 2, 8, 10),

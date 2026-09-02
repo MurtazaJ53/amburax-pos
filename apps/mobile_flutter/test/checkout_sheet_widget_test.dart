@@ -21,9 +21,9 @@ void main() {
       Map<String, dynamic>? captured;
       await tester.pumpWidget(
         MaterialApp(
-          theme: ThemeData(extensions: const <ThemeExtension<dynamic>>[
-            AppColors.dark,
-          ]),
+          theme: ThemeData(
+            extensions: const <ThemeExtension<dynamic>>[AppColors.dark],
+          ),
           home: Scaffold(
             body: Builder(
               builder: (context) => Center(

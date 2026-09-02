@@ -63,27 +63,25 @@ void main() {
   });
 
   test('summarizes cart tax from POS items', () {
-    final summary = computeCartGst(
-      const <PosCartItem>[
-        PosCartItem(
-          id: 'a',
-          name: 'Taxed inclusive',
-          price: 118,
-          quantity: 1,
-          stock: 10,
-          category: 'General',
-          gstRate: 18,
-        ),
-        PosCartItem(
-          id: 'b',
-          name: 'Zero rated',
-          price: 50,
-          quantity: 2,
-          stock: 10,
-          category: 'General',
-        ),
-      ],
-    );
+    final summary = computeCartGst(const <PosCartItem>[
+      PosCartItem(
+        id: 'a',
+        name: 'Taxed inclusive',
+        price: 118,
+        quantity: 1,
+        stock: 10,
+        category: 'General',
+        gstRate: 18,
+      ),
+      PosCartItem(
+        id: 'b',
+        name: 'Zero rated',
+        price: 50,
+        quantity: 2,
+        stock: 10,
+        category: 'General',
+      ),
+    ]);
 
     expect(summary.taxableAmount, 200);
     expect(summary.taxAmount, 18);

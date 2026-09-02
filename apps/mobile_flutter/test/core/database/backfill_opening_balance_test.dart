@@ -24,7 +24,9 @@ void main() {
     int createdAt = 1710460800000,
     bool tombstone = false,
   }) async {
-    await db.into(db.customerEntries).insert(
+    await db
+        .into(db.customerEntries)
+        .insert(
           CustomerEntriesCompanion.insert(
             id: id,
             name: 'Customer $id',
@@ -101,6 +103,9 @@ void main() {
     expect(await customers.backfillOpeningBalances(), 1);
 
     final entry = (await ledgerOf('c1')).first;
-    expect(entry.createdAt.millisecondsSinceEpoch, greaterThanOrEqualTo(before));
+    expect(
+      entry.createdAt.millisecondsSinceEpoch,
+      greaterThanOrEqualTo(before),
+    );
   });
 }

@@ -57,8 +57,9 @@ String buildUpiUri({
 
 /// Merchant UPI id configured at build time
 /// (`--dart-define BUSINESS_HUB_UPI_VPA=shop@bank`).
-const String configuredMerchantVpa =
-    String.fromEnvironment('BUSINESS_HUB_UPI_VPA');
+const String configuredMerchantVpa = String.fromEnvironment(
+  'BUSINESS_HUB_UPI_VPA',
+);
 
 /// UPI pay link to print on a receipt, so a customer can clear the bill straight
 /// from the paper/PDF. Returns null when nothing is due or no merchant VPA is

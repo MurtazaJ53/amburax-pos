@@ -38,7 +38,12 @@ class ImportOutcome {
 /// and customers are supported (both have repository merge methods); an entry
 /// with the same key is updated, not duplicated.
 class UniversalImportService {
-  UniversalImportService(this._inventory, this._customers, this._sales, this._expenses);
+  UniversalImportService(
+    this._inventory,
+    this._customers,
+    this._sales,
+    this._expenses,
+  );
 
   final InventoryRepository _inventory;
   final CustomerRepository _customers;
@@ -50,18 +55,18 @@ class UniversalImportService {
     final iso = DateTime.now().toIso8601String();
     var imported = 0;
     await _inventory.runInTransaction(() async {
-    for (final row in mapped.rows) {
-      final name = row['name'] ?? '';
-      if (name.isEmpty) continue;
-      final sku = row['sku'] ?? row['barcode'] ?? '';
-      final id = 'import-inv-${name.hashCode}-${sku.hashCode}';
-      await _inventory.mergeInventoryDocument(
-        id,
-        <String, dynamic>{
+      for (final row in mapped.rows) {
+        final name = row['name'] ?? '';
+        if (name.isEmpty) continue;
+        final sku = row['sku'] ?? row['barcode'] ?? '';
+        final id = 'import-inv-${name.hashCode}-${sku.hashCode}';
+        await _inventory.mergeInventoryDocument(id, <String, dynamic>{
           'name': name,
           'price': parseNum(row['price']),
           'sku': sku,
-          'category': (row['category'] ?? '').isEmpty ? 'General' : row['category'],
+          'category': (row['category'] ?? '').isEmpty
+              ? 'General'
+              : row['category'],
           'stock': parseNum(row['stock']),
           'hsnCode': row['hsnCode'] ?? '',
           'gstRate': parseNum(row['gstRate']),
@@ -69,21 +74,22 @@ class UniversalImportService {
           'tombstone': false,
           'createdAt': iso,
           'updatedAt': iso,
-        },
-        updatedAt: now,
-      );
-      final cost = parseNum(row['costPrice']);
-      if (cost > 0) {
-        await _inventory.mergeInventoryPrivateDocument(
-          id,
-          <String, dynamic>{'costPrice': cost, 'updatedAt': iso, 'tombstone': false},
-          updatedAt: now,
-        );
+        }, updatedAt: now);
+        final cost = parseNum(row['costPrice']);
+        if (cost > 0) {
+          await _inventory.mergeInventoryPrivateDocument(id, <String, dynamic>{
+            'costPrice': cost,
+            'updatedAt': iso,
+            'tombstone': false,
+          }, updatedAt: now);
+        }
+        imported++;
       }
-      imported++;
-    }
     });
-    return ImportOutcome(imported: imported, skipped: mapped.rows.length - imported);
+    return ImportOutcome(
+      imported: imported,
+      skipped: mapped.rows.length - imported,
+    );
   }
 
   /// Import flat sales rows (one row per bill) as historical sales — they show
@@ -97,42 +103,53 @@ class UniversalImportService {
     final occurrences = <String, int>{};
     final existing = await _sales.existingSaleIds();
     await _inventory.runInTransaction(() async {
-    for (final row in mapped.rows) {
-      final total = parseNum(row['total']);
-      if (total <= 0) continue;
-      final parsed = parseImportDate(row['date']);
-      if (parsed == null) undated++;
-      final dt = parsed ?? DateTime.now();
-      final date = dt.toIso8601String().split('T').first;
-      final pay = _normalizePayment(row['payment'] ?? 'CASH');
-      // Content-derived, NOT row.hashCode: Map.hashCode is identity-based, so
-      // the same receipt hashed differently on every import and re-importing a
-      // file silently duplicated every sale in it, inflating revenue.
-      final id = importRowId(
-        'import-sale',
-        row,
-        const <String>['date', 'total', 'discount', 'payment', 'customerName', 'customerPhone'],
-        occurrences: occurrences,
-        reference: row['reference'],
-      );
-      if (existing.contains(id)) replaced++;
-      await _sales.importHistoricalSale(
-        id: id,
-        date: date,
-        createdAtMillis: dt.millisecondsSinceEpoch,
-        total: total,
-        discount: parseNum(row['discount']),
-        paymentMode: pay,
-        customerName: (row['customerName'] ?? '').isEmpty ? null : row['customerName'],
-        customerPhone: (row['customerPhone'] ?? '').isEmpty ? null : row['customerPhone'],
-        footerNote: 'Imported sale',
-        items: const <Map<String, dynamic>>[],
-        payments: <Map<String, dynamic>>[
-          <String, dynamic>{'mode': pay, 'amount': total},
-        ],
-      );
-      imported++;
-    }
+      for (final row in mapped.rows) {
+        final total = parseNum(row['total']);
+        if (total <= 0) continue;
+        final parsed = parseImportDate(row['date']);
+        if (parsed == null) undated++;
+        final dt = parsed ?? DateTime.now();
+        final date = dt.toIso8601String().split('T').first;
+        final pay = _normalizePayment(row['payment'] ?? 'CASH');
+        // Content-derived, NOT row.hashCode: Map.hashCode is identity-based, so
+        // the same receipt hashed differently on every import and re-importing a
+        // file silently duplicated every sale in it, inflating revenue.
+        final id = importRowId(
+          'import-sale',
+          row,
+          const <String>[
+            'date',
+            'total',
+            'discount',
+            'payment',
+            'customerName',
+            'customerPhone',
+          ],
+          occurrences: occurrences,
+          reference: row['reference'],
+        );
+        if (existing.contains(id)) replaced++;
+        await _sales.importHistoricalSale(
+          id: id,
+          date: date,
+          createdAtMillis: dt.millisecondsSinceEpoch,
+          total: total,
+          discount: parseNum(row['discount']),
+          paymentMode: pay,
+          customerName: (row['customerName'] ?? '').isEmpty
+              ? null
+              : row['customerName'],
+          customerPhone: (row['customerPhone'] ?? '').isEmpty
+              ? null
+              : row['customerPhone'],
+          footerNote: 'Imported sale',
+          items: const <Map<String, dynamic>>[],
+          payments: <Map<String, dynamic>>[
+            <String, dynamic>{'mode': pay, 'amount': total},
+          ],
+        );
+        imported++;
+      }
     });
     return ImportOutcome(
       imported: imported,
@@ -148,21 +165,23 @@ class UniversalImportService {
     var imported = 0;
     var undated = 0;
     await _inventory.runInTransaction(() async {
-    for (final row in mapped.rows) {
-      final amount = parseNum(row['amount']);
-      if (amount <= 0) continue;
-      final parsed = parseImportDate(row['date']);
-      if (parsed == null) undated++;
-      final dt = parsed ?? DateTime.now();
-      await _expenses.recordExpense(
-        category: (row['category'] ?? '').trim().isEmpty ? 'General' : row['category']!.trim(),
-        amount: amount,
-        expenseDate: dt,
-        description: row['description'] ?? '',
-        paymentMethod: _normalizePayment(row['payment'] ?? 'CASH'),
-      );
-      imported++;
-    }
+      for (final row in mapped.rows) {
+        final amount = parseNum(row['amount']);
+        if (amount <= 0) continue;
+        final parsed = parseImportDate(row['date']);
+        if (parsed == null) undated++;
+        final dt = parsed ?? DateTime.now();
+        await _expenses.recordExpense(
+          category: (row['category'] ?? '').trim().isEmpty
+              ? 'General'
+              : row['category']!.trim(),
+          amount: amount,
+          expenseDate: dt,
+          description: row['description'] ?? '',
+          paymentMethod: _normalizePayment(row['payment'] ?? 'CASH'),
+        );
+        imported++;
+      }
     });
     return ImportOutcome(
       imported: imported,
@@ -173,19 +192,22 @@ class UniversalImportService {
 
   /// Export all products as CSV (round-trips with the products importer).
   Future<String> exportProductsCsv() async {
-    final items =
-        await _inventory.watchCatalogPage(pageSize: 100000, includeCost: true).first;
+    final items = await _inventory
+        .watchCatalogPage(pageSize: 100000, includeCost: true)
+        .first;
     final rows = items
-        .map((i) => <String, String>{
-              'name': i.name,
-              'price': _n(i.price),
-              'costPrice': i.costPrice == null ? '' : _n(i.costPrice!),
-              'stock': _n(i.stock),
-              'sku': i.sku ?? '',
-              'category': i.category,
-              'hsnCode': i.hsnCode ?? '',
-              'gstRate': _n(i.gstRate),
-            })
+        .map(
+          (i) => <String, String>{
+            'name': i.name,
+            'price': _n(i.price),
+            'costPrice': i.costPrice == null ? '' : _n(i.costPrice!),
+            'stock': _n(i.stock),
+            'sku': i.sku ?? '',
+            'category': i.category,
+            'hsnCode': i.hsnCode ?? '',
+            'gstRate': _n(i.gstRate),
+          },
+        )
         .toList();
     return exportCsvFor(ImportKind.products, rows);
   }
@@ -194,13 +216,15 @@ class UniversalImportService {
   Future<String> exportCustomersCsv() async {
     final custs = await _customers.watchLegacyCustomers().first;
     final rows = custs
-        .map((c) => <String, String>{
-              'name': c.name,
-              'phone': c.phone ?? '',
-              'email': c.email ?? '',
-              'amountDue': c.balance > 0 ? _n(c.balance) : '0',
-              'advance': c.balance < 0 ? _n(-c.balance) : '0',
-            })
+        .map(
+          (c) => <String, String>{
+            'name': c.name,
+            'phone': c.phone ?? '',
+            'email': c.email ?? '',
+            'amountDue': c.balance > 0 ? _n(c.balance) : '0',
+            'advance': c.balance < 0 ? _n(-c.balance) : '0',
+          },
+        )
         .toList();
     return exportCsvFor(ImportKind.customers, rows);
   }
@@ -224,20 +248,18 @@ class UniversalImportService {
     var imported = 0;
     var undated = 0;
     await _inventory.runInTransaction(() async {
-    for (final row in mapped.rows) {
-      final name = row['name'] ?? '';
-      if (name.isEmpty) continue;
-      final phone = row['phone'] ?? '';
-      final balance = parseNum(row['amountDue']) - parseNum(row['advance']);
-      final id = 'import-cust-${phone.hashCode}-${name.hashCode}';
-      // Keep the date the customer was actually acquired. Without this every
-      // imported client looked like it was added today, which wrecks "new
-      // customers this month" and any ageing view built on created_at.
-      final addedOn = parseImportDate(row['date']);
-      if (addedOn == null) undated++;
-      await _customers.mergeRemoteCustomerDocument(
-        id,
-        <String, dynamic>{
+      for (final row in mapped.rows) {
+        final name = row['name'] ?? '';
+        if (name.isEmpty) continue;
+        final phone = row['phone'] ?? '';
+        final balance = parseNum(row['amountDue']) - parseNum(row['advance']);
+        final id = 'import-cust-${phone.hashCode}-${name.hashCode}';
+        // Keep the date the customer was actually acquired. Without this every
+        // imported client looked like it was added today, which wrecks "new
+        // customers this month" and any ageing view built on created_at.
+        final addedOn = parseImportDate(row['date']);
+        if (addedOn == null) undated++;
+        await _customers.mergeRemoteCustomerDocument(id, <String, dynamic>{
           'name': name,
           'phone': phone,
           'email': row['email'] ?? '',
@@ -247,18 +269,16 @@ class UniversalImportService {
           'tombstone': false,
           'createdAt': (addedOn ?? DateTime.now()).millisecondsSinceEpoch,
           'updatedAt': iso,
-        },
-        updatedAt: now,
-      );
-      // Give the imported due a visible origin, otherwise the customer shows
-      // a balance with an empty khata and nobody can say what it is for.
-      await _customers.recordOpeningBalance(
-        customerId: id,
-        balance: balance,
-        occurredAt: addedOn,
-      );
-      imported++;
-    }
+        }, updatedAt: now);
+        // Give the imported due a visible origin, otherwise the customer shows
+        // a balance with an empty khata and nobody can say what it is for.
+        await _customers.recordOpeningBalance(
+          customerId: id,
+          balance: balance,
+          occurredAt: addedOn,
+        );
+        imported++;
+      }
     });
     return ImportOutcome(
       imported: imported,

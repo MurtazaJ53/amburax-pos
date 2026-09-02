@@ -87,8 +87,10 @@ class ReceiptPrinterService {
     // Removing unsupported ShopInfo address and stateCode
     bytes += generator.emptyLines(1);
     bytes += generator.text('Date: ${detail.date}');
-    bytes += generator.text('Customer: ${detail.customerName?.isNotEmpty == true ? detail.customerName : 'Walk-in'}');
-    
+    bytes += generator.text(
+      'Customer: ${detail.customerName?.isNotEmpty == true ? detail.customerName : 'Walk-in'}',
+    );
+
     // Parse buyer GSTIN from footerNote
     if (isB2b) {
       final parts = detail.footerNote!.split('Buyer GSTIN:');
@@ -97,14 +99,18 @@ class ReceiptPrinterService {
         bytes += generator.text('Buyer GSTIN: $buyerGstin');
       }
     }
-    
+
     bytes += generator.emptyLines(1);
 
     // Items Header
     bytes += generator.row([
       PosColumn(text: 'Item', width: 6),
       PosColumn(text: 'Qty', width: 2),
-      PosColumn(text: 'Total', width: 4, styles: const PosStyles(align: PosAlign.right)),
+      PosColumn(
+        text: 'Total',
+        width: 4,
+        styles: const PosStyles(align: PosAlign.right),
+      ),
     ]);
     bytes += generator.hr();
 
@@ -113,13 +119,25 @@ class ReceiptPrinterService {
       bytes += generator.row([
         PosColumn(text: item.name, width: 6),
         PosColumn(text: item.quantity.toString(), width: 2),
-        PosColumn(text: item.lineTotal.toStringAsFixed(2), width: 4, styles: const PosStyles(align: PosAlign.right)),
+        PosColumn(
+          text: item.lineTotal.toStringAsFixed(2),
+          width: 4,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
       ]);
       if (item.gstRate > 0) {
         bytes += generator.row([
-          PosColumn(text: ' GST ${item.gstRate}%', width: 6, styles: const PosStyles(align: PosAlign.left)),
+          PosColumn(
+            text: ' GST ${item.gstRate}%',
+            width: 6,
+            styles: const PosStyles(align: PosAlign.left),
+          ),
           PosColumn(text: '', width: 2),
-          PosColumn(text: item.taxAmount.toStringAsFixed(2), width: 4, styles: const PosStyles(align: PosAlign.right)),
+          PosColumn(
+            text: item.taxAmount.toStringAsFixed(2),
+            width: 4,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
         ]);
       }
     }
@@ -138,35 +156,76 @@ class ReceiptPrinterService {
       totalIgst += item.igstAmount;
     }
     final hasTax = (totalCgst + totalSgst + totalIgst) > 0.009;
-    
+
     bytes += generator.row([
-      PosColumn(text: 'Subtotal:', width: 8, styles: const PosStyles(align: PosAlign.right)),
-      PosColumn(text: detail.total.toStringAsFixed(2), width: 4, styles: const PosStyles(align: PosAlign.right)),
+      PosColumn(
+        text: 'Subtotal:',
+        width: 8,
+        styles: const PosStyles(align: PosAlign.right),
+      ),
+      PosColumn(
+        text: detail.total.toStringAsFixed(2),
+        width: 4,
+        styles: const PosStyles(align: PosAlign.right),
+      ),
     ]);
-    
+
     if (hasTax) {
       bytes += generator.row([
-        PosColumn(text: 'Taxable:', width: 8, styles: const PosStyles(align: PosAlign.right)),
-        PosColumn(text: totalTaxable.toStringAsFixed(2), width: 4, styles: const PosStyles(align: PosAlign.right)),
+        PosColumn(
+          text: 'Taxable:',
+          width: 8,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
+        PosColumn(
+          text: totalTaxable.toStringAsFixed(2),
+          width: 4,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
       ]);
       bytes += generator.row([
-        PosColumn(text: 'CGST/SGST:', width: 8, styles: const PosStyles(align: PosAlign.right)),
-        PosColumn(text: '${totalCgst.toStringAsFixed(2)}/${totalSgst.toStringAsFixed(2)}', width: 4, styles: const PosStyles(align: PosAlign.right)),
+        PosColumn(
+          text: 'CGST/SGST:',
+          width: 8,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
+        PosColumn(
+          text:
+              '${totalCgst.toStringAsFixed(2)}/${totalSgst.toStringAsFixed(2)}',
+          width: 4,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
       ]);
       if (totalIgst > 0) {
         bytes += generator.row([
-          PosColumn(text: 'IGST:', width: 8, styles: const PosStyles(align: PosAlign.right)),
-          PosColumn(text: totalIgst.toStringAsFixed(2), width: 4, styles: const PosStyles(align: PosAlign.right)),
+          PosColumn(
+            text: 'IGST:',
+            width: 8,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+          PosColumn(
+            text: totalIgst.toStringAsFixed(2),
+            width: 4,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
         ]);
       }
     }
 
     bytes += generator.hr();
     bytes += generator.row([
-      PosColumn(text: 'TOTAL DUE:', width: 8, styles: const PosStyles(align: PosAlign.right, bold: true)),
-      PosColumn(text: detail.amountDue.toStringAsFixed(2), width: 4, styles: const PosStyles(align: PosAlign.right, bold: true)),
+      PosColumn(
+        text: 'TOTAL DUE:',
+        width: 8,
+        styles: const PosStyles(align: PosAlign.right, bold: true),
+      ),
+      PosColumn(
+        text: detail.amountDue.toStringAsFixed(2),
+        width: 4,
+        styles: const PosStyles(align: PosAlign.right, bold: true),
+      ),
     ]);
-    
+
     // UPI pay QR on the paper bill: the customer can clear the balance straight
     // from the receipt. Omitted when nothing is due or no merchant VPA is set.
     final payUri = receiptUpiUri(
@@ -219,7 +278,11 @@ class ReceiptPrinterService {
 /// `ESC p m t1 t2` = `0x1B 0x70 <pin> <onTime> <offTime>`. Times are in 2 ms
 /// units per the ESC/POS spec, so the defaults are ~50 ms on / ~500 ms off on
 /// drawer pin 2. Swap [pin] to 1 if your drawer is wired to pin 5.
-List<int> cashDrawerKickBytes({int pin = 0, int onTime = 25, int offTime = 250}) {
+List<int> cashDrawerKickBytes({
+  int pin = 0,
+  int onTime = 25,
+  int offTime = 250,
+}) {
   assert(pin == 0 || pin == 1, 'Drawer pin must be 0 (pin 2) or 1 (pin 5).');
   return <int>[0x1B, 0x70, pin, onTime & 0xFF, offTime & 0xFF];
 }

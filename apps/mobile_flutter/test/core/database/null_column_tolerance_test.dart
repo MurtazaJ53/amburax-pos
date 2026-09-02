@@ -52,8 +52,9 @@ void main() {
         "VALUES ('mv-1', 'i-1', 'Woolen Caps', -2, 'SALE', NULL, 1000)",
       );
 
-      final movements =
-          await InventoryRepository(db).watchStockMovements().first;
+      final movements = await InventoryRepository(
+        db,
+      ).watchStockMovements().first;
 
       expect(movements, hasLength(1));
       expect(movements.first.note, '');
@@ -68,8 +69,9 @@ void main() {
         "VALUES ('mv-2', 'i-1', 'Cap', -1, 'ADJUST', NULL, NULL, NULL, NULL, 2000)",
       );
 
-      final movements =
-          await InventoryRepository(db).watchStockMovements().first;
+      final movements = await InventoryRepository(
+        db,
+      ).watchStockMovements().first;
       expect(movements, hasLength(1));
       expect(movements.first.actorName, equals(null));
       expect(movements.first.balanceAfter, equals(null));
@@ -89,44 +91,48 @@ void main() {
         "VALUES ('mv-null', 'i-1', 'Null note', -1, 'SALE', NULL, 4000)",
       );
 
-      final movements =
-          await InventoryRepository(db).watchStockMovements().first;
+      final movements = await InventoryRepository(
+        db,
+      ).watchStockMovements().first;
       expect(movements, hasLength(2));
     });
   });
 
   group('the exact flow that crashed', () {
-    test('logStockAdjustment completes while the stream is being watched',
-        () async {
-      final inventory = InventoryRepository(db);
+    test(
+      'logStockAdjustment completes while the stream is being watched',
+      () async {
+        final inventory = InventoryRepository(db);
 
-      // A movement with a NULL note already in the table — exactly the state a
-      // shop reaches through older rows.
-      await db.customStatement(
-        "INSERT INTO stock_movements "
-        "(id, item_id, item_name, delta, reason, note, created_at) "
-        "VALUES ('mv-old', 'i-1', 'Woolen Caps', -1, 'SALE', NULL, 1000)",
-      );
+        // A movement with a NULL note already in the table — exactly the state a
+        // shop reaches through older rows.
+        await db.customStatement(
+          "INSERT INTO stock_movements "
+          "(id, item_id, item_name, delta, reason, note, created_at) "
+          "VALUES ('mv-old', 'i-1', 'Woolen Caps', -1, 'SALE', NULL, 1000)",
+        );
 
-      // Watch it, the way the stock-history screen does.
-      final seen = <int>[];
-      final sub =
-          inventory.watchStockMovements().listen((rows) => seen.add(rows.length));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+        // Watch it, the way the stock-history screen does.
+        final seen = <int>[];
+        final sub = inventory.watchStockMovements().listen(
+          (rows) => seen.add(rows.length),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      // Restock: this is the call that used to blow up via the stream it wakes.
-      await inventory.logStockAdjustment(
-        itemId: 'i-1',
-        itemName: 'Woolen Caps',
-        oldStock: 10,
-        newStock: 25,
-        note: 'Restocked +15',
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      await sub.cancel();
+        // Restock: this is the call that used to blow up via the stream it wakes.
+        await inventory.logStockAdjustment(
+          itemId: 'i-1',
+          itemName: 'Woolen Caps',
+          oldStock: 10,
+          newStock: 25,
+          note: 'Restocked +15',
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await sub.cancel();
 
-      expect(seen.last, 2, reason: 'the new movement should be visible');
-    });
+        expect(seen.last, 2, reason: 'the new movement should be visible');
+      },
+    );
   });
 
   group('inventory catalog', () {
@@ -138,9 +144,9 @@ void main() {
         "VALUES ('i-9', 'Bare Item', 0, NULL, NULL, NULL, NULL, 1000, 1000, 0)",
       );
 
-      final items = await InventoryRepository(db)
-          .watchCatalogPage(page: 1, pageSize: 50)
-          .first;
+      final items = await InventoryRepository(
+        db,
+      ).watchCatalogPage(page: 1, pageSize: 50).first;
 
       expect(items, hasLength(1));
       expect(items.first.name, 'Bare Item');

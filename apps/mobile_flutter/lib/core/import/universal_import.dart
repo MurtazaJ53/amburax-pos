@@ -29,105 +29,308 @@ class ImportField {
   final FieldType type;
 
   /// All header spellings this field will match, normalized.
-  Iterable<String> get _needles => <String>[key, label, ...synonyms].map(normalizeHeader);
+  Iterable<String> get _needles =>
+      <String>[key, label, ...synonyms].map(normalizeHeader);
 }
 
 /// Canonical field definitions per data type. Order matters: earlier fields win
 /// a contested column.
-const Map<ImportKind, List<ImportField>> importSchemas = <ImportKind, List<ImportField>>{
+const Map<ImportKind, List<ImportField>>
+importSchemas = <ImportKind, List<ImportField>>{
   ImportKind.products: <ImportField>[
-    ImportField('name', 'Item name',
-        required: true,
-        synonyms: <String>['item', 'product', 'product name', 'title', 'description', 'particulars']),
-    ImportField('price', 'Price',
-        type: FieldType.number,
-        synonyms: <String>['mrp', 'rate', 'selling price', 'sale price', 'sell price', 'unit price', 'amount']),
-    ImportField('costPrice', 'Cost price',
-        type: FieldType.number,
-        synonyms: <String>['cost', 'purchase price', 'buy price', 'cp', 'purchase rate']),
-    ImportField('stock', 'Stock',
-        type: FieldType.number,
-        synonyms: <String>['qty', 'quantity', 'on hand', 'available', 'stock on hand', 'opening stock', 'inventory', 'in stock']),
-    ImportField('sku', 'SKU',
-        synonyms: <String>['code', 'item code', 'product code']),
-    ImportField('barcode', 'Barcode',
-        synonyms: <String>['ean', 'upc', 'qr']),
-    ImportField('category', 'Category',
-        synonyms: <String>['cat', 'group', 'department', 'type']),
-    ImportField('hsnCode', 'HSN',
-        synonyms: <String>['hsn code', 'hsn/sac', 'sac']),
-    ImportField('gstRate', 'GST rate',
-        type: FieldType.number,
-        synonyms: <String>['gst', 'tax', 'tax rate', 'gst %', 'gst percent']),
+    ImportField(
+      'name',
+      'Item name',
+      required: true,
+      synonyms: <String>[
+        'item',
+        'product',
+        'product name',
+        'title',
+        'description',
+        'particulars',
+      ],
+    ),
+    ImportField(
+      'price',
+      'Price',
+      type: FieldType.number,
+      synonyms: <String>[
+        'mrp',
+        'rate',
+        'selling price',
+        'sale price',
+        'sell price',
+        'unit price',
+        'amount',
+      ],
+    ),
+    ImportField(
+      'costPrice',
+      'Cost price',
+      type: FieldType.number,
+      synonyms: <String>[
+        'cost',
+        'purchase price',
+        'buy price',
+        'cp',
+        'purchase rate',
+      ],
+    ),
+    ImportField(
+      'stock',
+      'Stock',
+      type: FieldType.number,
+      synonyms: <String>[
+        'qty',
+        'quantity',
+        'on hand',
+        'available',
+        'stock on hand',
+        'opening stock',
+        'inventory',
+        'in stock',
+      ],
+    ),
+    ImportField(
+      'sku',
+      'SKU',
+      synonyms: <String>['code', 'item code', 'product code'],
+    ),
+    ImportField('barcode', 'Barcode', synonyms: <String>['ean', 'upc', 'qr']),
+    ImportField(
+      'category',
+      'Category',
+      synonyms: <String>['cat', 'group', 'department', 'type'],
+    ),
+    ImportField(
+      'hsnCode',
+      'HSN',
+      synonyms: <String>['hsn code', 'hsn/sac', 'sac'],
+    ),
+    ImportField(
+      'gstRate',
+      'GST rate',
+      type: FieldType.number,
+      synonyms: <String>['gst', 'tax', 'tax rate', 'gst %', 'gst percent'],
+    ),
   ],
   ImportKind.customers: <ImportField>[
-    ImportField('name', 'Name',
-        required: true,
-        synonyms: <String>['customer', 'customer name', 'client', 'client name', 'party', 'party name']),
-    ImportField('phone', 'Phone',
-        synonyms: <String>['mobile', 'contact', 'number', 'phone number', 'mobile number', 'whatsapp', 'contact number']),
-    ImportField('email', 'Email',
-        synonyms: <String>['email id', 'e-mail', 'mail']),
-    ImportField('amountDue', 'Amount due',
-        type: FieldType.number,
-        synonyms: <String>['balance', 'due', 'outstanding', 'credit', 'pending', 'closing balance']),
-    ImportField('advance', 'Advance',
-        type: FieldType.number,
-        synonyms: <String>['amount held', 'deposit', 'prepaid', 'advance paid']),
-    ImportField('date', 'Added on',
-        synonyms: <String>[
-          'created', 'created at', 'created on', 'date added', 'added date',
-          'joined', 'joined on', 'registration date', 'since', 'first visit',
-        ]),
+    ImportField(
+      'name',
+      'Name',
+      required: true,
+      synonyms: <String>[
+        'customer',
+        'customer name',
+        'client',
+        'client name',
+        'party',
+        'party name',
+      ],
+    ),
+    ImportField(
+      'phone',
+      'Phone',
+      synonyms: <String>[
+        'mobile',
+        'contact',
+        'number',
+        'phone number',
+        'mobile number',
+        'whatsapp',
+        'contact number',
+      ],
+    ),
+    ImportField(
+      'email',
+      'Email',
+      synonyms: <String>['email id', 'e-mail', 'mail'],
+    ),
+    ImportField(
+      'amountDue',
+      'Amount due',
+      type: FieldType.number,
+      synonyms: <String>[
+        'balance',
+        'due',
+        'outstanding',
+        'credit',
+        'pending',
+        'closing balance',
+      ],
+    ),
+    ImportField(
+      'advance',
+      'Advance',
+      type: FieldType.number,
+      synonyms: <String>['amount held', 'deposit', 'prepaid', 'advance paid'],
+    ),
+    ImportField(
+      'date',
+      'Added on',
+      synonyms: <String>[
+        'created',
+        'created at',
+        'created on',
+        'date added',
+        'added date',
+        'joined',
+        'joined on',
+        'registration date',
+        'since',
+        'first visit',
+      ],
+    ),
   ],
   ImportKind.suppliers: <ImportField>[
-    ImportField('name', 'Name',
-        required: true,
-        synonyms: <String>['supplier', 'supplier name', 'vendor', 'vendor name', 'party']),
-    ImportField('phone', 'Phone',
-        synonyms: <String>['mobile', 'contact', 'number', 'phone number']),
+    ImportField(
+      'name',
+      'Name',
+      required: true,
+      synonyms: <String>[
+        'supplier',
+        'supplier name',
+        'vendor',
+        'vendor name',
+        'party',
+      ],
+    ),
+    ImportField(
+      'phone',
+      'Phone',
+      synonyms: <String>['mobile', 'contact', 'number', 'phone number'],
+    ),
     ImportField('email', 'Email', synonyms: <String>['mail', 'email id']),
-    ImportField('gstin', 'GSTIN',
-        synonyms: <String>['gst', 'gst no', 'gst number', 'tax id']),
-    ImportField('amountDue', 'Payable',
-        type: FieldType.number,
-        synonyms: <String>['balance', 'payable', 'due', 'outstanding']),
+    ImportField(
+      'gstin',
+      'GSTIN',
+      synonyms: <String>['gst', 'gst no', 'gst number', 'tax id'],
+    ),
+    ImportField(
+      'amountDue',
+      'Payable',
+      type: FieldType.number,
+      synonyms: <String>['balance', 'payable', 'due', 'outstanding'],
+    ),
   ],
   ImportKind.sales: <ImportField>[
-    ImportField('total', 'Total',
-        required: true,
-        type: FieldType.number,
-        synonyms: <String>['amount', 'grand total', 'net amount', 'bill amount', 'invoice value', 'paid']),
-    ImportField('date', 'Date',
-        synonyms: <String>['sale date', 'invoice date', 'bill date', 'txn date', 'order date']),
-    ImportField('discount', 'Discount',
-        type: FieldType.number, synonyms: <String>['disc']),
-    ImportField('payment', 'Payment mode',
-        synonyms: <String>['payment', 'mode', 'method', 'paid via', 'tender', 'payment type']),
-    ImportField('customerName', 'Customer',
-        synonyms: <String>['customer name', 'client', 'party', 'name']),
-    ImportField('customerPhone', 'Customer phone',
-        synonyms: <String>['phone', 'mobile', 'contact', 'number']),
-    ImportField('reference', 'Invoice no',
-        synonyms: <String>[
-          'invoice', 'invoice number', 'bill no', 'bill number', 'receipt no',
-          'receipt number', 'receipt id', 'order no', 'order id', 'txn id',
-          'transaction id', 'voucher no', 'ref', 'reference',
-        ]),
+    ImportField(
+      'total',
+      'Total',
+      required: true,
+      type: FieldType.number,
+      synonyms: <String>[
+        'amount',
+        'grand total',
+        'net amount',
+        'bill amount',
+        'invoice value',
+        'paid',
+      ],
+    ),
+    ImportField(
+      'date',
+      'Date',
+      synonyms: <String>[
+        'sale date',
+        'invoice date',
+        'bill date',
+        'txn date',
+        'order date',
+      ],
+    ),
+    ImportField(
+      'discount',
+      'Discount',
+      type: FieldType.number,
+      synonyms: <String>['disc'],
+    ),
+    ImportField(
+      'payment',
+      'Payment mode',
+      synonyms: <String>[
+        'payment',
+        'mode',
+        'method',
+        'paid via',
+        'tender',
+        'payment type',
+      ],
+    ),
+    ImportField(
+      'customerName',
+      'Customer',
+      synonyms: <String>['customer name', 'client', 'party', 'name'],
+    ),
+    ImportField(
+      'customerPhone',
+      'Customer phone',
+      synonyms: <String>['phone', 'mobile', 'contact', 'number'],
+    ),
+    ImportField(
+      'reference',
+      'Invoice no',
+      synonyms: <String>[
+        'invoice',
+        'invoice number',
+        'bill no',
+        'bill number',
+        'receipt no',
+        'receipt number',
+        'receipt id',
+        'order no',
+        'order id',
+        'txn id',
+        'transaction id',
+        'voucher no',
+        'ref',
+        'reference',
+      ],
+    ),
   ],
   ImportKind.expenses: <ImportField>[
-    ImportField('amount', 'Amount',
-        required: true,
-        type: FieldType.number,
-        synonyms: <String>['spent', 'expense amount', 'value', 'debit', 'total', 'paid']),
-    ImportField('category', 'Category',
-        synonyms: <String>['head', 'expense head', 'type', 'account', 'group']),
-    ImportField('date', 'Date',
-        synonyms: <String>['expense date', 'spent on', 'txn date', 'paid on']),
-    ImportField('description', 'Description',
-        synonyms: <String>['note', 'particulars', 'details', 'narration', 'remark', 'remarks']),
-    ImportField('payment', 'Payment mode',
-        synonyms: <String>['mode', 'paid via', 'method', 'payment type']),
+    ImportField(
+      'amount',
+      'Amount',
+      required: true,
+      type: FieldType.number,
+      synonyms: <String>[
+        'spent',
+        'expense amount',
+        'value',
+        'debit',
+        'total',
+        'paid',
+      ],
+    ),
+    ImportField(
+      'category',
+      'Category',
+      synonyms: <String>['head', 'expense head', 'type', 'account', 'group'],
+    ),
+    ImportField(
+      'date',
+      'Date',
+      synonyms: <String>['expense date', 'spent on', 'txn date', 'paid on'],
+    ),
+    ImportField(
+      'description',
+      'Description',
+      synonyms: <String>[
+        'note',
+        'particulars',
+        'details',
+        'narration',
+        'remark',
+        'remarks',
+      ],
+    ),
+    ImportField(
+      'payment',
+      'Payment mode',
+      synonyms: <String>['mode', 'paid via', 'method', 'payment type'],
+    ),
   ],
 };
 
@@ -244,7 +447,9 @@ ParsedTable? parseXlsxBytes(List<int> bytes) {
   try {
     for (final sheet in readXlsx(bytes)) {
       if (sheet.rows.isEmpty) continue;
-      final headers = sheet.rows.first.map((c) => c.trim()).toList(growable: false);
+      final headers = sheet.rows.first
+          .map((c) => c.trim())
+          .toList(growable: false);
       if (headers.every((h) => h.isEmpty)) continue;
       final rows = sheet.rows
           .skip(1)
@@ -262,8 +467,9 @@ ParsedTable? parseXlsxBytes(List<int> bytes) {
     for (final name in excel.tables.keys) {
       final table = excel.tables[name];
       if (table == null || table.rows.isEmpty) continue;
-      final headers =
-          table.rows.first.map((c) => _xlsxCell(c).trim()).toList(growable: false);
+      final headers = table.rows.first
+          .map((c) => _xlsxCell(c).trim())
+          .toList(growable: false);
       if (headers.every((h) => h.isEmpty)) continue;
       final rows = table.rows
           .skip(1)
@@ -355,7 +561,11 @@ class MappedImport {
 
 /// Apply a [mapping] (auto or user-edited) to produce canonical rows. Rows whose
 /// required fields are all blank are dropped.
-MappedImport mapRows(ParsedTable table, ImportKind kind, {ColumnMapping? mapping}) {
+MappedImport mapRows(
+  ParsedTable table,
+  ImportKind kind, {
+  ColumnMapping? mapping,
+}) {
   final fields = importSchemas[kind]!;
   final map = mapping ?? autoMap(table.headers, kind);
   final missing = fields
@@ -411,8 +621,28 @@ String templateCsvFor(ImportKind kind) {
   final header = fields.map((f) => f.label).toList();
   const samples = <ImportKind, List<List<String>>>{
     ImportKind.products: <List<String>>[
-      <String>['Parle-G Biscuits', '10', '7.5', '120', 'BISC-001', '', 'Snacks', '', '18'],
-      <String>['Tomatoes (loose)', '40', '24', '35.5', '12345', '', 'Vegetables', '', '0'],
+      <String>[
+        'Parle-G Biscuits',
+        '10',
+        '7.5',
+        '120',
+        'BISC-001',
+        '',
+        'Snacks',
+        '',
+        '18',
+      ],
+      <String>[
+        'Tomatoes (loose)',
+        '40',
+        '24',
+        '35.5',
+        '12345',
+        '',
+        'Vegetables',
+        '',
+        '0',
+      ],
     ],
     ImportKind.customers: <List<String>>[
       <String>['Rahul Sharma', '9876543210', 'rahul@example.com', '250', '0'],

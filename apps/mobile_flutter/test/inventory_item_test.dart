@@ -17,7 +17,10 @@ void main() {
   group('InventoryCatalogItem reorder / low-stock', () {
     test('falls back to the default threshold when none is set', () {
       final item = _item(stock: 5);
-      expect(item.effectiveReorderLevel, InventoryCatalogItem.defaultReorderLevel);
+      expect(
+        item.effectiveReorderLevel,
+        InventoryCatalogItem.defaultReorderLevel,
+      );
       expect(item.isLowStock, isTrue); // 5 <= 5
     });
 

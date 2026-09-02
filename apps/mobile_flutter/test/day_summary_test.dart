@@ -13,18 +13,17 @@ ZReportSnapshot _z({
   Map<String, double>? tenders,
   DateTime? first,
   DateTime? last,
-}) =>
-    ZReportSnapshot(
-      salesCount: salesCount,
-      grossSales: gross,
-      discountTotal: discount,
-      taxCollected: 0,
-      collected: collected,
-      due: due,
-      tenderBreakdown: tenders ?? <String, double>{'CASH': 7300, 'UPI': 3000},
-      firstBillAt: first,
-      lastBillAt: last,
-    );
+}) => ZReportSnapshot(
+  salesCount: salesCount,
+  grossSales: gross,
+  discountTotal: discount,
+  taxCollected: 0,
+  collected: collected,
+  due: due,
+  tenderBreakdown: tenders ?? <String, double>{'CASH': 7300, 'UPI': 3000},
+  firstBillAt: first,
+  lastBillAt: last,
+);
 
 void main() {
   group('trading day', () {

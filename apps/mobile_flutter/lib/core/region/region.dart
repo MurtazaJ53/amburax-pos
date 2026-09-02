@@ -101,8 +101,10 @@ const RegionProfile indiaRegion = RegionProfile(
   taxInclusivePricing: true,
 );
 
-RegionProfile regionProfileFor(AppRegion region) =>
-    switch (region) { AppRegion.uk => ukRegion, AppRegion.india => indiaRegion };
+RegionProfile regionProfileFor(AppRegion region) => switch (region) {
+  AppRegion.uk => ukRegion,
+  AppRegion.india => indiaRegion,
+};
 
 /// Active region for non-widget code (pure formatters, services).
 ///

@@ -24,7 +24,9 @@ class UpdateStatus {
 
 List<int> _parts(String v) => v
     .split('.')
-    .map((p) => int.tryParse(RegExp(r'\d+').firstMatch(p)?.group(0) ?? '0') ?? 0)
+    .map(
+      (p) => int.tryParse(RegExp(r'\d+').firstMatch(p)?.group(0) ?? '0') ?? 0,
+    )
     .toList(growable: false);
 
 /// Returns > 0 when [a] is newer than [b].

@@ -11,7 +11,11 @@ import '../region/region.dart';
 
 /// Formats a **major-unit** amount (e.g. pounds) in the active region's
 /// currency, e.g. `£1,234.50` (UK) or `₹1,23,450` (India).
-String formatCurrency(num amount, {bool showFraction = true, RegionProfile? region}) {
+String formatCurrency(
+  num amount, {
+  bool showFraction = true,
+  RegionProfile? region,
+}) {
   final r = region ?? activeRegion;
   final fraction = showFraction && _fractionDigits(r) > 0;
   return _format(amount.toDouble(), r, fraction);
@@ -42,10 +46,16 @@ String formatCurrencyCompact(num amount, {RegionProfile? region}) {
   final value = amount.abs().toDouble();
   final sign = negative ? '-' : '';
   if (value < 1000) {
-    return formatCurrency(amount, showFraction: value != value.roundToDouble(), region: r);
+    return formatCurrency(
+      amount,
+      showFraction: value != value.roundToDouble(),
+      region: r,
+    );
   }
   if (value < 1000000) return '$sign${r.currencySymbol}${_trim(value / 1000)}k';
-  if (value < 1000000000) return '$sign${r.currencySymbol}${_trim(value / 1000000)}M';
+  if (value < 1000000000) {
+    return '$sign${r.currencySymbol}${_trim(value / 1000000)}M';
+  }
   return '$sign${r.currencySymbol}${_trim(value / 1000000000)}B';
 }
 
@@ -119,7 +129,8 @@ double taxFromGross(double gross, double rate) =>
 double taxFromNet(double net, double rate) => net * rate;
 
 /// Net (tax-exclusive) portion of a gross amount.
-double netFromGross(double gross, double rate) => gross - taxFromGross(gross, rate);
+double netFromGross(double gross, double rate) =>
+    gross - taxFromGross(gross, rate);
 
 /// Rounds a major-unit value to whole minor units to avoid float drift.
 double roundMinor(double amount) => (amount * 100).round() / 100;
@@ -138,5 +149,6 @@ String formatCompactDate(DateTime value) {
 
 /// Format a quantity/stock value without a trailing ".0" (2 stays "2",
 /// 1.5 stays "1.5"). For fractional (weighed) goods.
-String formatQty(num value) =>
-    value == value.roundToDouble() ? value.toStringAsFixed(0) : value.toString();
+String formatQty(num value) => value == value.roundToDouble()
+    ? value.toStringAsFixed(0)
+    : value.toString();

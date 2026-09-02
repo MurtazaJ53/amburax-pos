@@ -9,14 +9,13 @@ KhataDebtor _debtor({
   String phone = '9876543210',
   double balance = 500,
   DateTime? remindedAt,
-}) =>
-    KhataDebtor(
-      id: 'c1',
-      name: name,
-      phone: phone,
-      balance: balance,
-      lastRemindedAt: remindedAt,
-    );
+}) => KhataDebtor(
+  id: 'c1',
+  name: name,
+  phone: phone,
+  balance: balance,
+  lastRemindedAt: remindedAt,
+);
 
 void main() {
   group('who can be reminded', () {
@@ -43,10 +42,12 @@ void main() {
     });
 
     test('becomes overdue again after a week', () {
-      final six =
-          _debtor(remindedAt: DateTime.now().subtract(const Duration(days: 6)));
-      final seven =
-          _debtor(remindedAt: DateTime.now().subtract(const Duration(days: 7)));
+      final six = _debtor(
+        remindedAt: DateTime.now().subtract(const Duration(days: 6)),
+      );
+      final seven = _debtor(
+        remindedAt: DateTime.now().subtract(const Duration(days: 7)),
+      );
       expect(six.isOverdue, isFalse);
       expect(seven.isOverdue, isTrue);
     });
@@ -61,8 +62,11 @@ void main() {
 
     test('a reminder late yesterday is not counted as today', () {
       final now = DateTime.now();
-      final lateYesterday =
-          DateTime(now.year, now.month, now.day).subtract(const Duration(minutes: 5));
+      final lateYesterday = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(const Duration(minutes: 5));
       expect(_debtor(remindedAt: lateYesterday).remindedToday, isFalse);
     });
   });

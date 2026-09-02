@@ -11,16 +11,15 @@ ReturnableLine _line({
   double sold = 4,
   double returned = 0,
   double price = 100,
-}) =>
-    ReturnableLine(
-      saleItemId: id,
-      name: 'Cotton Shirt',
-      size: 'M',
-      sold: sold,
-      returned: returned,
-      returnable: sold - returned,
-      unitPrice: price,
-    );
+}) => ReturnableLine(
+  saleItemId: id,
+  name: 'Cotton Shirt',
+  size: 'M',
+  sold: sold,
+  returned: returned,
+  returnable: sold - returned,
+  unitPrice: price,
+);
 
 void main() {
   group('parseAmount', () {

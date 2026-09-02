@@ -441,6 +441,20 @@ class $InventoryEntriesTable extends InventoryEntries
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _hasStockHistoryMeta = const VerificationMeta(
+    'hasStockHistory',
+  );
+  @override
+  late final GeneratedColumn<bool> hasStockHistory = GeneratedColumn<bool>(
+    'has_stock_history',
+    aliasedName,
+    true,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("has_stock_history" IN (0, 1))',
+    ),
+  );
   static const VerificationMeta _variantGroupIdMeta = const VerificationMeta(
     'variantGroupId',
   );
@@ -519,6 +533,7 @@ class $InventoryEntriesTable extends InventoryEntries
     imagePath,
     unit,
     reorderLevel,
+    hasStockHistory,
     variantGroupId,
     variantLabel,
     createdAt,
@@ -648,6 +663,15 @@ class $InventoryEntriesTable extends InventoryEntries
         ),
       );
     }
+    if (data.containsKey('has_stock_history')) {
+      context.handle(
+        _hasStockHistoryMeta,
+        hasStockHistory.isAcceptableOrUnknown(
+          data['has_stock_history']!,
+          _hasStockHistoryMeta,
+        ),
+      );
+    }
     if (data.containsKey('variant_group_id')) {
       context.handle(
         _variantGroupIdMeta,
@@ -759,6 +783,10 @@ class $InventoryEntriesTable extends InventoryEntries
         DriftSqlType.int,
         data['${effectivePrefix}reorder_level'],
       ),
+      hasStockHistory: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}has_stock_history'],
+      ),
       variantGroupId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}variant_group_id'],
@@ -805,6 +833,14 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
   final String? imagePath;
   final String? unit;
   final int? reorderLevel;
+
+  /// Whether this item has ever been given stock, from the backend's
+  /// `has_stock_history`. Null means the server did not say — an older
+  /// deployment, or a row written before this column existed. Null is not
+  /// false: treating "unknown" as "never stocked" would label a shelf holding
+  /// 462 units as untracked, which is the mistake the web already made and
+  /// wrote a comment about.
+  final bool? hasStockHistory;
   final String? variantGroupId;
   final String? variantLabel;
   final int createdAt;
@@ -827,6 +863,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
     this.imagePath,
     this.unit,
     this.reorderLevel,
+    this.hasStockHistory,
     this.variantGroupId,
     this.variantLabel,
     required this.createdAt,
@@ -870,6 +907,9 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
     if (!nullToAbsent || reorderLevel != null) {
       map['reorder_level'] = Variable<int>(reorderLevel);
     }
+    if (!nullToAbsent || hasStockHistory != null) {
+      map['has_stock_history'] = Variable<bool>(hasStockHistory);
+    }
     if (!nullToAbsent || variantGroupId != null) {
       map['variant_group_id'] = Variable<String>(variantGroupId);
     }
@@ -912,6 +952,9 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
       reorderLevel: reorderLevel == null && nullToAbsent
           ? const Value.absent()
           : Value(reorderLevel),
+      hasStockHistory: hasStockHistory == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hasStockHistory),
       variantGroupId: variantGroupId == null && nullToAbsent
           ? const Value.absent()
           : Value(variantGroupId),
@@ -946,6 +989,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
       imagePath: serializer.fromJson<String?>(json['imagePath']),
       unit: serializer.fromJson<String?>(json['unit']),
       reorderLevel: serializer.fromJson<int?>(json['reorderLevel']),
+      hasStockHistory: serializer.fromJson<bool?>(json['hasStockHistory']),
       variantGroupId: serializer.fromJson<String?>(json['variantGroupId']),
       variantLabel: serializer.fromJson<String?>(json['variantLabel']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
@@ -973,6 +1017,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
       'imagePath': serializer.toJson<String?>(imagePath),
       'unit': serializer.toJson<String?>(unit),
       'reorderLevel': serializer.toJson<int?>(reorderLevel),
+      'hasStockHistory': serializer.toJson<bool?>(hasStockHistory),
       'variantGroupId': serializer.toJson<String?>(variantGroupId),
       'variantLabel': serializer.toJson<String?>(variantLabel),
       'createdAt': serializer.toJson<int>(createdAt),
@@ -998,6 +1043,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
     Value<String?> imagePath = const Value.absent(),
     Value<String?> unit = const Value.absent(),
     Value<int?> reorderLevel = const Value.absent(),
+    Value<bool?> hasStockHistory = const Value.absent(),
     Value<String?> variantGroupId = const Value.absent(),
     Value<String?> variantLabel = const Value.absent(),
     int? createdAt,
@@ -1020,6 +1066,9 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
     imagePath: imagePath.present ? imagePath.value : this.imagePath,
     unit: unit.present ? unit.value : this.unit,
     reorderLevel: reorderLevel.present ? reorderLevel.value : this.reorderLevel,
+    hasStockHistory: hasStockHistory.present
+        ? hasStockHistory.value
+        : this.hasStockHistory,
     variantGroupId: variantGroupId.present
         ? variantGroupId.value
         : this.variantGroupId,
@@ -1056,6 +1105,9 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
       reorderLevel: data.reorderLevel.present
           ? data.reorderLevel.value
           : this.reorderLevel,
+      hasStockHistory: data.hasStockHistory.present
+          ? data.hasStockHistory.value
+          : this.hasStockHistory,
       variantGroupId: data.variantGroupId.present
           ? data.variantGroupId.value
           : this.variantGroupId,
@@ -1087,6 +1139,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
           ..write('imagePath: $imagePath, ')
           ..write('unit: $unit, ')
           ..write('reorderLevel: $reorderLevel, ')
+          ..write('hasStockHistory: $hasStockHistory, ')
           ..write('variantGroupId: $variantGroupId, ')
           ..write('variantLabel: $variantLabel, ')
           ..write('createdAt: $createdAt, ')
@@ -1114,6 +1167,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
     imagePath,
     unit,
     reorderLevel,
+    hasStockHistory,
     variantGroupId,
     variantLabel,
     createdAt,
@@ -1140,6 +1194,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
           other.imagePath == this.imagePath &&
           other.unit == this.unit &&
           other.reorderLevel == this.reorderLevel &&
+          other.hasStockHistory == this.hasStockHistory &&
           other.variantGroupId == this.variantGroupId &&
           other.variantLabel == this.variantLabel &&
           other.createdAt == this.createdAt &&
@@ -1164,6 +1219,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
   final Value<String?> imagePath;
   final Value<String?> unit;
   final Value<int?> reorderLevel;
+  final Value<bool?> hasStockHistory;
   final Value<String?> variantGroupId;
   final Value<String?> variantLabel;
   final Value<int> createdAt;
@@ -1187,6 +1243,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
     this.imagePath = const Value.absent(),
     this.unit = const Value.absent(),
     this.reorderLevel = const Value.absent(),
+    this.hasStockHistory = const Value.absent(),
     this.variantGroupId = const Value.absent(),
     this.variantLabel = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1211,6 +1268,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
     this.imagePath = const Value.absent(),
     this.unit = const Value.absent(),
     this.reorderLevel = const Value.absent(),
+    this.hasStockHistory = const Value.absent(),
     this.variantGroupId = const Value.absent(),
     this.variantLabel = const Value.absent(),
     required int createdAt,
@@ -1238,6 +1296,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
     Expression<String>? imagePath,
     Expression<String>? unit,
     Expression<int>? reorderLevel,
+    Expression<bool>? hasStockHistory,
     Expression<String>? variantGroupId,
     Expression<String>? variantLabel,
     Expression<int>? createdAt,
@@ -1262,6 +1321,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
       if (imagePath != null) 'image_path': imagePath,
       if (unit != null) 'unit': unit,
       if (reorderLevel != null) 'reorder_level': reorderLevel,
+      if (hasStockHistory != null) 'has_stock_history': hasStockHistory,
       if (variantGroupId != null) 'variant_group_id': variantGroupId,
       if (variantLabel != null) 'variant_label': variantLabel,
       if (createdAt != null) 'created_at': createdAt,
@@ -1288,6 +1348,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
     Value<String?>? imagePath,
     Value<String?>? unit,
     Value<int?>? reorderLevel,
+    Value<bool?>? hasStockHistory,
     Value<String?>? variantGroupId,
     Value<String?>? variantLabel,
     Value<int>? createdAt,
@@ -1312,6 +1373,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
       imagePath: imagePath ?? this.imagePath,
       unit: unit ?? this.unit,
       reorderLevel: reorderLevel ?? this.reorderLevel,
+      hasStockHistory: hasStockHistory ?? this.hasStockHistory,
       variantGroupId: variantGroupId ?? this.variantGroupId,
       variantLabel: variantLabel ?? this.variantLabel,
       createdAt: createdAt ?? this.createdAt,
@@ -1372,6 +1434,9 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
     if (reorderLevel.present) {
       map['reorder_level'] = Variable<int>(reorderLevel.value);
     }
+    if (hasStockHistory.present) {
+      map['has_stock_history'] = Variable<bool>(hasStockHistory.value);
+    }
     if (variantGroupId.present) {
       map['variant_group_id'] = Variable<String>(variantGroupId.value);
     }
@@ -1412,6 +1477,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
           ..write('imagePath: $imagePath, ')
           ..write('unit: $unit, ')
           ..write('reorderLevel: $reorderLevel, ')
+          ..write('hasStockHistory: $hasStockHistory, ')
           ..write('variantGroupId: $variantGroupId, ')
           ..write('variantLabel: $variantLabel, ')
           ..write('createdAt: $createdAt, ')
@@ -7572,6 +7638,7 @@ typedef $$InventoryEntriesTableCreateCompanionBuilder =
       Value<String?> imagePath,
       Value<String?> unit,
       Value<int?> reorderLevel,
+      Value<bool?> hasStockHistory,
       Value<String?> variantGroupId,
       Value<String?> variantLabel,
       required int createdAt,
@@ -7597,6 +7664,7 @@ typedef $$InventoryEntriesTableUpdateCompanionBuilder =
       Value<String?> imagePath,
       Value<String?> unit,
       Value<int?> reorderLevel,
+      Value<bool?> hasStockHistory,
       Value<String?> variantGroupId,
       Value<String?> variantLabel,
       Value<int> createdAt,
@@ -7691,6 +7759,11 @@ class $$InventoryEntriesTableFilterComposer
 
   ColumnFilters<int> get reorderLevel => $composableBuilder(
     column: $table.reorderLevel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hasStockHistory => $composableBuilder(
+    column: $table.hasStockHistory,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7809,6 +7882,11 @@ class $$InventoryEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get hasStockHistory => $composableBuilder(
+    column: $table.hasStockHistory,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get variantGroupId => $composableBuilder(
     column: $table.variantGroupId,
     builder: (column) => ColumnOrderings(column),
@@ -7902,6 +7980,11 @@ class $$InventoryEntriesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get hasStockHistory => $composableBuilder(
+    column: $table.hasStockHistory,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get variantGroupId => $composableBuilder(
     column: $table.variantGroupId,
     builder: (column) => column,
@@ -7975,6 +8058,7 @@ class $$InventoryEntriesTableTableManager
                 Value<String?> imagePath = const Value.absent(),
                 Value<String?> unit = const Value.absent(),
                 Value<int?> reorderLevel = const Value.absent(),
+                Value<bool?> hasStockHistory = const Value.absent(),
                 Value<String?> variantGroupId = const Value.absent(),
                 Value<String?> variantLabel = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
@@ -7998,6 +8082,7 @@ class $$InventoryEntriesTableTableManager
                 imagePath: imagePath,
                 unit: unit,
                 reorderLevel: reorderLevel,
+                hasStockHistory: hasStockHistory,
                 variantGroupId: variantGroupId,
                 variantLabel: variantLabel,
                 createdAt: createdAt,
@@ -8023,6 +8108,7 @@ class $$InventoryEntriesTableTableManager
                 Value<String?> imagePath = const Value.absent(),
                 Value<String?> unit = const Value.absent(),
                 Value<int?> reorderLevel = const Value.absent(),
+                Value<bool?> hasStockHistory = const Value.absent(),
                 Value<String?> variantGroupId = const Value.absent(),
                 Value<String?> variantLabel = const Value.absent(),
                 required int createdAt,
@@ -8046,6 +8132,7 @@ class $$InventoryEntriesTableTableManager
                 imagePath: imagePath,
                 unit: unit,
                 reorderLevel: reorderLevel,
+                hasStockHistory: hasStockHistory,
                 variantGroupId: variantGroupId,
                 variantLabel: variantLabel,
                 createdAt: createdAt,

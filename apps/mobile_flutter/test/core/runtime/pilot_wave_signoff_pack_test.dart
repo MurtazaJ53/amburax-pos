@@ -121,12 +121,30 @@ void main() {
           defaultLabel: 'Wave 2 shift A',
           startedAt: DateTime.utc(2026, 5, 3, 7),
         )
-        .markCaptured('pilot_snapshot', capturedAt: DateTime.utc(2026, 5, 3, 7, 5))
-        .markCaptured('readiness_signoff', capturedAt: DateTime.utc(2026, 5, 3, 7, 10))
-        .markCaptured('smoke_report', capturedAt: DateTime.utc(2026, 5, 3, 7, 15))
-        .markCaptured('handoff_pack', capturedAt: DateTime.utc(2026, 5, 3, 7, 20))
-        .markCaptured('shift_closeout', capturedAt: DateTime.utc(2026, 5, 3, 7, 25))
-        .markCaptured('rollout_evidence', capturedAt: DateTime.utc(2026, 5, 3, 7, 30))
+        .markCaptured(
+          'pilot_snapshot',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 5),
+        )
+        .markCaptured(
+          'readiness_signoff',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 10),
+        )
+        .markCaptured(
+          'smoke_report',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 15),
+        )
+        .markCaptured(
+          'handoff_pack',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 20),
+        )
+        .markCaptured(
+          'shift_closeout',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 25),
+        )
+        .markCaptured(
+          'rollout_evidence',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 30),
+        )
         .markCaptured(
           'rollout_decision_summary',
           capturedAt: DateTime.utc(2026, 5, 3, 7, 31),
@@ -135,12 +153,30 @@ void main() {
           sessionLabel: 'Wave 2 shift B',
           startedAt: DateTime.utc(2026, 5, 3, 12),
         )
-        .markCaptured('pilot_snapshot', capturedAt: DateTime.utc(2026, 5, 3, 12, 5))
-        .markCaptured('readiness_signoff', capturedAt: DateTime.utc(2026, 5, 3, 12, 10))
-        .markCaptured('smoke_report', capturedAt: DateTime.utc(2026, 5, 3, 12, 15))
-        .markCaptured('handoff_pack', capturedAt: DateTime.utc(2026, 5, 3, 12, 20))
-        .markCaptured('shift_closeout', capturedAt: DateTime.utc(2026, 5, 3, 12, 25))
-        .markCaptured('rollout_evidence', capturedAt: DateTime.utc(2026, 5, 3, 12, 30))
+        .markCaptured(
+          'pilot_snapshot',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 5),
+        )
+        .markCaptured(
+          'readiness_signoff',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 10),
+        )
+        .markCaptured(
+          'smoke_report',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 15),
+        )
+        .markCaptured(
+          'handoff_pack',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 20),
+        )
+        .markCaptured(
+          'shift_closeout',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 25),
+        )
+        .markCaptured(
+          'rollout_evidence',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 30),
+        )
         .markCaptured(
           'rollout_decision_summary',
           capturedAt: DateTime.utc(2026, 5, 3, 12, 31),
@@ -153,8 +189,9 @@ void main() {
   });
 
   test('missing closeout evidence becomes signoff incomplete', () {
-    final tracker = const PilotEvidenceTrackerState()
-        .markCaptured('pilot_snapshot');
+    final tracker = const PilotEvidenceTrackerState().markCaptured(
+      'pilot_snapshot',
+    );
 
     final report = evaluateForTracker(tracker);
 
@@ -163,8 +200,9 @@ void main() {
   });
 
   test('blocked closeout becomes signoff blocked', () {
-    final tracker = const PilotEvidenceTrackerState()
-        .markCaptured('rollout_decision_summary');
+    final tracker = const PilotEvidenceTrackerState().markCaptured(
+      'rollout_decision_summary',
+    );
     final report = evaluateForTracker(
       tracker,
       failedSales: 1,

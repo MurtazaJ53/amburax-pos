@@ -63,9 +63,7 @@ Future<Uint8List> buildBarcodeLabelsPdf({
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
-        build: (context) => pw.Center(
-          child: pw.Text('No labels selected.'),
-        ),
+        build: (context) => pw.Center(child: pw.Text('No labels selected.')),
       ),
     );
     return doc.save();
@@ -102,8 +100,11 @@ Future<Uint8List> buildBarcodeLabelsPdf({
                             if (index >= pageCells.length) {
                               return pw.SizedBox();
                             }
-                            return _label(pageCells[index], shopName,
-                                showShopName: showShopName);
+                            return _label(
+                              pageCells[index],
+                              shopName,
+                              showShopName: showShopName,
+                            );
                           }(),
                         ),
                     ],

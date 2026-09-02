@@ -128,7 +128,7 @@ GstCartSummary computeCartGst(
   var sgstAmount = 0.0;
   var igstAmount = 0.0;
   var grossAmount = 0.0;
-  
+
   final itemsList = items.toList();
   final lineTotals = itemsList.map((i) => i.lineTotal).toList();
   final apportionedDiscounts = apportionDiscount(lineTotals, discount);
@@ -138,7 +138,7 @@ GstCartSummary computeCartGst(
     final postDiscountTotal = item.lineTotal - apportionedDiscounts[i];
     // Avoid passing negative values just in case
     final effectiveTotal = postDiscountTotal < 0 ? 0.0 : postDiscountTotal;
-    
+
     final line = computeLineGst(
       lineTotal: effectiveTotal,
       gstRate: item.gstRate,

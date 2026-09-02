@@ -10,6 +10,7 @@ String buildKhataReminder({
   required double balance,
   String upiVpa = '',
   String note = 'Khata payment',
+
   /// Absolute URL of the customer's own statement page. Included so they can
   /// check the figure instead of taking it on trust, which is the usual
   /// reason a khata reminder turns into an argument.

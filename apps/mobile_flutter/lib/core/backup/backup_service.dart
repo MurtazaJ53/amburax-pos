@@ -237,10 +237,10 @@ class BackupService {
         final items = (jsonDecode(r.itemsJson) as List).whereType<Map>();
         for (final it in items) {
           final qty = (it['quantity'] as num?)?.toInt() ?? 0;
-          final price =
-              ((it['price'] ?? it['unit_price'] ?? 0) as num).toDouble();
-          final rate =
-              ((it['gstRate'] ?? it['gst_rate'] ?? 0) as num).toDouble();
+          final price = ((it['price'] ?? it['unit_price'] ?? 0) as num)
+              .toDouble();
+          final rate = ((it['gstRate'] ?? it['gst_rate'] ?? 0) as num)
+              .toDouble();
           final incl =
               (it['priceIncludesTax'] ?? it['price_includes_tax'] ?? true) ==
               true;

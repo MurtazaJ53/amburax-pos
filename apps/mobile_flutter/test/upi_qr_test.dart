@@ -56,7 +56,10 @@ void main() {
       expect(receiptUpiUri(shopName: 'X', amountDue: 0, vpa: 'a@bank'), isNull);
       expect(receiptUpiUri(shopName: 'X', amountDue: 100, vpa: ''), isNull);
       // A misconfigured VPA must not break receipt printing.
-      expect(receiptUpiUri(shopName: 'X', amountDue: 100, vpa: 'bad-vpa'), isNull);
+      expect(
+        receiptUpiUri(shopName: 'X', amountDue: 100, vpa: 'bad-vpa'),
+        isNull,
+      );
     });
 
     test('omits optional note/ref when empty', () {

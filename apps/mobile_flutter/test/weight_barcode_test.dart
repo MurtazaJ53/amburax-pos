@@ -52,12 +52,15 @@ void main() {
       expect(b!.resolveLinePrice(40), closeTo(60, 0.001));
     });
 
-    test('resolveLinePrice charges the embedded amount for a price barcode', () {
-      final b = parseWeightBarcode('2123450012508');
-      // Price barcode ignores the item rate and charges the embedded value.
-      expect(b!.isWeight, isFalse);
-      expect(b.resolveLinePrice(999), closeTo(12.50, 0.001));
-    });
+    test(
+      'resolveLinePrice charges the embedded amount for a price barcode',
+      () {
+        final b = parseWeightBarcode('2123450012508');
+        // Price barcode ignores the item rate and charges the embedded value.
+        expect(b!.isWeight, isFalse);
+        expect(b.resolveLinePrice(999), closeTo(12.50, 0.001));
+      },
+    );
   });
 
   group('weighedLinePrice', () {

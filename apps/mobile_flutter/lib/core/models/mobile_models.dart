@@ -359,7 +359,8 @@ class ProfitLossSnapshot {
 
   double get grossProfit => grossSales - cogs;
   double get netProfit => grossSales - cogs - expenses;
-  double get marginPct => grossSales <= 0 ? 0 : (grossProfit / grossSales) * 100;
+  double get marginPct =>
+      grossSales <= 0 ? 0 : (grossProfit / grossSales) * 100;
 
   static const ProfitLossSnapshot empty = ProfitLossSnapshot(
     grossSales: 0,
@@ -399,8 +400,7 @@ ProfitLossSnapshot computeProfitAndLoss({
             : lineTotal * rate / 100;
       }
       productQty[line.name] = (productQty[line.name] ?? 0) + line.quantity;
-      productRevenue[line.name] =
-          (productRevenue[line.name] ?? 0) + lineTotal;
+      productRevenue[line.name] = (productRevenue[line.name] ?? 0) + lineTotal;
     }
     final customer = sale.customerName?.trim();
     if (customer != null && customer.isNotEmpty) {
@@ -1246,6 +1246,7 @@ class InventoryCatalogItem {
     this.reorderLevel,
     this.variantGroupId,
     this.variantLabel,
+    this.hasStockHistory,
   });
 
   /// Fallback low-stock threshold when an item has no explicit reorder level.
@@ -1282,6 +1283,26 @@ class InventoryCatalogItem {
 
   /// Human label for this variant within its group, e.g. "S / Red".
   final String? variantLabel;
+
+  /// Whether this item has ever been given stock, from the backend's
+  /// `has_stock_history`.
+  ///
+  /// Null means the server did not say — an older deployment, or a row stored
+  /// before the column existed. Null is not false, and the difference matters:
+  /// treating unknown as "never stocked" would label a shelf holding 462 units
+  /// as untracked. Read it through [isTracked], which resolves the unknown.
+  final bool? hasStockHistory;
+
+  /// Whether the stock figure on this item means anything.
+  ///
+  /// When the server has spoken, believe it. When it has not, infer from the
+  /// count: a non-zero balance cannot exist without a stock movement behind
+  /// it, so it is proof of history. Only a zero stays genuinely unknown, and
+  /// treating that as untracked is the honest answer — it is the one case
+  /// nobody has told us about. This mirrors the web's rule in
+  /// `inventory-rows.ts` exactly, because the two clients read one backend and
+  /// must not disagree about the same shop.
+  bool get isTracked => hasStockHistory ?? (stock != 0);
 
   double get marginPerUnit => price - (costPrice ?? 0);
 
@@ -1434,8 +1455,11 @@ class CashFlowSnapshot {
   double get net => salesCollected - moneyOut;
   bool get isPositive => net >= 0;
 
-  static const CashFlowSnapshot empty =
-      CashFlowSnapshot(salesCollected: 0, purchases: 0, expenses: 0);
+  static const CashFlowSnapshot empty = CashFlowSnapshot(
+    salesCollected: 0,
+    purchases: 0,
+    expenses: 0,
+  );
 }
 
 class DeadStockItem {

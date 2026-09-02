@@ -48,6 +48,15 @@ class InventoryEntries extends Table {
   TextColumn get imagePath => text().named('image_path').nullable()();
   TextColumn get unit => text().nullable()();
   IntColumn get reorderLevel => integer().named('reorder_level').nullable()();
+
+  /// Whether this item has ever been given stock, from the backend's
+  /// `has_stock_history`. Null means the server did not say — an older
+  /// deployment, or a row written before this column existed. Null is not
+  /// false: treating "unknown" as "never stocked" would label a shelf holding
+  /// 462 units as untracked, which is the mistake the web already made and
+  /// wrote a comment about.
+  BoolColumn get hasStockHistory =>
+      boolean().named('has_stock_history').nullable()();
   TextColumn get variantGroupId =>
       text().named('variant_group_id').nullable()();
   TextColumn get variantLabel => text().named('variant_label').nullable()();
@@ -136,6 +145,7 @@ class CustomerEntries extends Table {
   IntColumn get updatedAt =>
       integer().named('updated_at').withDefault(const Constant(0))();
   IntColumn get lastSeenAt => integer().named('last_seen_at').nullable()();
+
   /// When a khata reminder was last sent to this customer, so the collection
   /// list can skip anyone already chased today and show who is overdue.
   IntColumn get lastRemindedAt =>
@@ -184,8 +194,7 @@ class ExpenseEntries extends Table {
   String get tableName => 'expenses';
 
   TextColumn get id => text()();
-  TextColumn get category =>
-      text().withDefault(const Constant('General'))();
+  TextColumn get category => text().withDefault(const Constant('General'))();
   RealColumn get amount => real().withDefault(const Constant(0))();
   TextColumn get description => text().withDefault(const Constant(''))();
   TextColumn get paymentMethod =>
@@ -305,7 +314,7 @@ class BusinessHubDatabase extends _$BusinessHubDatabase {
   BusinessHubDatabase.forTesting(super.executor) : super();
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -313,12 +322,21 @@ class BusinessHubDatabase extends _$BusinessHubDatabase {
       await m.createAll();
     },
     onUpgrade: (m, from, to) async {
+      if (from < 17) {
+        await m.addColumn(inventoryEntries, inventoryEntries.hasStockHistory);
+      }
       if (from < 16) {
         await m.addColumn(customerEntries, customerEntries.lastRemindedAt);
       }
       if (from < 15) {
-        await m.addColumn(commerceOutboxEntries, commerceOutboxEntries.isDeadLetter);
-        await m.addColumn(commerceOutboxEntries, commerceOutboxEntries.deadLetterReason);
+        await m.addColumn(
+          commerceOutboxEntries,
+          commerceOutboxEntries.isDeadLetter,
+        );
+        await m.addColumn(
+          commerceOutboxEntries,
+          commerceOutboxEntries.deadLetterReason,
+        );
       }
       if (from < 2) {
         await m.addColumn(salesEntries, salesEntries.commandId);
@@ -337,10 +355,7 @@ class BusinessHubDatabase extends _$BusinessHubDatabase {
       if (from < 5) {
         await m.addColumn(inventoryEntries, inventoryEntries.hsnCode);
         await m.addColumn(inventoryEntries, inventoryEntries.gstRate);
-        await m.addColumn(
-          inventoryEntries,
-          inventoryEntries.priceIncludesTax,
-        );
+        await m.addColumn(inventoryEntries, inventoryEntries.priceIncludesTax);
       }
       if (from < 6) {
         // Indexes are automatically handled by Drift on upgrade if we don't drop the table.

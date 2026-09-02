@@ -61,33 +61,36 @@ void main() {
     );
   }
 
-  test('smoke report returns pass when all checks pass and readiness is clear', () {
-    final diagnostics = buildDiagnostics();
-    final readiness = PilotReadinessReport.evaluate(
-      diagnosticsSnapshot: diagnostics,
-      attentionEntries: const <CommerceOutboxAttentionEntry>[],
-    );
-    final report = PilotSmokeReport(
-      diagnosticsSnapshot: diagnostics,
-      readinessReport: readiness,
-      results: defaultPilotSmokeChecks
-          .map(
-            (check) => PilotSmokeCheckResult(
-              check: check,
-              outcome: PilotSmokeCheckOutcome.passed,
-            ),
-          )
-          .toList(growable: false),
-      operatorNotes: 'Floor run completed cleanly.',
-      generatedAt: DateTime.utc(2026, 5, 2, 20, 30),
-    );
+  test(
+    'smoke report returns pass when all checks pass and readiness is clear',
+    () {
+      final diagnostics = buildDiagnostics();
+      final readiness = PilotReadinessReport.evaluate(
+        diagnosticsSnapshot: diagnostics,
+        attentionEntries: const <CommerceOutboxAttentionEntry>[],
+      );
+      final report = PilotSmokeReport(
+        diagnosticsSnapshot: diagnostics,
+        readinessReport: readiness,
+        results: defaultPilotSmokeChecks
+            .map(
+              (check) => PilotSmokeCheckResult(
+                check: check,
+                outcome: PilotSmokeCheckOutcome.passed,
+              ),
+            )
+            .toList(growable: false),
+        operatorNotes: 'Floor run completed cleanly.',
+        generatedAt: DateTime.utc(2026, 5, 2, 20, 30),
+      );
 
-    expect(readiness.statusLabel, 'READY FOR SHIFT');
-    expect(report.verdictLabel, 'PASS');
-    expect(report.passedCount, defaultPilotSmokeChecks.length);
-    expect(report.failedCount, 0);
-    expect(report.pendingCount, 0);
-  });
+      expect(readiness.statusLabel, 'READY FOR SHIFT');
+      expect(report.verdictLabel, 'PASS');
+      expect(report.passedCount, defaultPilotSmokeChecks.length);
+      expect(report.failedCount, 0);
+      expect(report.pendingCount, 0);
+    },
+  );
 
   test('smoke report blocks when a critical smoke check fails', () {
     final diagnostics = buildDiagnostics();

@@ -33,7 +33,10 @@ const _items = <CountableItem>[
 void main() {
   group('searchCountable', () {
     test('matches name, sku or barcode, case-insensitively', () {
-      expect(searchCountable(_items, 'cotton').map((i) => i.id), <String>['1', '2']);
+      expect(searchCountable(_items, 'cotton').map((i) => i.id), <String>[
+        '1',
+        '2',
+      ]);
       expect(searchCountable(_items, 'tr-01').map((i) => i.id), <String>['2']);
       expect(
         searchCountable(_items, '8901234567891').map((i) => i.id),

@@ -69,25 +69,25 @@ void main() {
   tearDown(() async => server.close(force: true));
 
   User owner() => User(
-        uid: 'u1',
-        email: 'owner@example.com',
-        displayName: 'Owner',
-        authToken: 'good-token',
-      );
+    uid: 'u1',
+    email: 'owner@example.com',
+    displayName: 'Owner',
+    authToken: 'good-token',
+  );
 
   BackendApiClient client() => BackendApiClient(
-        baseUrl: baseUrl,
-        readRefreshToken: () async => 'r1',
-        onTokensRefreshed: (_, __) async {},
-      );
+    baseUrl: baseUrl,
+    readRefreshToken: () async => 'r1',
+    onTokensRefreshed: (_, __) async {},
+  );
 
   List<Map<String, dynamic>> rows(int from, int count) => List.generate(
-        count,
-        (i) => <String, dynamic>{
-          'id': 'item-${from + i}',
-          'name': 'Product ${from + i}',
-        },
-      );
+    count,
+    (i) => <String, dynamic>{
+      'id': 'item-${from + i}',
+      'name': 'Product ${from + i}',
+    },
+  );
 
   test('a single page is returned as it always was', () async {
     pages = [(rows(1, 3), null)];
@@ -104,10 +104,7 @@ void main() {
   test('every page is followed to the end', () async {
     // The bug, stated plainly: 250 products across two pages used to arrive
     // as 200.
-    pages = [
-      (rows(1, 200), 'cursor-1'),
-      (rows(201, 50), null),
-    ];
+    pages = [(rows(1, 200), 'cursor-1'), (rows(201, 50), null)];
 
     final items = await client().fetchInventoryItems(
       user: owner(),
@@ -134,10 +131,7 @@ void main() {
     // The search path already carries ?q=, so the cursor has to join with &.
     // Getting this wrong drops the search and returns the whole catalogue,
     // which looks like the search silently matching everything.
-    pages = [
-      (rows(1, 200), 'cursor-1'),
-      (rows(201, 5), null),
-    ];
+    pages = [(rows(1, 200), 'cursor-1'), (rows(201, 5), null)];
 
     await client().fetchInventoryItems(
       user: owner(),
@@ -164,10 +158,7 @@ void main() {
   });
 
   test('the limit still caps what comes back', () async {
-    pages = [
-      (rows(1, 200), 'cursor-1'),
-      (rows(201, 200), 'cursor-2'),
-    ];
+    pages = [(rows(1, 200), 'cursor-1'), (rows(201, 200), 'cursor-2')];
 
     final items = await client().fetchInventoryItems(
       user: owner(),

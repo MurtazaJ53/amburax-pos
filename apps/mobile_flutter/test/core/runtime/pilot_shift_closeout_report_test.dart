@@ -95,34 +95,37 @@ void main() {
     expect(report.summary, contains('finished the shift cleanly'));
   });
 
-  test('closeout report monitors when queue work remains but no incident is declared', () {
-    final diagnostics = buildDiagnostics(
-      syncStatus: MobileSyncStatus.offline,
-      pendingOutboxCount: 2,
-    );
-    final readiness = PilotReadinessReport.evaluate(
-      diagnosticsSnapshot: diagnostics,
-      attentionEntries: const <CommerceOutboxAttentionEntry>[],
-    );
-    final recovery = PilotRecoveryReport(
-      diagnosticsSnapshot: diagnostics,
-      attentionEntries: const <CommerceOutboxAttentionEntry>[],
-      generatedAt: DateTime.utc(2026, 5, 2, 22, 10),
-    );
-    final report = PilotShiftCloseoutReport(
-      diagnosticsSnapshot: diagnostics,
-      readinessReport: readiness,
-      recoveryReport: recovery,
-      answers: const PilotShiftCloseoutAnswers(
-        checkoutStable: true,
-        replayStable: true,
-        customerLedgerStable: true,
-        rollbackRequired: false,
-      ),
-    );
+  test(
+    'closeout report monitors when queue work remains but no incident is declared',
+    () {
+      final diagnostics = buildDiagnostics(
+        syncStatus: MobileSyncStatus.offline,
+        pendingOutboxCount: 2,
+      );
+      final readiness = PilotReadinessReport.evaluate(
+        diagnosticsSnapshot: diagnostics,
+        attentionEntries: const <CommerceOutboxAttentionEntry>[],
+      );
+      final recovery = PilotRecoveryReport(
+        diagnosticsSnapshot: diagnostics,
+        attentionEntries: const <CommerceOutboxAttentionEntry>[],
+        generatedAt: DateTime.utc(2026, 5, 2, 22, 10),
+      );
+      final report = PilotShiftCloseoutReport(
+        diagnosticsSnapshot: diagnostics,
+        readinessReport: readiness,
+        recoveryReport: recovery,
+        answers: const PilotShiftCloseoutAnswers(
+          checkoutStable: true,
+          replayStable: true,
+          customerLedgerStable: true,
+          rollbackRequired: false,
+        ),
+      );
 
-    expect(report.decisionLabel, 'MONITOR NEXT SHIFT');
-  });
+      expect(report.decisionLabel, 'MONITOR NEXT SHIFT');
+    },
+  );
 
   test('closeout report escalates when rollback is required', () {
     final diagnostics = buildDiagnostics();

@@ -12,36 +12,34 @@ InventoryCatalogItem _item({
   double stock = 10,
   double price = 80,
   int createdDaysAgo = 0,
-}) =>
-    InventoryCatalogItem(
-      id: id,
-      name: name,
-      price: price,
-      sku: sku,
-      category: 'Winter',
-      size: size,
-      gstRate: 0,
-      priceIncludesTax: true,
-      stock: stock,
-      createdAt: DateTime.now().subtract(Duration(days: createdDaysAgo)),
-    );
+}) => InventoryCatalogItem(
+  id: id,
+  name: name,
+  price: price,
+  sku: sku,
+  category: 'Winter',
+  size: size,
+  gstRate: 0,
+  priceIncludesTax: true,
+  stock: stock,
+  createdAt: DateTime.now().subtract(Duration(days: createdDaysAgo)),
+);
 
 BackendCustomerSummary _customer({
   String id = 'c1',
   String name = 'Ayaan',
   String? phone,
   double balance = 0,
-}) =>
-    BackendCustomerSummary(
-      id: id,
-      name: name,
-      phone: phone,
-      email: null,
-      notes: null,
-      status: 'active',
-      balance: balance,
-      totalSpent: 0,
-    );
+}) => BackendCustomerSummary(
+  id: id,
+  name: name,
+  phone: phone,
+  email: null,
+  notes: null,
+  status: 'active',
+  balance: balance,
+  totalSpent: 0,
+);
 
 void main() {
   group('duplicate detection', () {
@@ -98,7 +96,10 @@ void main() {
     });
 
     test('a single item is never a duplicate', () {
-      expect(findDuplicateItems(<InventoryCatalogItem>[_item(id: '1')]), isEmpty);
+      expect(
+        findDuplicateItems(<InventoryCatalogItem>[_item(id: '1')]),
+        isEmpty,
+      );
       expect(findDuplicateItems(const <InventoryCatalogItem>[]), isEmpty);
     });
   });

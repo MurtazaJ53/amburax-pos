@@ -10,11 +10,12 @@
 /// stock only when a product had no category. Every product has a category,
 /// so the stock figure never appeared at all.
 ///
-/// One web state is deliberately missing. The web distinguishes "Stock not
-/// tracked" using `is_tracked`, which the mobile catalogue model does not
-/// carry. Rather than guess at it from a zero, an untracked item reads as
-/// whatever its stock figure says; adding the flag is a model change for
-/// another day.
+/// All four of the web's states are here. The fourth — "Stock not tracked" —
+/// arrives from the backend's `has_stock_history`, which the mobile catalogue
+/// was dropping on the floor: the field was serialized and tested server-side
+/// and simply never read. It is resolved through
+/// `InventoryCatalogItem.isTracked`, so callers pass a bool rather than
+/// re-deriving the rule.
 library;
 
 import '../utils/formatters.dart';
@@ -24,7 +25,17 @@ import '../utils/formatters.dart';
 /// Negative stock is called out rather than shown as a number, because a
 /// negative count means the books and the shelf have already disagreed and
 /// the fix is not at the till.
-String stockCaption({required double stock, String? unit}) {
+String stockCaption({
+  required double stock,
+  String? unit,
+  bool isTracked = true,
+}) {
+  if (!isTracked) {
+    // The count is not wrong, it is meaningless: nothing has ever been booked
+    // in or out, so zero is an absence of information rather than an empty
+    // shelf. Saying "Shelf empty" here would be a claim we cannot support.
+    return 'Stock not tracked';
+  }
   if (stock < 0) {
     return 'Short by ${formatQuantity(stock.abs())} — fix in Stock';
   }
@@ -52,7 +63,11 @@ enum StockLevel { short, empty, low, fine }
 ({String label, StockLevel level})? stockBadge({
   required double stock,
   required int reorderLevel,
+  bool isTracked = true,
 }) {
+  // No badge at all for an untracked item. A corner badge is an alarm, and
+  // there is nothing to be alarmed about in a number that means nothing.
+  if (!isTracked) return null;
   if (stock < 0) {
     return (
       label: 'Short ${formatQuantity(stock.abs())}',

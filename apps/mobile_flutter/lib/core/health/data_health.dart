@@ -21,7 +21,8 @@ class DuplicateGroup {
   /// The copy worth keeping: the one with the most stock, then the oldest,
   /// because that's usually the original row with real history behind it.
   InventoryCatalogItem get keeper {
-    final sorted = [...items]..sort((a, b) {
+    final sorted = [...items]
+      ..sort((a, b) {
         final byStock = b.stock.compareTo(a.stock);
         if (byStock != 0) return byStock;
         return a.createdAt.compareTo(b.createdAt);

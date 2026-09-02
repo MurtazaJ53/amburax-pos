@@ -111,28 +111,67 @@ void main() {
           defaultLabel: 'Wave 2 shift A',
           startedAt: DateTime.utc(2026, 5, 3, 7),
         )
-        .markCaptured('pilot_snapshot', capturedAt: DateTime.utc(2026, 5, 3, 7, 5))
-        .markCaptured('readiness_signoff', capturedAt: DateTime.utc(2026, 5, 3, 7, 10))
-        .markCaptured('smoke_report', capturedAt: DateTime.utc(2026, 5, 3, 7, 15))
-        .markCaptured('handoff_pack', capturedAt: DateTime.utc(2026, 5, 3, 7, 20))
-        .markCaptured('shift_closeout', capturedAt: DateTime.utc(2026, 5, 3, 7, 25))
-        .markCaptured('rollout_evidence', capturedAt: DateTime.utc(2026, 5, 3, 7, 30))
+        .markCaptured(
+          'pilot_snapshot',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 5),
+        )
+        .markCaptured(
+          'readiness_signoff',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 10),
+        )
+        .markCaptured(
+          'smoke_report',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 15),
+        )
+        .markCaptured(
+          'handoff_pack',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 20),
+        )
+        .markCaptured(
+          'shift_closeout',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 25),
+        )
+        .markCaptured(
+          'rollout_evidence',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 30),
+        )
         .startFreshSession(
           sessionLabel: 'Wave 2 shift B',
           startedAt: DateTime.utc(2026, 5, 3, 12),
         )
-        .markCaptured('pilot_snapshot', capturedAt: DateTime.utc(2026, 5, 3, 12, 5))
-        .markCaptured('readiness_signoff', capturedAt: DateTime.utc(2026, 5, 3, 12, 10))
-        .markCaptured('smoke_report', capturedAt: DateTime.utc(2026, 5, 3, 12, 15))
-        .markCaptured('handoff_pack', capturedAt: DateTime.utc(2026, 5, 3, 12, 20))
-        .markCaptured('shift_closeout', capturedAt: DateTime.utc(2026, 5, 3, 12, 25))
-        .markCaptured('rollout_evidence', capturedAt: DateTime.utc(2026, 5, 3, 12, 30));
+        .markCaptured(
+          'pilot_snapshot',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 5),
+        )
+        .markCaptured(
+          'readiness_signoff',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 10),
+        )
+        .markCaptured(
+          'smoke_report',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 15),
+        )
+        .markCaptured(
+          'handoff_pack',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 20),
+        )
+        .markCaptured(
+          'shift_closeout',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 25),
+        )
+        .markCaptured(
+          'rollout_evidence',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 30),
+        );
 
     final report = evaluateForTracker(tracker);
 
     expect(report.statusLabel, 'CAPTURE MORE EVIDENCE');
     expect(report.missingCloseoutArtifacts, hasLength(1));
-    expect(report.missingCloseoutArtifacts.first.id, 'rollout_decision_summary');
+    expect(
+      report.missingCloseoutArtifacts.first.id,
+      'rollout_decision_summary',
+    );
   });
 
   test('healthy tracker with decision summary becomes ready for closeout', () {
@@ -141,12 +180,30 @@ void main() {
           defaultLabel: 'Wave 2 shift A',
           startedAt: DateTime.utc(2026, 5, 3, 7),
         )
-        .markCaptured('pilot_snapshot', capturedAt: DateTime.utc(2026, 5, 3, 7, 5))
-        .markCaptured('readiness_signoff', capturedAt: DateTime.utc(2026, 5, 3, 7, 10))
-        .markCaptured('smoke_report', capturedAt: DateTime.utc(2026, 5, 3, 7, 15))
-        .markCaptured('handoff_pack', capturedAt: DateTime.utc(2026, 5, 3, 7, 20))
-        .markCaptured('shift_closeout', capturedAt: DateTime.utc(2026, 5, 3, 7, 25))
-        .markCaptured('rollout_evidence', capturedAt: DateTime.utc(2026, 5, 3, 7, 30))
+        .markCaptured(
+          'pilot_snapshot',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 5),
+        )
+        .markCaptured(
+          'readiness_signoff',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 10),
+        )
+        .markCaptured(
+          'smoke_report',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 15),
+        )
+        .markCaptured(
+          'handoff_pack',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 20),
+        )
+        .markCaptured(
+          'shift_closeout',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 25),
+        )
+        .markCaptured(
+          'rollout_evidence',
+          capturedAt: DateTime.utc(2026, 5, 3, 7, 30),
+        )
         .markCaptured(
           'rollout_decision_summary',
           capturedAt: DateTime.utc(2026, 5, 3, 7, 31),
@@ -155,12 +212,30 @@ void main() {
           sessionLabel: 'Wave 2 shift B',
           startedAt: DateTime.utc(2026, 5, 3, 12),
         )
-        .markCaptured('pilot_snapshot', capturedAt: DateTime.utc(2026, 5, 3, 12, 5))
-        .markCaptured('readiness_signoff', capturedAt: DateTime.utc(2026, 5, 3, 12, 10))
-        .markCaptured('smoke_report', capturedAt: DateTime.utc(2026, 5, 3, 12, 15))
-        .markCaptured('handoff_pack', capturedAt: DateTime.utc(2026, 5, 3, 12, 20))
-        .markCaptured('shift_closeout', capturedAt: DateTime.utc(2026, 5, 3, 12, 25))
-        .markCaptured('rollout_evidence', capturedAt: DateTime.utc(2026, 5, 3, 12, 30))
+        .markCaptured(
+          'pilot_snapshot',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 5),
+        )
+        .markCaptured(
+          'readiness_signoff',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 10),
+        )
+        .markCaptured(
+          'smoke_report',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 15),
+        )
+        .markCaptured(
+          'handoff_pack',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 20),
+        )
+        .markCaptured(
+          'shift_closeout',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 25),
+        )
+        .markCaptured(
+          'rollout_evidence',
+          capturedAt: DateTime.utc(2026, 5, 3, 12, 30),
+        )
         .markCaptured(
           'rollout_decision_summary',
           capturedAt: DateTime.utc(2026, 5, 3, 12, 31),
@@ -173,8 +248,9 @@ void main() {
   });
 
   test('blocked device becomes do not close', () {
-    final tracker = const PilotEvidenceTrackerState()
-        .markCaptured('rollout_decision_summary');
+    final tracker = const PilotEvidenceTrackerState().markCaptured(
+      'rollout_decision_summary',
+    );
     final report = evaluateForTracker(
       tracker,
       failedSales: 1,

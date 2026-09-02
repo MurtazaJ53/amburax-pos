@@ -70,35 +70,38 @@ pw.Widget _totalRow(
 }
 
 pw.Widget _metaRow(String label, String value) => pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 1),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: <pw.Widget>[
-          pw.SizedBox(
-            width: 52,
-            child: pw.Text(
-              _safe(label),
-              style: const pw.TextStyle(fontSize: 7.5, color: _muted),
-            ),
-          ),
-          pw.Expanded(
-            child: pw.Text(
-              _safe(value),
-              style: pw.TextStyle(
-                fontSize: 7.5,
-                color: _ink,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+  padding: const pw.EdgeInsets.symmetric(vertical: 1),
+  child: pw.Row(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: <pw.Widget>[
+      pw.SizedBox(
+        width: 52,
+        child: pw.Text(
+          _safe(label),
+          style: const pw.TextStyle(fontSize: 7.5, color: _muted),
+        ),
       ),
-    );
+      pw.Expanded(
+        child: pw.Text(
+          _safe(value),
+          style: pw.TextStyle(
+            fontSize: 7.5,
+            color: _ink,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+      ),
+    ],
+  ),
+);
 
 /// Build an 80mm receipt PDF. When the shop has a GSTIN it is rendered as a
 /// GST **tax invoice** (per-item HSN + taxable + tax, and a CGST/SGST/IGST
 /// summary); otherwise a plain receipt.
-Future<Uint8List> buildReceiptPdf(SaleRecordDetail detail, ShopInfo shop) async {
+Future<Uint8List> buildReceiptPdf(
+  SaleRecordDetail detail,
+  ShopInfo shop,
+) async {
   final doc = pw.Document();
   final format = PdfPageFormat(
     80 * PdfPageFormat.mm,
@@ -107,11 +110,13 @@ Future<Uint8List> buildReceiptPdf(SaleRecordDetail detail, ShopInfo shop) async 
   );
 
   final rawFooter = detail.footerNote ?? '';
-  final buyerMatch =
-      RegExp(r'Buyer GSTIN:\s*([0-9A-Za-z]+)').firstMatch(rawFooter);
+  final buyerMatch = RegExp(
+    r'Buyer GSTIN:\s*([0-9A-Za-z]+)',
+  ).firstMatch(rawFooter);
   final buyerGstin = buyerMatch?.group(1);
-  final footer =
-      _safe(rawFooter.replaceAll(RegExp(r'\n*\s*Buyer GSTIN:.*'), '').trim());
+  final footer = _safe(
+    rawFooter.replaceAll(RegExp(r'\n*\s*Buyer GSTIN:.*'), '').trim(),
+  );
 
   final isTaxInvoice = shop.hasGstin;
   // Same-state supply assumed (CGST+SGST). A cross-state IGST split would
@@ -135,10 +140,11 @@ Future<Uint8List> buildReceiptPdf(SaleRecordDetail detail, ShopInfo shop) async 
     totalTax += line.taxAmount;
   }
 
-  final upiUri =
-      receiptUpiUri(shopName: shop.name, amountDue: detail.amountDue);
-  final totalQty =
-      detail.items.fold<double>(0, (sum, it) => sum + it.quantity);
+  final upiUri = receiptUpiUri(
+    shopName: shop.name,
+    amountDue: detail.amountDue,
+  );
+  final totalQty = detail.items.fold<double>(0, (sum, it) => sum + it.quantity);
 
   doc.addPage(
     pw.Page(
@@ -234,7 +240,10 @@ Future<Uint8List> buildReceiptPdf(SaleRecordDetail detail, ShopInfo shop) async 
             // ---- Item table header --------------------------------------
             pw.Container(
               color: _ink,
-              padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              padding: const pw.EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 4,
+              ),
               child: pw.Row(
                 children: <pw.Widget>[
                   pw.Expanded(
@@ -264,8 +273,10 @@ Future<Uint8List> buildReceiptPdf(SaleRecordDetail detail, ShopInfo shop) async 
             for (var i = 0; i < detail.items.length; i++)
               pw.Container(
                 color: i.isEven ? _zebra : PdfColors.white,
-                padding:
-                    const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                padding: const pw.EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 5,
+                ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                   children: <pw.Widget>[
@@ -304,7 +315,10 @@ Future<Uint8List> buildReceiptPdf(SaleRecordDetail detail, ShopInfo shop) async 
                           '${_money(detail.items[i].unitPrice)}'
                           '${isTaxInvoice && detail.items[i].gstRate > 0 ? '   GST ${detail.items[i].gstRate.toStringAsFixed(0)}%' : ''}'
                           '${isTaxInvoice && (detail.items[i].hsnCode ?? '').isNotEmpty ? '   HSN ${_safe(detail.items[i].hsnCode!)}' : ''}',
-                          style: const pw.TextStyle(fontSize: 7.5, color: _muted),
+                          style: const pw.TextStyle(
+                            fontSize: 7.5,
+                            color: _muted,
+                          ),
                         ),
                         if (detail.items[i].lineDiscount > 0.009)
                           pw.Text(
@@ -355,8 +369,10 @@ Future<Uint8List> buildReceiptPdf(SaleRecordDetail detail, ShopInfo shop) async 
                     color: _brand,
                   ),
                   pw.SizedBox(height: 2),
-                  _totalRow('Paid (${_safe(detail.paymentMode)})',
-                      _money(detail.amountReceived)),
+                  _totalRow(
+                    'Paid (${_safe(detail.paymentMode)})',
+                    _money(detail.amountReceived),
+                  ),
                   if (detail.amountDue > 0.009)
                     _totalRow(
                       'BALANCE DUE',

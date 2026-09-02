@@ -57,7 +57,8 @@ class LocaleController extends ChangeNotifier {
   }
 }
 
-final localeControllerProvider =
-    ChangeNotifierProvider<LocaleController>((ref) {
+final localeControllerProvider = ChangeNotifierProvider<LocaleController>((
+  ref,
+) {
   return LocaleController(ref.watch(shopRepositoryProvider));
 });

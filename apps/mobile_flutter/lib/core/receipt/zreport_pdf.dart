@@ -66,7 +66,9 @@ Future<Uint8List> buildZReportPdf({
               style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
             ),
           ),
-          pw.Center(child: pw.Text(dateLabel, style: const pw.TextStyle(fontSize: 8))),
+          pw.Center(
+            child: pw.Text(dateLabel, style: const pw.TextStyle(fontSize: 8)),
+          ),
           _divider(),
           _row('Bills', '${z.salesCount}'),
           _row('First bill', _time(z.firstBillAt)),

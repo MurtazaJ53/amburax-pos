@@ -8,11 +8,13 @@ import 'package:local_auth/local_auth.dart';
 /// the user cancels the fingerprint scan.
 class ManagerGate {
   static final LocalAuthentication _localAuth = LocalAuthentication();
+
   /// Manager PIN, seeded from --dart-define BUSINESS_HUB_MANAGER_PIN.
   /// When empty, the gate is disabled (approval auto-granted) so a shop that
   /// hasn't configured a PIN isn't locked out.
-  static const String _configuredPin =
-      String.fromEnvironment('BUSINESS_HUB_MANAGER_PIN');
+  static const String _configuredPin = String.fromEnvironment(
+    'BUSINESS_HUB_MANAGER_PIN',
+  );
 
   static bool get isEnabled => _configuredPin.isNotEmpty;
 
@@ -35,7 +37,8 @@ class ManagerGate {
   static Future<bool> tryBiometric(String reason) async {
     try {
       final supported =
-          await _localAuth.isDeviceSupported() && await _localAuth.canCheckBiometrics;
+          await _localAuth.isDeviceSupported() &&
+          await _localAuth.canCheckBiometrics;
       if (!supported) return false;
       return await _localAuth.authenticate(
         localizedReason: reason,

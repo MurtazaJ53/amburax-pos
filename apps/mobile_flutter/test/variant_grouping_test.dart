@@ -35,9 +35,30 @@ void main() {
 
     test('sibling variants collapse into one group', () {
       final entries = groupCatalog(<InventoryCatalogItem>[
-        _item('a', 'T-Shirt (S)', price: 499, stock: 12, groupId: 'g1', label: 'S'),
-        _item('b', 'T-Shirt (M)', price: 499, stock: 8, groupId: 'g1', label: 'M'),
-        _item('c', 'T-Shirt (L)', price: 549, stock: 3, groupId: 'g1', label: 'L'),
+        _item(
+          'a',
+          'T-Shirt (S)',
+          price: 499,
+          stock: 12,
+          groupId: 'g1',
+          label: 'S',
+        ),
+        _item(
+          'b',
+          'T-Shirt (M)',
+          price: 499,
+          stock: 8,
+          groupId: 'g1',
+          label: 'M',
+        ),
+        _item(
+          'c',
+          'T-Shirt (L)',
+          price: 549,
+          stock: 3,
+          groupId: 'g1',
+          label: 'L',
+        ),
       ]);
       expect(entries.length, 1);
       final grp = entries.single as VariantGroup;
@@ -74,7 +95,12 @@ void main() {
 
   group('variantBaseName', () {
     test('strips the trailing variant label', () {
-      final item = _item('a', 'T-Shirt (S / Red)', groupId: 'g', label: 'S / Red');
+      final item = _item(
+        'a',
+        'T-Shirt (S / Red)',
+        groupId: 'g',
+        label: 'S / Red',
+      );
       expect(variantBaseName(item), 'T-Shirt');
     });
 

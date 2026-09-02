@@ -41,9 +41,7 @@ void main() {
         lastSyncedAt: null,
       ),
       pendingOutboxCount: 1,
-      domainStates: <DomainControlState>[
-        DomainControlState.legacy('sales'),
-      ],
+      domainStates: <DomainControlState>[DomainControlState.legacy('sales')],
     );
 
     final report = PilotReadinessReport.evaluate(

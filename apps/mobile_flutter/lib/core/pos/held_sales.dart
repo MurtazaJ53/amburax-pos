@@ -36,10 +36,9 @@ class HeldSale {
 /// Session store of parked sales so a cashier can suspend a cart, serve the
 /// next customer, and resume it. Lives above the POS screen so it survives
 /// navigation.
-final heldSalesProvider =
-    NotifierProvider<HeldSalesController, List<HeldSale>>(
-      HeldSalesController.new,
-    );
+final heldSalesProvider = NotifierProvider<HeldSalesController, List<HeldSale>>(
+  HeldSalesController.new,
+);
 
 class HeldSalesController extends Notifier<List<HeldSale>> {
   @override

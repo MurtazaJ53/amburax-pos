@@ -65,8 +65,8 @@ class ProductImageStore {
       final mime = (ext == '.png')
           ? 'image/png'
           : (ext == '.webp')
-              ? 'image/webp'
-              : 'image/jpeg';
+          ? 'image/webp'
+          : 'image/jpeg';
       return 'data:$mime;base64,${base64Encode(bytes)}';
     } catch (_) {
       return null;
@@ -79,15 +79,14 @@ class ProductImageStore {
     if (dataUri == null || dataUri.trim().isEmpty) return null;
     try {
       final marker = dataUri.indexOf('base64,');
-      final payload =
-          marker >= 0 ? dataUri.substring(marker + 7) : dataUri;
+      final payload = marker >= 0 ? dataUri.substring(marker + 7) : dataUri;
       final bytes = base64Decode(payload.trim());
       if (bytes.isEmpty) return null;
       final ext = dataUri.contains('image/png')
           ? '.png'
           : dataUri.contains('image/webp')
-              ? '.webp'
-              : '.jpg';
+          ? '.webp'
+          : '.jpg';
       final dir = await _dir();
       final dest = p.join(
         dir.path,
@@ -106,17 +105,20 @@ class ProductImageStore {
   /// base64 text on every row, so one sync pulled every picture in the shop
   /// whether it had changed or not. They are fetched from their own address
   /// now, which arrives as bytes rather than a data URI.
-  Future<String?> storeFromBytes(List<int>? bytes, {String? contentType}) async {
+  Future<String?> storeFromBytes(
+    List<int>? bytes, {
+    String? contentType,
+  }) async {
     if (bytes == null || bytes.isEmpty) return null;
     try {
       final type = (contentType ?? '').toLowerCase();
       final ext = type.contains('png')
           ? '.png'
           : type.contains('webp')
-              ? '.webp'
-              : type.contains('gif')
-                  ? '.gif'
-                  : '.jpg';
+          ? '.webp'
+          : type.contains('gif')
+          ? '.gif'
+          : '.jpg';
       final dir = await _dir();
       final dest = p.join(
         dir.path,

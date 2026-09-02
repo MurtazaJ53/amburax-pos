@@ -98,20 +98,23 @@ void main() {
   });
 
   group('resolveCashierTender (cash change must not inflate collections)', () {
-    test('GOLDEN: Rs.500 cash on a Rs.300 bill records Rs.300, change Rs.200', () {
-      final r = resolveCashierTender(
-        total: 300,
-        lines: const [CheckoutPaymentEntry(mode: 'CASH', amount: 500)],
-      );
-      expect(r.payments.length, 1);
-      expect(r.payments.first.mode, 'CASH');
-      expect(r.payments.first.amount, 300); // capped at the bill
-      expect(r.change, 200); // handed back, never recorded
-      expect(r.totalCollected, 300); // <= total, backend-safe
-      expect(r.overcharged, isFalse);
-      expect(r.dueFor(300), 0);
-      expect(paymentModeFor(r.payments), 'CASH');
-    });
+    test(
+      'GOLDEN: Rs.500 cash on a Rs.300 bill records Rs.300, change Rs.200',
+      () {
+        final r = resolveCashierTender(
+          total: 300,
+          lines: const [CheckoutPaymentEntry(mode: 'CASH', amount: 500)],
+        );
+        expect(r.payments.length, 1);
+        expect(r.payments.first.mode, 'CASH');
+        expect(r.payments.first.amount, 300); // capped at the bill
+        expect(r.change, 200); // handed back, never recorded
+        expect(r.totalCollected, 300); // <= total, backend-safe
+        expect(r.overcharged, isFalse);
+        expect(r.dueFor(300), 0);
+        expect(paymentModeFor(r.payments), 'CASH');
+      },
+    );
 
     test('exact cash: no change, no due', () {
       final r = resolveCashierTender(
@@ -156,18 +159,21 @@ void main() {
       expect(r.change, 0);
     });
 
-    test('card partial + excess cash gives change only on the cash surplus', () {
-      final r = resolveCashierTender(
-        total: 300,
-        lines: const [
-          CheckoutPaymentEntry(mode: 'CARD', amount: 200),
-          CheckoutPaymentEntry(mode: 'CASH', amount: 200),
-        ],
-      );
-      expect(r.totalCollected, 300); // 200 card + 100 cash
-      expect(r.change, 100); // cash surplus
-      expect(r.overcharged, isFalse);
-    });
+    test(
+      'card partial + excess cash gives change only on the cash surplus',
+      () {
+        final r = resolveCashierTender(
+          total: 300,
+          lines: const [
+            CheckoutPaymentEntry(mode: 'CARD', amount: 200),
+            CheckoutPaymentEntry(mode: 'CASH', amount: 200),
+          ],
+        );
+        expect(r.totalCollected, 300); // 200 card + 100 cash
+        expect(r.change, 100); // cash surplus
+        expect(r.overcharged, isFalse);
+      },
+    );
 
     test('no tender at all resolves to a full-credit sale', () {
       final r = resolveCashierTender(total: 300, lines: const []);

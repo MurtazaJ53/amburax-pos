@@ -54,8 +54,9 @@ class ZobazeImportService {
   final CustomerRepository _customers;
   final SalesRepository _sales;
 
-  static final RegExp _itemNamePattern =
-      RegExp(r'^(.*?)\s*\((\d+(?:\.\d+)?)\s*[xX]\s*([0-9.]+)\)\s*$');
+  static final RegExp _itemNamePattern = RegExp(
+    r'^(.*?)\s*\((\d+(?:\.\d+)?)\s*[xX]\s*([0-9.]+)\)\s*$',
+  );
 
   static String _normalizePayment(String raw) {
     final v = raw.toLowerCase();
@@ -107,11 +108,16 @@ class ZobazeImportService {
         return (i < 0 || i >= row.length) ? '' : row[i].trim();
       }
 
-      final isInventory = const <String>['CATEGORY', 'ITEM_NAME', 'PRICE', 'STOCK']
-          .every(headers.contains);
+      final isInventory = const <String>[
+        'CATEGORY',
+        'ITEM_NAME',
+        'PRICE',
+        'STOCK',
+      ].every(headers.contains);
       final isCustomer =
           headers.contains('Name') && headers.contains('AmountDue');
-      final isSales = headers.contains('ReceiptId') ||
+      final isSales =
+          headers.contains('ReceiptId') ||
           sheetName == 'receiptsWithItems' ||
           sheetName == 'receipts';
 
@@ -120,21 +126,26 @@ class ZobazeImportService {
         for (final row in tableRows.skip(1)) {
           final receiptId = cell(row, 'ReceiptId');
           if (receiptId.isEmpty) continue;
-          final r =
-              receipts.putIfAbsent(receiptId, () => _ZobazeReceipt(receiptId));
+          final r = receipts.putIfAbsent(
+            receiptId,
+            () => _ZobazeReceipt(receiptId),
+          );
           final entryType = cell(row, 'EntryType').toLowerCase();
           if (entryType == 'item') {
             final entryName = cell(row, 'EntryName');
             final match = _itemNamePattern.firstMatch(entryName);
-            final name =
-                (match != null ? match.group(1)! : entryName).trim();
+            final name = (match != null ? match.group(1)! : entryName).trim();
             if (name.isEmpty) continue;
-            final qty =
-                match != null ? (double.tryParse(match.group(2)!)?.round() ?? 1) : 1;
-            final unit =
-                match != null ? (double.tryParse(match.group(3)!) ?? 0) : 0.0;
+            final qty = match != null
+                ? (double.tryParse(match.group(2)!)?.round() ?? 1)
+                : 1;
+            final unit = match != null
+                ? (double.tryParse(match.group(3)!) ?? 0)
+                : 0.0;
             final lineAmount = _num(cell(row, 'EntryAmount'));
-            final price = unit > 0 ? unit : (qty > 0 ? lineAmount / qty : lineAmount);
+            final price = unit > 0
+                ? unit
+                : (qty > 0 ? lineAmount / qty : lineAmount);
             r.items.add(<String, dynamic>{
               'name': name,
               'quantity': qty,
@@ -154,7 +165,8 @@ class ZobazeImportService {
             if (cp.isNotEmpty) r.customerPhone = cp;
             r.dateRaw = cell(row, 'Date');
             final cashier = cell(row, 'Cashier');
-            r.footerNote = 'Imported from Zobaze receipt $receiptId'
+            r.footerNote =
+                'Imported from Zobaze receipt $receiptId'
                 '${cashier.isNotEmpty ? ' | Cashier: $cashier' : ''}';
           }
         }
@@ -189,23 +201,19 @@ class ZobazeImportService {
           final barcode = cell(row, 'BARCODE');
           final id =
               'zobaze-inv-${name.hashCode}-${variant.hashCode}-${category.hashCode}';
-          await _inventory.mergeInventoryDocument(
-            id,
-            <String, dynamic>{
-              'name': name,
-              'price': _num(cell(row, 'PRICE')),
-              'sku': sku.isNotEmpty ? sku : barcode,
-              'category': category.isEmpty ? 'General' : category,
-              'subcategory': cell(row, 'ITEM_TYPE'),
-              'size': variant,
-              'stock': _num(cell(row, 'STOCK')),
-              'status': 'active',
-              'tombstone': false,
-              'createdAt': iso,
-              'updatedAt': iso,
-            },
-            updatedAt: now,
-          );
+          await _inventory.mergeInventoryDocument(id, <String, dynamic>{
+            'name': name,
+            'price': _num(cell(row, 'PRICE')),
+            'sku': sku.isNotEmpty ? sku : barcode,
+            'category': category.isEmpty ? 'General' : category,
+            'subcategory': cell(row, 'ITEM_TYPE'),
+            'size': variant,
+            'stock': _num(cell(row, 'STOCK')),
+            'status': 'active',
+            'tombstone': false,
+            'createdAt': iso,
+            'updatedAt': iso,
+          }, updatedAt: now);
           final cost = _num(cell(row, 'COST_PRICE'));
           if (cost > 0) {
             await _inventory.mergeInventoryPrivateDocument(
@@ -228,20 +236,16 @@ class ZobazeImportService {
           final due = _num(cell(row, 'AmountDue'));
           final advance = _num(cell(row, 'AmountHeld (Advance)'));
           final id = 'zobaze-cust-${phone.hashCode}-${name.hashCode}';
-          await _customers.mergeRemoteCustomerDocument(
-            id,
-            <String, dynamic>{
-              'name': name,
-              'phone': phone,
-              'email': cell(row, 'Email'),
-              'status': 'active',
-              'balance': due - advance,
-              'total_spent': 0,
-              'tombstone': false,
-              'updatedAt': iso,
-            },
-            updatedAt: now,
-          );
+          await _customers.mergeRemoteCustomerDocument(id, <String, dynamic>{
+            'name': name,
+            'phone': phone,
+            'email': cell(row, 'Email'),
+            'status': 'active',
+            'balance': due - advance,
+            'total_spent': 0,
+            'tombstone': false,
+            'updatedAt': iso,
+          }, updatedAt: now);
           // Same reason as the universal importer: a due with no khata row is
           // a number the owner cannot explain to the customer.
           await _customers.recordOpeningBalance(

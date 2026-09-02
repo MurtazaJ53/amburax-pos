@@ -55,19 +55,16 @@ Future<void> bootstrapApplication() async {
     return;
   }
 
-  await SentryFlutter.init(
-    (options) {
-      options.dsn = _sentryDsn;
-      // No performance tracing: this is a POS on cheap phones and metered
-      // data. We want crashes, not a stream of spans.
-      options.tracesSampleRate = 0.0;
-      options.environment = kReleaseMode ? 'production' : 'debug';
-      // A shop's bills and customer names must never leave the device, so
-      // don't let the SDK attach user/request data automatically.
-      options.sendDefaultPii = false;
-    },
-    appRunner: runTheApp,
-  );
+  await SentryFlutter.init((options) {
+    options.dsn = _sentryDsn;
+    // No performance tracing: this is a POS on cheap phones and metered
+    // data. We want crashes, not a stream of spans.
+    options.tracesSampleRate = 0.0;
+    options.environment = kReleaseMode ? 'production' : 'debug';
+    // A shop's bills and customer names must never leave the device, so
+    // don't let the SDK attach user/request data automatically.
+    options.sendDefaultPii = false;
+  }, appRunner: runTheApp);
 }
 
 class _FatalSurfaceFallback extends StatelessWidget {

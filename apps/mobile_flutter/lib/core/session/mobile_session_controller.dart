@@ -177,7 +177,10 @@ class MobileSessionNotifier extends AsyncNotifier<MobileSession?> {
       // A newly-registered shop is a different tenant: wipe any cached data.
       await _wipeIfShopChanged(shopId);
       await repo.writeSetting(_jwtAccessKey, access);
-      await repo.writeSetting(_jwtRefreshKey, (result['refresh'] ?? '').toString());
+      await repo.writeSetting(
+        _jwtRefreshKey,
+        (result['refresh'] ?? '').toString(),
+      );
       await repo.writeSetting(_jwtShopKey, shopId);
       await repo.writeSetting(_jwtRoleKey, role);
       await repo.writeSetting(_jwtEmailKey, trimmedEmail);
@@ -251,7 +254,10 @@ class MobileSessionNotifier extends AsyncNotifier<MobileSession?> {
       // Joining a shop is a (potentially different) tenant: wipe cached data.
       await _wipeIfShopChanged(shopId);
       await repo.writeSetting(_jwtAccessKey, access);
-      await repo.writeSetting(_jwtRefreshKey, (result['refresh'] ?? '').toString());
+      await repo.writeSetting(
+        _jwtRefreshKey,
+        (result['refresh'] ?? '').toString(),
+      );
       await repo.writeSetting(_jwtShopKey, shopId);
       await repo.writeSetting(_jwtRoleKey, role);
       await repo.writeSetting(_jwtEmailKey, email);
@@ -331,9 +337,12 @@ class MobileSessionNotifier extends AsyncNotifier<MobileSession?> {
       // Prefer the last-selected shop if the user still belongs to it, so a
       // multi-shop user returns to where they were.
       final remembered = await repo.readSetting(_activeShopKey) ?? '';
-      final rememberedMatches =
-          active.where((x) => x.shopId == remembered).toList();
-      final m = rememberedMatches.isNotEmpty ? rememberedMatches.first : active.first;
+      final rememberedMatches = active
+          .where((x) => x.shopId == remembered)
+          .toList();
+      final m = rememberedMatches.isNotEmpty
+          ? rememberedMatches.first
+          : active.first;
 
       // Signing into this shop: if it differs from the last active shop on
       // this device, wipe the previous tenant's cached data first.
@@ -434,7 +443,12 @@ class MobileSessionNotifier extends AsyncNotifier<MobileSession?> {
 
     StaffUser? user;
     if (staff.isEmpty) {
-      user = StaffUser(id: 'owner', name: 'Owner', role: 'owner', pinHash: hashed);
+      user = StaffUser(
+        id: 'owner',
+        name: 'Owner',
+        role: 'owner',
+        pinHash: hashed,
+      );
       await _saveStaff(<StaffUser>[user]);
     } else {
       for (final s in staff) {
@@ -640,8 +654,9 @@ class MobileSessionNotifier extends AsyncNotifier<MobileSession?> {
     final repo = ref.read(shopRepositoryProvider);
     try {
       final memberships = await client.getShopMemberships(user: session.user);
-      final matches =
-          memberships.where((x) => x.shopId == session.shopId).toList();
+      final matches = memberships
+          .where((x) => x.shopId == session.shopId)
+          .toList();
       if (matches.isEmpty) return;
       final m = matches.first;
       await repo.writeSetting(_jwtRoleKey, m.role);
@@ -665,10 +680,7 @@ class MobileSessionNotifier extends AsyncNotifier<MobileSession?> {
   /// cloud session. Returns (error, code): on success error is null and code is
   /// the invite code (also emailed to the invitee); on failure code is null.
   Future<({String? error, String? code, bool emailSent, String emailError})>
-      sendInvite({
-    required String email,
-    required String role,
-  }) async {
+  sendInvite({required String email, required String role}) async {
     final session = state.asData?.value;
     if (session == null || (session.shopId ?? '').isEmpty) {
       return (

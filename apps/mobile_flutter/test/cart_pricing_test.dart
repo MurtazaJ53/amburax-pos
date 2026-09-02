@@ -126,10 +126,7 @@ void _perItemDiscountTests() {
     );
 
     test('reduces the cart subtotal', () {
-      expect(
-        CartPricing.subtotal([line(discount: 100), line(), line()]),
-        200,
-      );
+      expect(CartPricing.subtotal([line(discount: 100), line(), line()]), 200);
     });
 
     test('is capped at the line total and never goes negative', () {
@@ -143,11 +140,14 @@ void _perItemDiscountTests() {
       expect(line(discount: -50).lineTotal, 100);
     });
 
-    test('travels to the backend payload so the server nets the same total', () {
-      final json = line(discount: 100).toSaleJson();
-      expect(json['discount'], 100);
-      expect(json['price'], 100);
-    });
+    test(
+      'travels to the backend payload so the server nets the same total',
+      () {
+        final json = line(discount: 100).toSaleJson();
+        expect(json['discount'], 100);
+        expect(json['price'], 100);
+      },
+    );
   });
 }
 

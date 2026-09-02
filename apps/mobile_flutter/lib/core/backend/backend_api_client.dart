@@ -520,7 +520,9 @@ class BackendApiClient {
         // purchase as a single consolidated line matching the entered total.
         'items': <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': reference.trim().isEmpty ? 'Stock purchase' : reference.trim(),
+            'name': reference.trim().isEmpty
+                ? 'Stock purchase'
+                : reference.trim(),
             'quantity': '1',
             'unit_cost': total.toStringAsFixed(2),
           },
@@ -772,7 +774,7 @@ class BackendApiClient {
       final path = cursor == null
           ? base
           : '$base${base.contains('?') ? '&' : '?'}'
-              'cursor=${Uri.encodeQueryComponent(cursor)}';
+                'cursor=${Uri.encodeQueryComponent(cursor)}';
 
       final result = await _requestListPage(
         user: user,
@@ -1538,9 +1540,7 @@ class BackendApiClient {
       user: user,
       method: 'POST',
       path: '/shops/$shopId/inventory/stocktakes/',
-      body: <String, dynamic>{
-        if (note.trim().isNotEmpty) 'note': note.trim(),
-      },
+      body: <String, dynamic>{if (note.trim().isNotEmpty) 'note': note.trim()},
     );
   }
 
@@ -1692,6 +1692,7 @@ class BackendApiClient {
   /// than surfacing as a failure (which used to make writes silently fall back
   /// to local and then be lost).
   static const Set<int> _coldStartStatuses = <int>{502, 503, 504};
+
   /// How many pages one list walk may fetch. 25 x 200 rows is 5,000
   /// products - past any single shop this app is built for, and short
   /// enough that a server looping on its own cursor stops being a phone
@@ -1728,8 +1729,10 @@ class BackendApiClient {
         request.headers.set(HttpHeaders.acceptHeader, 'application/json');
         await _attachAuthHeaders(request, user, overrideToken: freshToken);
         if (body != null) {
-          request.headers
-              .set(HttpHeaders.contentTypeHeader, 'application/json');
+          request.headers.set(
+            HttpHeaders.contentTypeHeader,
+            'application/json',
+          );
           // Encode first and set contentLength explicitly. A bare
           // request.write() leaves it at -1, which makes dart:io fall back to
           // Transfer-Encoding: chunked - and plenty of things upstream cannot
@@ -1742,8 +1745,9 @@ class BackendApiClient {
         }
 
         final response = await request.close().timeout(_requestTimeout);
-        final bodyText =
-            await utf8.decodeStream(response).timeout(_requestTimeout);
+        final bodyText = await utf8
+            .decodeStream(response)
+            .timeout(_requestTimeout);
         if (response.statusCode < 200 || response.statusCode >= 300) {
           // The free-tier host returns 502/503/504 while cold-starting or
           // redeploying — wait and retry so a sleeping server doesn't lose the
@@ -1811,8 +1815,7 @@ class BackendApiClient {
         '${baseUrl.replaceAll(RegExp(r"/$"), "")}'
         '/shops/$shopId/inventory/$itemId/image/',
       );
-      final request =
-          await client.openUrl('GET', url).timeout(_requestTimeout);
+      final request = await client.openUrl('GET', url).timeout(_requestTimeout);
       await _attachAuthHeaders(request, user);
 
       final response = await request.close().timeout(_requestTimeout);
@@ -1869,71 +1872,71 @@ class BackendApiClient {
     for (var attempt = 1; ; attempt++) {
       final client = HttpClient();
       client.connectionTimeout = _requestTimeout;
-    try {
-      final url = Uri.parse('${baseUrl.replaceAll(RegExp(r"/$"), "")}$path');
-      final request = await client
-          .openUrl(method, url)
-          .timeout(_requestTimeout);
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      await _attachAuthHeaders(request, user, overrideToken: freshToken);
+      try {
+        final url = Uri.parse('${baseUrl.replaceAll(RegExp(r"/$"), "")}$path');
+        final request = await client
+            .openUrl(method, url)
+            .timeout(_requestTimeout);
+        request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+        await _attachAuthHeaders(request, user, overrideToken: freshToken);
 
-      final response = await request.close().timeout(_requestTimeout);
-      final bodyText = await utf8
-          .decodeStream(response)
-          .timeout(_requestTimeout);
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        if (_coldStartStatuses.contains(response.statusCode) &&
-            attempt < _maxAttempts) {
-          await Future<void>.delayed(Duration(seconds: 5 * attempt));
-          continue;
-        }
-        // Same one-shot refresh as _request: the token expired or was
-        // withdrawn, so renew it and repeat the call rather than surfacing a
-        // sign-out to somebody mid-sale.
-        if (response.statusCode == 401 && !refreshed) {
-          refreshed = true;
-          final renewed = await _refreshOnce();
-          if (renewed != null && renewed.isNotEmpty) {
-            freshToken = renewed;
+        final response = await request.close().timeout(_requestTimeout);
+        final bodyText = await utf8
+            .decodeStream(response)
+            .timeout(_requestTimeout);
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          if (_coldStartStatuses.contains(response.statusCode) &&
+              attempt < _maxAttempts) {
+            await Future<void>.delayed(Duration(seconds: 5 * attempt));
             continue;
           }
+          // Same one-shot refresh as _request: the token expired or was
+          // withdrawn, so renew it and repeat the call rather than surfacing a
+          // sign-out to somebody mid-sale.
+          if (response.statusCode == 401 && !refreshed) {
+            refreshed = true;
+            final renewed = await _refreshOnce();
+            if (renewed != null && renewed.isNotEmpty) {
+              freshToken = renewed;
+              continue;
+            }
+          }
+          throw BackendApiException(
+            'Backend request failed (${response.statusCode}) for $path: $bodyText',
+            statusCode: response.statusCode,
+          );
+        }
+
+        if (bodyText.trim().isEmpty) {
+          return const _ListPage(<Map<String, dynamic>>[], null);
+        }
+
+        final decoded = jsonDecode(bodyText);
+        if (decoded is! List) {
+          throw BackendApiException(
+            'Backend request for $path did not return a list payload.',
+          );
+        }
+        final rows = decoded
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList(growable: false);
+        final cursor = response.headers.value('x-next-cursor');
+        return _ListPage(
+          rows,
+          (cursor == null || cursor.trim().isEmpty) ? null : cursor.trim(),
+        );
+      } on TimeoutException {
+        if (attempt < _maxAttempts) {
+          await Future<void>.delayed(Duration(seconds: 3 * attempt));
+          continue;
         }
         throw BackendApiException(
-          'Backend request failed (${response.statusCode}) for $path: $bodyText',
-          statusCode: response.statusCode,
+          'Backend request timed out for $path. Check connectivity or backend load.',
         );
+      } finally {
+        client.close(force: true);
       }
-
-      if (bodyText.trim().isEmpty) {
-        return const _ListPage(<Map<String, dynamic>>[], null);
-      }
-
-      final decoded = jsonDecode(bodyText);
-      if (decoded is! List) {
-        throw BackendApiException(
-          'Backend request for $path did not return a list payload.',
-        );
-      }
-      final rows = decoded
-          .whereType<Map>()
-          .map((item) => Map<String, dynamic>.from(item))
-          .toList(growable: false);
-      final cursor = response.headers.value('x-next-cursor');
-      return _ListPage(
-        rows,
-        (cursor == null || cursor.trim().isEmpty) ? null : cursor.trim(),
-      );
-    } on TimeoutException {
-      if (attempt < _maxAttempts) {
-        await Future<void>.delayed(Duration(seconds: 3 * attempt));
-        continue;
-      }
-      throw BackendApiException(
-        'Backend request timed out for $path. Check connectivity or backend load.',
-      );
-    } finally {
-      client.close(force: true);
-    }
     }
   }
 
@@ -1942,10 +1945,10 @@ class BackendApiClient {
     required String email,
     required String password,
   }) async {
-    final decoded = await _postUnauthenticated('/session/token/', <String, dynamic>{
-      'email': email,
-      'password': password,
-    });
+    final decoded = await _postUnauthenticated(
+      '/session/token/',
+      <String, dynamic>{'email': email, 'password': password},
+    );
     return <String, String>{
       'access': (decoded['access'] ?? '').toString(),
       'refresh': (decoded['refresh'] ?? '').toString(),
@@ -2071,8 +2074,7 @@ class BackendApiClient {
         final url = Uri.parse('${baseUrl.replaceAll(RegExp(r"/$"), "")}$path');
         final request = await client.postUrl(url).timeout(authTimeout);
         request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-        request.headers
-            .set(HttpHeaders.contentTypeHeader, 'application/json');
+        request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
         // Explicit Content-Length (never chunked) - some servers drop chunked bodies.
         final encoded = utf8.encode(jsonEncode(body));
         request.contentLength = encoded.length;

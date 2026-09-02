@@ -21,7 +21,10 @@ void main() {
       if (!file.existsSync()) return; // fixture optional on CI
       final sheets = readXlsx(file.readAsBytesSync());
       final names = sheets.map((s) => s.name).toList();
-      expect(names, containsAll(<String>['Items', 'Customers', 'receiptsWithItems']));
+      expect(
+        names,
+        containsAll(<String>['Items', 'Customers', 'receiptsWithItems']),
+      );
 
       final items = sheets.firstWhere((s) => s.name == 'Items');
       expect(items.rows.first, contains('ITEM_NAME'));

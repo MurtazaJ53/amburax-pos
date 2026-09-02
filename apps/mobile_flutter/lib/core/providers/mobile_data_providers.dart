@@ -15,35 +15,39 @@ import '../session/mobile_session_controller.dart';
 /// receipts. Returns null on error → callers fall back to local figures.
 final salesServerSummaryProvider =
     FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
-  final session = ref.watch(mobileSessionProvider).asData?.value;
-  if (session == null || !session.hasShop) return null;
-  try {
-    return await ref
-        .read(backendApiClientProvider)
-        .fetchSalesSummary(user: session.user, shopId: session.shopId!);
-  } catch (_) {
-    return null;
-  }
-});
+      final session = ref.watch(mobileSessionProvider).asData?.value;
+      if (session == null || !session.hasShop) return null;
+      try {
+        return await ref
+            .read(backendApiClientProvider)
+            .fetchSalesSummary(user: session.user, shopId: session.shopId!);
+      } catch (_) {
+        return null;
+      }
+    });
 
 /// Server-side customer search — queries ALL customers on the backend (not just
 /// the recent window on the phone), so you can find anyone by name or phone.
 final customerSearchProvider = FutureProvider.autoDispose
     .family<List<BackendCustomerSummary>, String>((ref, query) async {
-  final q = query.trim();
-  if (q.length < 2) return const <BackendCustomerSummary>[];
-  final session = ref.watch(mobileSessionProvider).asData?.value;
-  if (session == null || !session.hasShop) {
-    return const <BackendCustomerSummary>[];
-  }
-  try {
-    return await ref
-        .read(backendApiClientProvider)
-        .fetchCustomers(user: session.user, shopId: session.shopId!, query: q);
-  } catch (_) {
-    return const <BackendCustomerSummary>[];
-  }
-});
+      final q = query.trim();
+      if (q.length < 2) return const <BackendCustomerSummary>[];
+      final session = ref.watch(mobileSessionProvider).asData?.value;
+      if (session == null || !session.hasShop) {
+        return const <BackendCustomerSummary>[];
+      }
+      try {
+        return await ref
+            .read(backendApiClientProvider)
+            .fetchCustomers(
+              user: session.user,
+              shopId: session.shopId!,
+              query: q,
+            );
+      } catch (_) {
+        return const <BackendCustomerSummary>[];
+      }
+    });
 
 final shopInfoProvider = StreamProvider<ShopInfo>((ref) {
   final shopRepository = ref.watch(shopRepositoryProvider);
@@ -67,7 +71,9 @@ final deadLetterCountProvider = StreamProvider<int>((ref) {
 });
 
 /// The dead-lettered commands themselves, for the resolution screen.
-final deadLetterEntriesProvider = StreamProvider<List<CommerceOutboxEntry>>((ref) {
+final deadLetterEntriesProvider = StreamProvider<List<CommerceOutboxEntry>>((
+  ref,
+) {
   return ref.watch(salesRepositoryProvider).watchDeadLetterEntries();
 });
 
@@ -267,10 +273,11 @@ final reportSalesProvider =
       return ref.watch(reportsRepositoryProvider).watchReportSales(window);
     });
 
-final reportExpensesProvider =
-    StreamProvider.family<double, HistoryDateWindow>((ref, window) {
-      return ref.watch(reportsRepositoryProvider).watchPeriodExpenses(window);
-    });
+final reportExpensesProvider = StreamProvider.family<double, HistoryDateWindow>(
+  (ref, window) {
+    return ref.watch(reportsRepositoryProvider).watchPeriodExpenses(window);
+  },
+);
 
 // End-of-day Z-report figures (default: today).
 final zReportProvider =
@@ -319,7 +326,9 @@ class FavouriteIdsController extends AsyncNotifier<List<String>> {
 }
 
 // Resolve the favourite ids to full items for the POS quick-key strip.
-final favouriteItemsProvider = StreamProvider<List<InventoryCatalogItem>>((ref) {
+final favouriteItemsProvider = StreamProvider<List<InventoryCatalogItem>>((
+  ref,
+) {
   final ids = ref.watch(favouriteIdsProvider).asData?.value ?? const <String>[];
   return ref.watch(inventoryRepositoryProvider).watchItemsByIds(ids);
 });
@@ -329,33 +338,36 @@ final favouriteItemsProvider = StreamProvider<List<InventoryCatalogItem>>((ref) 
 /// empty — nobody discovers a long-press — so it earns its space from day one.
 final autoTopSellersProvider =
     FutureProvider.autoDispose<List<InventoryCatalogItem>>((ref) async {
-  final pinned = ref.watch(favouriteIdsProvider).asData?.value ?? const <String>[];
-  if (pinned.isNotEmpty) return const <InventoryCatalogItem>[];
+      final pinned =
+          ref.watch(favouriteIdsProvider).asData?.value ?? const <String>[];
+      if (pinned.isNotEmpty) return const <InventoryCatalogItem>[];
 
-  final top = await ref.watch(reportsRepositoryProvider).bestSellers(
-        days: 30,
-        limit: 8,
-      );
-  if (top.isEmpty) return const <InventoryCatalogItem>[];
+      final top = await ref
+          .watch(reportsRepositoryProvider)
+          .bestSellers(days: 30, limit: 8);
+      if (top.isEmpty) return const <InventoryCatalogItem>[];
 
-  // bestSellers groups by name (movements record a name snapshot), so map back
-  // to live catalog rows to get current price and stock.
-  final catalog = await ref.watch(inventoryRepositoryProvider).watchCatalogPage(
-        page: 1,
-        pageSize: 500,
-      ).first;
-  final byName = <String, InventoryCatalogItem>{
-    for (final item in catalog) item.name.toLowerCase(): item,
-  };
-  return top
-      .map((t) => byName[t.name.toLowerCase()])
-      .whereType<InventoryCatalogItem>()
-      .toList(growable: false);
-});
+      // bestSellers groups by name (movements record a name snapshot), so map back
+      // to live catalog rows to get current price and stock.
+      final catalog = await ref
+          .watch(inventoryRepositoryProvider)
+          .watchCatalogPage(page: 1, pageSize: 500)
+          .first;
+      final byName = <String, InventoryCatalogItem>{
+        for (final item in catalog) item.name.toLowerCase(): item,
+      };
+      return top
+          .map((t) => byName[t.name.toLowerCase()])
+          .whereType<InventoryCatalogItem>()
+          .toList(growable: false);
+    });
 
 // Customer khata timeline (credit sales + payments).
 final customerLedgerProvider =
-    StreamProvider.family<List<CustomerLedgerRecord>, String>((ref, customerId) {
+    StreamProvider.family<List<CustomerLedgerRecord>, String>((
+      ref,
+      customerId,
+    ) {
       return ref.watch(customerRepositoryProvider).watchLedger(customerId);
     });
 

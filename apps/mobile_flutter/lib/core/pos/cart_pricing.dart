@@ -37,7 +37,9 @@ class CartPricing {
 
   /// Net payable after discount.
   static double net({required double subtotal, required double discount}) {
-    return (Money.rupees(subtotal) - Money.rupees(discount)).clampedToZero.rupees;
+    return (Money.rupees(subtotal) - Money.rupees(discount))
+        .clampedToZero
+        .rupees;
   }
 
   /// Total tendered across all payment lines.

@@ -36,11 +36,16 @@ void main() {
     expect(bytes.length, greaterThan(1000));
   });
 
-  test('an empty request still returns a readable PDF, not zero pages', () async {
-    final bytes =
-        await buildBarcodeLabelsPdf(shopName: 'T. N', labels: const []);
-    expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
-  });
+  test(
+    'an empty request still returns a readable PDF, not zero pages',
+    () async {
+      final bytes = await buildBarcodeLabelsPdf(
+        shopName: 'T. N',
+        labels: const [],
+      );
+      expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+    },
+  );
 
   test('emoji and long names do not break the sticker', () async {
     final bytes = await buildBarcodeLabelsPdf(

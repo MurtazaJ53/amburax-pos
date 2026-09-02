@@ -31,10 +31,13 @@ void main() {
 
   group('autoMap products (any layout)', () {
     test('maps MRP->price, Qty->stock, Item Name->name, Cost->costPrice', () {
-      final m = autoMap(
-        ['Item Name', 'MRP', 'Qty', 'Cost', 'HSN'],
-        ImportKind.products,
-      );
+      final m = autoMap([
+        'Item Name',
+        'MRP',
+        'Qty',
+        'Cost',
+        'HSN',
+      ], ImportKind.products);
       expect(m.columnFor('name'), 0);
       expect(m.columnFor('price'), 1);
       expect(m.columnFor('stock'), 2);
@@ -51,10 +54,12 @@ void main() {
 
   group('autoMap customers', () {
     test('maps Customer Name->name, Mobile->phone, Balance->amountDue', () {
-      final m = autoMap(
-        ['Customer Name', 'Mobile', 'Balance', 'E-mail'],
-        ImportKind.customers,
-      );
+      final m = autoMap([
+        'Customer Name',
+        'Mobile',
+        'Balance',
+        'E-mail',
+      ], ImportKind.customers);
       expect(m.columnFor('name'), 0);
       expect(m.columnFor('phone'), 1);
       expect(m.columnFor('amountDue'), 2);
@@ -63,17 +68,22 @@ void main() {
   });
 
   group('mapRows', () {
-    test('produces canonical rows and drops rows missing the required name', () {
-      final table = parseCsv('Product,Rate,Qty\nPen,10,5\n,20,3\nBook,50,2\n');
-      final mapped = mapRows(table, ImportKind.products);
-      expect(mapped.ok, isTrue);
-      expect(mapped.missingRequired, isEmpty);
-      // The nameless middle row is dropped.
-      expect(mapped.rows.length, 2);
-      expect(mapped.rows.first['name'], 'Pen');
-      expect(mapped.rows.first['price'], '10');
-      expect(mapped.rows.first['stock'], '5');
-    });
+    test(
+      'produces canonical rows and drops rows missing the required name',
+      () {
+        final table = parseCsv(
+          'Product,Rate,Qty\nPen,10,5\n,20,3\nBook,50,2\n',
+        );
+        final mapped = mapRows(table, ImportKind.products);
+        expect(mapped.ok, isTrue);
+        expect(mapped.missingRequired, isEmpty);
+        // The nameless middle row is dropped.
+        expect(mapped.rows.length, 2);
+        expect(mapped.rows.first['name'], 'Pen');
+        expect(mapped.rows.first['price'], '10');
+        expect(mapped.rows.first['stock'], '5');
+      },
+    );
 
     test('flags missing required field when no name column exists', () {
       final table = parseCsv('Rate,Qty\n10,5\n');
@@ -85,10 +95,12 @@ void main() {
 
   group('autoMap sales', () {
     test('maps Amount->total, Bill Date->date, Mode->payment', () {
-      final m = autoMap(
-        ['Bill Date', 'Amount', 'Mode', 'Customer'],
-        ImportKind.sales,
-      );
+      final m = autoMap([
+        'Bill Date',
+        'Amount',
+        'Mode',
+        'Customer',
+      ], ImportKind.sales);
       expect(m.columnFor('total'), 1);
       expect(m.columnFor('date'), 0);
       expect(m.columnFor('payment'), 2);
@@ -98,13 +110,22 @@ void main() {
 
   group('detectKind (smart import routing)', () {
     test('detects products from Item Name/MRP/Qty', () {
-      expect(detectKind(['Item Name', 'MRP', 'Qty', 'SKU']), ImportKind.products);
+      expect(
+        detectKind(['Item Name', 'MRP', 'Qty', 'SKU']),
+        ImportKind.products,
+      );
     });
     test('detects customers from Customer Name/Mobile/Balance', () {
-      expect(detectKind(['Customer Name', 'Mobile', 'Balance']), ImportKind.customers);
+      expect(
+        detectKind(['Customer Name', 'Mobile', 'Balance']),
+        ImportKind.customers,
+      );
     });
     test('detects sales from Amount/Bill Date/Mode', () {
-      expect(detectKind(['Amount', 'Bill Date', 'Mode', 'Customer']), ImportKind.sales);
+      expect(
+        detectKind(['Amount', 'Bill Date', 'Mode', 'Customer']),
+        ImportKind.sales,
+      );
     });
     test('returns null when no required column maps', () {
       expect(detectKind(['Foo', 'Bar', 'Baz']), isNull);
@@ -113,10 +134,13 @@ void main() {
 
   group('known-app header presets (fuzzy)', () {
     test('Vyapar-style product headers map correctly', () {
-      final m = autoMap(
-        ['Item Name', 'Sale Price', 'Purchase Price', 'Closing Stock', 'Item Code'],
-        ImportKind.products,
-      );
+      final m = autoMap([
+        'Item Name',
+        'Sale Price',
+        'Purchase Price',
+        'Closing Stock',
+        'Item Code',
+      ], ImportKind.products);
       expect(m.columnFor('name'), 0);
       expect(m.columnFor('price'), 1);
       expect(m.columnFor('costPrice'), 2);
@@ -125,7 +149,11 @@ void main() {
     });
 
     test('Khatabook-style customer headers map correctly', () {
-      final m = autoMap(['Party Name', 'Mobile Number', 'Closing Balance'], ImportKind.customers);
+      final m = autoMap([
+        'Party Name',
+        'Mobile Number',
+        'Closing Balance',
+      ], ImportKind.customers);
       expect(m.columnFor('name'), 0);
       expect(m.columnFor('phone'), 1);
       expect(m.columnFor('amountDue'), 2);
@@ -134,7 +162,9 @@ void main() {
 
   group('expenses import', () {
     test('maps Amount/Category/Date and requires amount', () {
-      final table = parseCsv('Category,Amount,Date,Note\nRent,1200,2026-07-01,Shop\n');
+      final table = parseCsv(
+        'Category,Amount,Date,Note\nRent,1200,2026-07-01,Shop\n',
+      );
       final mapped = mapRows(table, ImportKind.expenses);
       expect(mapped.ok, isTrue);
       expect(mapped.rows.single['amount'], '1200');

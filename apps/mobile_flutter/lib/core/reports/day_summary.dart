@@ -1,10 +1,19 @@
 import '../models/mobile_models.dart';
 import '../utils/formatters.dart';
 
-
 const List<String> _months = <String>[
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 String _two(int value) => value.toString().padLeft(2, '0');
@@ -63,10 +72,9 @@ String buildDaySummary({
     buffer.writeln('Discount given: ${formatCurrency(z.discountTotal)}');
   }
 
-  final tenders = z.tenderBreakdown.entries
-      .where((e) => e.value > 0.009)
-      .toList()
-    ..sort((a, b) => b.value.compareTo(a.value));
+  final tenders =
+      z.tenderBreakdown.entries.where((e) => e.value > 0.009).toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
   if (tenders.isNotEmpty) {
     buffer
       ..writeln()
@@ -78,7 +86,9 @@ String buildDaySummary({
 
   final needsAttention = <String>[];
   if (outstandingUdhaar > 0.009) {
-    needsAttention.add('Total udhaar pending: ${formatCurrency(outstandingUdhaar)}');
+    needsAttention.add(
+      'Total udhaar pending: ${formatCurrency(outstandingUdhaar)}',
+    );
   }
   if (lowStockCount > 0) {
     needsAttention.add('$lowStockCount item(s) need restocking');

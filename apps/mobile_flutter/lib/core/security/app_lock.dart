@@ -115,9 +115,9 @@ class AppLockPanel extends ConsumerWidget {
         .read(appLockControllerProvider)
         .setPin(result.$1, biometric: result.$2);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('App lock enabled.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('App lock enabled.')));
     }
   }
 
@@ -148,8 +148,10 @@ class AppLockPanel extends ConsumerWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: (lock.isEnabled ? AppPalette.success : colors.border)
                       .withValues(alpha: 0.16),
@@ -159,8 +161,9 @@ class AppLockPanel extends ConsumerWidget {
                   lock.isEnabled ? 'ON' : 'OFF',
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
-                    color:
-                        lock.isEnabled ? AppPalette.success : colors.textTertiary,
+                    color: lock.isEnabled
+                        ? AppPalette.success
+                        : colors.textTertiary,
                   ),
                 ),
               ),
@@ -170,9 +173,9 @@ class AppLockPanel extends ConsumerWidget {
           Text(
             'Require a 4–6 digit PIN every time the app opens. Fingerprint/face '
             'unlock can be used as a shortcut.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 14),
           Row(
@@ -343,7 +346,8 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
           Positioned.fill(
             child: _LockScreen(
               biometricEnabled: lock.biometricEnabled,
-              onVerify: (pin) => ref.read(appLockControllerProvider).verify(pin),
+              onVerify: (pin) =>
+                  ref.read(appLockControllerProvider).verify(pin),
               onBiometricSuccess: () =>
                   ref.read(appLockControllerProvider).unlock(),
             ),
@@ -473,9 +477,7 @@ class _LockScreenState extends State<_LockScreen> {
                         height: 16,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: filled
-                              ? AppPalette.primary
-                              : colors.border,
+                          color: filled ? AppPalette.primary : colors.border,
                         ),
                       );
                     }),

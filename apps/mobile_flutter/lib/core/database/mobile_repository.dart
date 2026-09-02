@@ -52,7 +52,8 @@ class ShopRepository {
           footer: (decoded['footer'] ?? 'Thank you for your business!')
               .toString(),
           currency: (decoded['currency'] ?? 'INR').toString(),
-          phone: (decoded['business_phone'] ?? decoded['phone'] ?? '').toString(),
+          phone: (decoded['business_phone'] ?? decoded['phone'] ?? '')
+              .toString(),
           gstin: (decoded['gstin'] ?? '').toString(),
           upiVpa: (decoded['upi_vpa'] ?? '').toString(),
           planTier: (decoded['plan_tier'] ?? 'growth').toString(),
@@ -83,7 +84,12 @@ class ShopRepository {
         rawData['footer'] ??
         'Thank you for your business!';
     settings['currency'] = settings['currency'] ?? rawData['currency'] ?? 'INR';
-    settings['business_phone'] = rawData['business_phone'] ?? rawData['phone'] ?? settings['business_phone'] ?? settings['phone'] ?? '';
+    settings['business_phone'] =
+        rawData['business_phone'] ??
+        rawData['phone'] ??
+        settings['business_phone'] ??
+        settings['phone'] ??
+        '';
     settings['gstin'] = rawData['gstin'] ?? settings['gstin'] ?? '';
     settings['upi_vpa'] = rawData['upi_vpa'] ?? settings['upi_vpa'] ?? '';
     settings['plan_tier'] =
@@ -887,7 +893,9 @@ class InventoryRepository {
             imagePath:
                 (data.containsKey('imagePath') ||
                     data.containsKey('image_path'))
-                ? Value(_asStringOrNull(data['imagePath'] ?? data['image_path']))
+                ? Value(
+                    _asStringOrNull(data['imagePath'] ?? data['image_path']),
+                  )
                 : const Value.absent(),
             unit: (data.containsKey('unit'))
                 ? Value(_asStringOrNull(data['unit']))
@@ -895,7 +903,21 @@ class InventoryRepository {
             reorderLevel:
                 (data.containsKey('reorderLevel') ||
                     data.containsKey('reorder_level'))
-                ? Value(_asIntOrNull(data['reorderLevel'] ?? data['reorder_level']))
+                ? Value(
+                    _asIntOrNull(data['reorderLevel'] ?? data['reorder_level']),
+                  )
+                : const Value.absent(),
+            // Absent rather than null when the payload is silent: an import or
+            // a partial merge that does not mention stock history must not
+            // erase what a full sync already established.
+            hasStockHistory:
+                (data.containsKey('hasStockHistory') ||
+                    data.containsKey('has_stock_history'))
+                ? Value(
+                    _asBoolOrNull(
+                      data['hasStockHistory'] ?? data['has_stock_history'],
+                    ),
+                  )
                 : const Value.absent(),
             variantGroupId:
                 (data.containsKey('variantGroupId') ||
@@ -944,6 +966,7 @@ class InventoryRepository {
   Future<void> mergeBackendInventoryItem(
     Map<String, dynamic> row, {
     int? updatedAt,
+
     /// Fetches this product's photo, when the row says there is one.
     ///
     /// Injected rather than called from here: the repository talks to the
@@ -973,16 +996,18 @@ class InventoryRepository {
     final remoteImage = _asStringOrNull(row['image_data']);
     final serverHasImage = remoteImage != null || row['has_image'] == true;
     if (serverHasImage) {
-      final existing = await (_db.select(_db.inventoryEntries)
-            ..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
-      final hasLocal = existing?.imagePath != null &&
+      final existing = await (_db.select(
+        _db.inventoryEntries,
+      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      final hasLocal =
+          existing?.imagePath != null &&
           existing!.imagePath!.isNotEmpty &&
           File(existing.imagePath!).existsSync();
       if (!hasLocal) {
         if (remoteImage != null) {
-          hydratedImagePath =
-              await ProductImageStore().storeFromDataUri(remoteImage);
+          hydratedImagePath = await ProductImageStore().storeFromDataUri(
+            remoteImage,
+          );
         } else if (fetchImage != null) {
           final fetched = await fetchImage();
           if (fetched != null) {
@@ -1056,6 +1081,7 @@ class InventoryRepository {
       reorderLevel: row.readNullable<int>('reorder_level'),
       variantGroupId: row.readNullable<String>('variant_group_id'),
       variantLabel: row.readNullable<String>('variant_label'),
+      hasStockHistory: row.readNullable<bool>('has_stock_history'),
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         row.readNullable<int>('created_at') ??
             DateTime.now().millisecondsSinceEpoch,
@@ -1081,10 +1107,9 @@ class InventoryRepository {
     if (quantity == 0) return;
     final nowMillis = DateTime.now().millisecondsSinceEpoch;
     await _db.transaction(() async {
-      final row =
-          await (_db.select(_db.inventoryEntries)
-                ..where((t) => t.id.equals(itemId)))
-              .getSingleOrNull();
+      final row = await (_db.select(
+        _db.inventoryEntries,
+      )..where((t) => t.id.equals(itemId))).getSingleOrNull();
       if (row == null) return;
       final newStock = row.stock + quantity;
       await (_db.update(
@@ -1211,34 +1236,32 @@ class CustomerRepository {
       ..where((t) => t.tombstone.equals(false) & t.balance.isBiggerThanValue(0))
       ..orderBy([(t) => OrderingTerm.desc(t.balance)]);
     return query.watch().map(
-          (rows) => rows
-              .map(
-                (row) => KhataDebtor(
-                  id: row.id,
-                  name: row.name,
-                  phone: row.phone ?? '',
-                  balance: row.balance,
-                  lastRemindedAt: row.lastRemindedAt == null
-                      ? null
-                      : DateTime.fromMillisecondsSinceEpoch(
-                          row.lastRemindedAt!,
-                        ),
-                  lastSeenAt: row.lastSeenAt == null
-                      ? null
-                      : DateTime.fromMillisecondsSinceEpoch(row.lastSeenAt!),
-                ),
-              )
-              .toList(growable: false),
-        );
+      (rows) => rows
+          .map(
+            (row) => KhataDebtor(
+              id: row.id,
+              name: row.name,
+              phone: row.phone ?? '',
+              balance: row.balance,
+              lastRemindedAt: row.lastRemindedAt == null
+                  ? null
+                  : DateTime.fromMillisecondsSinceEpoch(row.lastRemindedAt!),
+              lastSeenAt: row.lastSeenAt == null
+                  ? null
+                  : DateTime.fromMillisecondsSinceEpoch(row.lastSeenAt!),
+            ),
+          )
+          .toList(growable: false),
+    );
   }
 
   /// Record that a reminder was sent, so the same customer isn't chased twice
   /// in a day and the list can show who is genuinely overdue.
   Future<void> markReminded(String customerId) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    await (_db.update(_db.customerEntries)
-          ..where((t) => t.id.equals(customerId)))
-        .write(
+    await (_db.update(
+      _db.customerEntries,
+    )..where((t) => t.id.equals(customerId))).write(
       CustomerEntriesCompanion(
         lastRemindedAt: Value(now),
         updatedAt: Value(now),
@@ -1381,10 +1404,9 @@ class CustomerRepository {
     final nowMillis = DateTime.now().millisecondsSinceEpoch;
     var newBalance = 0.0;
     await _db.transaction(() async {
-      final row =
-          await (_db.select(_db.customerEntries)
-                ..where((t) => t.id.equals(customerId)))
-              .getSingleOrNull();
+      final row = await (_db.select(
+        _db.customerEntries,
+      )..where((t) => t.id.equals(customerId))).getSingleOrNull();
       if (row == null) return;
       final applied = amount < 0 ? 0.0 : amount;
       newBalance = (row.balance - applied).clamp(0, double.infinity).toDouble();
@@ -1442,12 +1464,14 @@ class CustomerRepository {
   /// How many customers carry a balance with nothing in their khata to explain
   /// it - the fallout of imports that set a balance and wrote no ledger row.
   Future<int> countUnexplainedBalances() async {
-    final rows = await _db.customSelect(
-      'SELECT COUNT(*) AS c FROM customers c WHERE c.balance != 0 '
-      'AND c.tombstone = 0 AND NOT EXISTS ('
-      'SELECT 1 FROM customer_ledger l WHERE l.customer_id = c.id);',
-      readsFrom: {_db.customerEntries, _db.customerLedgerEntries},
-    ).get();
+    final rows = await _db
+        .customSelect(
+          'SELECT COUNT(*) AS c FROM customers c WHERE c.balance != 0 '
+          'AND c.tombstone = 0 AND NOT EXISTS ('
+          'SELECT 1 FROM customer_ledger l WHERE l.customer_id = c.id);',
+          readsFrom: {_db.customerEntries, _db.customerLedgerEntries},
+        )
+        .get();
     return rows.first.readNullable<int>('c') ?? 0;
   }
 
@@ -1661,13 +1685,15 @@ class SalesRepository {
   /// rang up two identical sales in a day - the caller must show the user what
   /// would go before removing anything.
   Future<List<ImportedDuplicateGroup>> findImportedSaleDuplicates() async {
-    final rows = await _db.customSelect(
-      'SELECT date, total, COUNT(*) AS copies, '
-      "IFNULL(customer_name, '') AS who FROM sales "
-      '$_importedDuplicateScope $_importedDuplicateGrouping '
-      'HAVING COUNT(*) > 1 ORDER BY COUNT(*) DESC, total DESC;',
-      readsFrom: {_db.salesEntries},
-    ).get();
+    final rows = await _db
+        .customSelect(
+          'SELECT date, total, COUNT(*) AS copies, '
+          "IFNULL(customer_name, '') AS who FROM sales "
+          '$_importedDuplicateScope $_importedDuplicateGrouping '
+          'HAVING COUNT(*) > 1 ORDER BY COUNT(*) DESC, total DESC;',
+          readsFrom: {_db.salesEntries},
+        )
+        .get();
     return rows
         .map(
           (row) => ImportedDuplicateGroup(
@@ -1705,10 +1731,11 @@ class SalesRepository {
   /// Ids of sales already stored, so an importer can tell the user how many
   /// rows a re-import will overwrite rather than silently reprocessing them.
   Future<Set<String>> existingSaleIds() async {
-    final rows = await (_db.selectOnly(_db.salesEntries)
-          ..addColumns([_db.salesEntries.id]))
-        .map((row) => row.read(_db.salesEntries.id))
-        .get();
+    final rows =
+        await (_db.selectOnly(_db.salesEntries)
+              ..addColumns([_db.salesEntries.id]))
+            .map((row) => row.read(_db.salesEntries.id))
+            .get();
     return rows.whereType<String>().toSet();
   }
 
@@ -1826,7 +1853,8 @@ class SalesRepository {
                   name: row.readNullable<String>('customer_name') ?? '',
                   phone: row.readNullable<String>('customer_phone'),
                   visitCount: row.readNullable<int>('visit_count') ?? 0,
-                  lifetimeSpend: row.readNullable<double>('lifetime_spend') ?? 0,
+                  lifetimeSpend:
+                      row.readNullable<double>('lifetime_spend') ?? 0,
                   pendingSales: row.readNullable<int>('pending_sales') ?? 0,
                   lastSeenAt: DateTime.fromMillisecondsSinceEpoch(
                     row.readNullable<int>('last_seen_at') ?? 0,
@@ -2012,8 +2040,11 @@ class SalesRepository {
           )
         : jsonEncode(const []);
 
-    final combinedFooter = (data['buyer_gstin'] != null && data['buyer_gstin'].toString().trim().isNotEmpty)
-        ? '${data['footer_note'] ?? ''}\n\nBuyer GSTIN: ${data['buyer_gstin']}'.trim()
+    final combinedFooter =
+        (data['buyer_gstin'] != null &&
+            data['buyer_gstin'].toString().trim().isNotEmpty)
+        ? '${data['footer_note'] ?? ''}\n\nBuyer GSTIN: ${data['buyer_gstin']}'
+              .trim()
         : _asStringOrNull(data['footer_note']);
 
     await _db
@@ -2120,7 +2151,7 @@ class SalesRepository {
               footerNote: Value(
                 (buyerGstin != null && buyerGstin.trim().isNotEmpty)
                     ? '$footerNote\n\nBuyer GSTIN: $buyerGstin'.trim()
-                    : footerNote
+                    : footerNote,
               ),
               itemsJson: jsonEncode(encodedItems),
               paymentsJson: jsonEncode(encodedPayments),
@@ -2201,10 +2232,9 @@ class SalesRepository {
         );
         final saleDue = total - received;
         if (saleDue > 0.009) {
-          final customerRow =
-              await (_db.select(_db.customerEntries)
-                    ..where((tbl) => tbl.id.equals(customerId)))
-                  .getSingleOrNull();
+          final customerRow = await (_db.select(
+            _db.customerEntries,
+          )..where((tbl) => tbl.id.equals(customerId))).getSingleOrNull();
           if (customerRow != null) {
             final newBalance = customerRow.balance + saleDue;
             await (_db.update(
@@ -2330,12 +2360,14 @@ class SalesRepository {
     final now = DateTime.now().millisecondsSinceEpoch;
     final ready = ignoreBackoff
         ? rows
-        : rows.where((row) {
-            if (row.attemptCount >= kOutboxMaxAttempts) return false;
-            final lastAt = row.lastAttemptAt;
-            if (lastAt == null) return true;
-            return now - lastAt >= outboxBackoffMs(row.attemptCount);
-          }).toList(growable: false);
+        : rows
+              .where((row) {
+                if (row.attemptCount >= kOutboxMaxAttempts) return false;
+                final lastAt = row.lastAttemptAt;
+                if (lastAt == null) return true;
+                return now - lastAt >= outboxBackoffMs(row.attemptCount);
+              })
+              .toList(growable: false);
 
     return ready
         .map(
@@ -2364,9 +2396,9 @@ class SalesRepository {
   Future<void> markOutboxDeadLetter(String commandId, String reason) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final trimmed = reason.length > 2000 ? reason.substring(0, 2000) : reason;
-    await (_db.update(_db.commerceOutboxEntries)
-          ..where((tbl) => tbl.commandId.equals(commandId)))
-        .write(
+    await (_db.update(
+      _db.commerceOutboxEntries,
+    )..where((tbl) => tbl.commandId.equals(commandId))).write(
       CommerceOutboxEntriesCompanion(
         syncStatus: const Value('dead_letter'),
         isDeadLetter: const Value(true),
@@ -2375,9 +2407,9 @@ class SalesRepository {
         updatedAt: Value(now),
       ),
     );
-    await (_db.update(_db.salesEntries)
-          ..where((tbl) => tbl.commandId.equals(commandId)))
-        .write(
+    await (_db.update(
+      _db.salesEntries,
+    )..where((tbl) => tbl.commandId.equals(commandId))).write(
       SalesEntriesCompanion(
         syncStatus: const Value('rejected'),
         lastSyncError: Value(trimmed),
@@ -2392,7 +2424,9 @@ class SalesRepository {
       ..addColumns([_db.commerceOutboxEntries.commandId.count()])
       ..where(_db.commerceOutboxEntries.isDeadLetter.equals(true));
     return query
-        .map((row) => row.read(_db.commerceOutboxEntries.commandId.count()) ?? 0)
+        .map(
+          (row) => row.read(_db.commerceOutboxEntries.commandId.count()) ?? 0,
+        )
         .watchSingle();
   }
 
@@ -2407,17 +2441,17 @@ class SalesRepository {
   /// Discard a dead-lettered command: drop the queue entry so it stops nagging.
   /// The local sale row stays (flagged 'rejected') for the owner's records.
   Future<void> discardDeadLetter(String commandId) async {
-    await (_db.delete(_db.commerceOutboxEntries)
-          ..where((tbl) => tbl.commandId.equals(commandId)))
-        .go();
+    await (_db.delete(
+      _db.commerceOutboxEntries,
+    )..where((tbl) => tbl.commandId.equals(commandId))).go();
   }
 
   /// "Force retry" a dead-lettered command (e.g. after the backend was fixed):
   /// clear the terminal flags and reset attempts so the next flush picks it up.
   Future<void> retryDeadLetter(String commandId) async {
-    await (_db.update(_db.commerceOutboxEntries)
-          ..where((tbl) => tbl.commandId.equals(commandId)))
-        .write(
+    await (_db.update(
+      _db.commerceOutboxEntries,
+    )..where((tbl) => tbl.commandId.equals(commandId))).write(
       CommerceOutboxEntriesCompanion(
         syncStatus: const Value('pending'),
         isDeadLetter: const Value(false),
@@ -2681,6 +2715,25 @@ bool _asBool(Object? value, {bool fallback = false}) {
   return fallback;
 }
 
+/// Like [_asBool] but keeps "the payload did not say" as null instead of
+/// folding it into false. Used where unknown and false mean different things —
+/// stock history being the case that matters, since false there would claim an
+/// item was never stocked.
+bool? _asBoolOrNull(Object? value) {
+  if (value == null) return null;
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+    if (const {'1', 'true', 'yes', 'y', 'on'}.contains(normalized)) return true;
+    if (const {'0', 'false', 'no', 'n', 'off'}.contains(normalized)) {
+      return false;
+    }
+  }
+  return null;
+}
+
 int? _asIntOrNull(Object? value) {
   if (value == null) return null;
   if (value is num) return value.toInt();
@@ -2909,7 +2962,9 @@ class ExpenseRepository {
     String? actorName,
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    await _db.into(_db.expenseEntries).insert(
+    await _db
+        .into(_db.expenseEntries)
+        .insert(
           ExpenseEntriesCompanion.insert(
             id: 'expense-${DateTime.now().microsecondsSinceEpoch}',
             category: Value(
@@ -2942,10 +2997,14 @@ class ExpenseRepository {
     bool tombstone = false,
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    await _db.into(_db.expenseEntries).insertOnConflictUpdate(
+    await _db
+        .into(_db.expenseEntries)
+        .insertOnConflictUpdate(
           ExpenseEntriesCompanion.insert(
             id: id,
-            category: Value(category.trim().isEmpty ? 'General' : category.trim()),
+            category: Value(
+              category.trim().isEmpty ? 'General' : category.trim(),
+            ),
             amount: Value(amount),
             description: Value(description.trim()),
             paymentMethod: Value(paymentMethod),
@@ -2994,7 +3053,8 @@ class ExpenseRepository {
                       row.readNullable<String>('payment_method') ?? 'CASH',
                   paymentReference:
                       row.readNullable<String>('payment_reference') ?? '',
-                  expenseDate: DateTime.tryParse(
+                  expenseDate:
+                      DateTime.tryParse(
                         row.readNullable<String>('expense_date') ?? '',
                       ) ??
                       DateTime.now(),
@@ -3066,7 +3126,9 @@ class PurchaseRepository {
     final safePaid = amountPaid < 0
         ? 0.0
         : (amountPaid > safeTotal ? safeTotal : amountPaid);
-    await _db.into(_db.purchaseEntries).insert(
+    await _db
+        .into(_db.purchaseEntries)
+        .insert(
           PurchaseEntriesCompanion.insert(
             id: id,
             supplierName: supplierName.trim().isEmpty
@@ -3109,7 +3171,9 @@ class PurchaseRepository {
     final safePaid = amountPaid < 0
         ? 0.0
         : (amountPaid > safeTotal ? safeTotal : amountPaid);
-    await _db.into(_db.purchaseEntries).insertOnConflictUpdate(
+    await _db
+        .into(_db.purchaseEntries)
+        .insertOnConflictUpdate(
           PurchaseEntriesCompanion.insert(
             id: id,
             supplierName: supplierName.trim().isEmpty
@@ -3136,16 +3200,16 @@ class PurchaseRepository {
     required String purchaseId,
     required double amount,
   }) async {
-    final row = await (_db.select(_db.purchaseEntries)
-          ..where((t) => t.id.equals(purchaseId)))
-        .getSingleOrNull();
+    final row = await (_db.select(
+      _db.purchaseEntries,
+    )..where((t) => t.id.equals(purchaseId))).getSingleOrNull();
     if (row == null) return 0;
     final due = row.total - row.amountPaid;
     final applied = amount < 0 ? 0.0 : (amount > due ? due : amount);
     final newPaid = row.amountPaid + applied;
-    await (_db.update(_db.purchaseEntries)
-          ..where((t) => t.id.equals(purchaseId)))
-        .write(
+    await (_db.update(
+      _db.purchaseEntries,
+    )..where((t) => t.id.equals(purchaseId))).write(
       PurchaseEntriesCompanion(
         amountPaid: Value(newPaid),
         updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
@@ -3156,8 +3220,9 @@ class PurchaseRepository {
   }
 
   Future<void> deletePurchase(String id) async {
-    await (_db.update(_db.purchaseEntries)..where((t) => t.id.equals(id)))
-        .write(
+    await (_db.update(
+      _db.purchaseEntries,
+    )..where((t) => t.id.equals(id))).write(
       PurchaseEntriesCompanion(
         tombstone: const Value(true),
         updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
@@ -3213,7 +3278,8 @@ class PurchaseRepository {
                   phone:
                       _asStringOrNull(row.readNullable<String>('phone')) ?? '',
                   purchaseCount: row.readNullable<int>('purchase_count') ?? 0,
-                  totalPurchased: row.readNullable<double>('total_purchased') ?? 0,
+                  totalPurchased:
+                      row.readNullable<double>('total_purchased') ?? 0,
                   payable: row.readNullable<double>('payable') ?? 0,
                 ),
               )
@@ -3255,9 +3321,8 @@ class PurchaseRepository {
       amountPaid: row.readNullable<double>('amount_paid') ?? 0,
       paymentMethod: row.readNullable<String>('payment_method') ?? 'CASH',
       notes: row.readNullable<String>('notes') ?? '',
-      purchaseDate: DateTime.tryParse(
-            row.readNullable<String>('purchase_date') ?? '',
-          ) ??
+      purchaseDate:
+          DateTime.tryParse(row.readNullable<String>('purchase_date') ?? '') ??
           DateTime.now(),
       actorName: _asStringOrNull(row.readNullable<String>('actor_name')),
       tombstone: (row.readNullable<int>('tombstone') ?? 0) == 1,
@@ -3281,11 +3346,16 @@ class ReportsRepository {
   ///
   /// Reads the stock-movement log rather than parsing every bill's item JSON:
   /// with tens of thousands of sales, JSON parsing would make this unusable.
-  Future<List<BestSellerItem>> bestSellers({int days = 30, int limit = 20}) async {
-    final cutoff =
-        DateTime.now().subtract(Duration(days: days)).millisecondsSinceEpoch;
-    final rows = await _db.customSelect(
-      """
+  Future<List<BestSellerItem>> bestSellers({
+    int days = 30,
+    int limit = 20,
+  }) async {
+    final cutoff = DateTime.now()
+        .subtract(Duration(days: days))
+        .millisecondsSinceEpoch;
+    final rows = await _db
+        .customSelect(
+          """
         SELECT m.item_name AS name,
                SUM(-m.delta) AS qty,
                SUM(-m.delta * COALESCE(i.price, 0)) AS revenue,
@@ -3300,13 +3370,14 @@ class ReportsRepository {
         ORDER BY qty DESC
         LIMIT ?;
       """,
-      variables: [Variable<int>(cutoff), Variable<int>(limit)],
-      readsFrom: {
-        _db.stockMovementEntries,
-        _db.inventoryEntries,
-        _db.inventoryPrivateEntries,
-      },
-    ).get();
+          variables: [Variable<int>(cutoff), Variable<int>(limit)],
+          readsFrom: {
+            _db.stockMovementEntries,
+            _db.inventoryEntries,
+            _db.inventoryPrivateEntries,
+          },
+        )
+        .get();
 
     return rows
         .map(
@@ -3331,8 +3402,9 @@ class ReportsRepository {
         .split('T')
         .first;
 
-    final row = await _db.customSelect(
-      """
+    final row = await _db
+        .customSelect(
+          """
         SELECT
           (SELECT COALESCE(SUM(total), 0) FROM sales
             WHERE tombstone = 0
@@ -3343,17 +3415,18 @@ class ReportsRepository {
           (SELECT COALESCE(SUM(amount), 0) FROM expenses
             WHERE tombstone = 0 AND expense_date >= ?) AS expenses_total;
       """,
-      variables: [
-        Variable<String>(since),
-        Variable<String>(since),
-        Variable<String>(since),
-      ],
-      readsFrom: {
-        _db.salesEntries,
-        _db.purchaseEntries,
-        _db.expenseEntries,
-      },
-    ).getSingle();
+          variables: [
+            Variable<String>(since),
+            Variable<String>(since),
+            Variable<String>(since),
+          ],
+          readsFrom: {
+            _db.salesEntries,
+            _db.purchaseEntries,
+            _db.expenseEntries,
+          },
+        )
+        .getSingle();
 
     return CashFlowSnapshot(
       salesCollected: row.readNullable<double>('sales_total') ?? 0,
@@ -3390,7 +3463,9 @@ class ReportsRepository {
                   customerName: _asStringOrNull(
                     row.readNullable<String>('customer_name'),
                   ),
-                  lines: _parseReportLines(row.readNullable<String>('items_json') ?? ''),
+                  lines: _parseReportLines(
+                    row.readNullable<String>('items_json') ?? '',
+                  ),
                 ),
               )
               .toList(growable: false),
@@ -3440,7 +3515,9 @@ class ReportsRepository {
                     : lineTotal * line.gstRate / 100;
               }
             }
-            for (final p in _parseZPayments(row.readNullable<String>('payments_json') ?? '')) {
+            for (final p in _parseZPayments(
+              row.readNullable<String>('payments_json') ?? '',
+            )) {
               final mode = p.key.isEmpty ? 'OTHER' : p.key;
               tender[mode] = (tender[mode] ?? 0) + p.value;
               collected += p.value;
@@ -3472,10 +3549,15 @@ class ReportsRepository {
     try {
       final decoded = jsonDecode(paymentsJson);
       if (decoded is! List) return const <MapEntry<String, double>>[];
-      return decoded.whereType<Map<String, dynamic>>().map((p) {
-        final mode = (p['mode'] ?? p['type'] ?? 'OTHER').toString().toUpperCase();
-        return MapEntry(mode, _asDouble(p['amount']));
-      }).toList(growable: false);
+      return decoded
+          .whereType<Map<String, dynamic>>()
+          .map((p) {
+            final mode = (p['mode'] ?? p['type'] ?? 'OTHER')
+                .toString()
+                .toUpperCase();
+            return MapEntry(mode, _asDouble(p['amount']));
+          })
+          .toList(growable: false);
     } catch (_) {
       return const <MapEntry<String, double>>[];
     }
@@ -3509,19 +3591,24 @@ class ReportsRepository {
     try {
       final decoded = jsonDecode(itemsJson);
       if (decoded is! List) return const <ReportSaleLine>[];
-      return decoded.whereType<Map<String, dynamic>>().map((item) {
-        return ReportSaleLine(
-          name: (item['name'] ?? 'Item').toString(),
-          quantity: _asDouble(item['quantity']),
-          price: _asDouble(item['price'] ?? item['unitPrice']),
-          costPrice: _asDoubleOrNull(item['costPrice'] ?? item['unit_cost']),
-          gstRate: _asDouble(item['gstRate'] ?? item['gst_rate']),
-          priceIncludesTax: _asBool(
-            item['priceIncludesTax'] ?? item['price_includes_tax'],
-            fallback: true,
-          ),
-        );
-      }).toList(growable: false);
+      return decoded
+          .whereType<Map<String, dynamic>>()
+          .map((item) {
+            return ReportSaleLine(
+              name: (item['name'] ?? 'Item').toString(),
+              quantity: _asDouble(item['quantity']),
+              price: _asDouble(item['price'] ?? item['unitPrice']),
+              costPrice: _asDoubleOrNull(
+                item['costPrice'] ?? item['unit_cost'],
+              ),
+              gstRate: _asDouble(item['gstRate'] ?? item['gst_rate']),
+              priceIncludesTax: _asBool(
+                item['priceIncludesTax'] ?? item['price_includes_tax'],
+                fallback: true,
+              ),
+            );
+          })
+          .toList(growable: false);
     } catch (_) {
       return const <ReportSaleLine>[];
     }

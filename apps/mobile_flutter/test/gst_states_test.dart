@@ -42,7 +42,10 @@ void main() {
     });
 
     test('names the state the GSTIN belongs to', () {
-      expect(gstinStateMismatch('24', '27AAAAA0000A1Z5'), contains('Maharashtra'));
+      expect(
+        gstinStateMismatch('24', '27AAAAA0000A1Z5'),
+        contains('Maharashtra'),
+      );
     });
 
     test('silent while either field is empty', () {
