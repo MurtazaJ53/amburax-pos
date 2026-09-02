@@ -693,8 +693,12 @@ String _resolvePulseRoute(String route) {
   switch (route) {
     case '/sales':
       return '/history';
+    // Billing, not the old three-tier compare page. The website retired that
+    // one because Business Hub sells a single Pro plan over four durations,
+    // and sending the phone somewhere that still quotes Starter/Growth/Pro
+    // showed the same shopkeeper two different price models.
     case '/plan':
-      return '/settings/plan';
+      return '/settings/billing';
     case '/sessions':
       return '/settings/sessions';
     case '/audit':
