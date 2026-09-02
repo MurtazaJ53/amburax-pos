@@ -9,12 +9,13 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
-final deadStockProvider =
-    StreamProvider.autoDispose.family<List<DeadStockItem>, int>(
-  (ref, days) =>
-      ref.watch(inventoryRepositoryProvider).watchDeadStock(days: days),
-);
+final deadStockProvider = StreamProvider.autoDispose
+    .family<List<DeadStockItem>, int>(
+      (ref, days) =>
+          ref.watch(inventoryRepositoryProvider).watchDeadStock(days: days),
+    );
 
 /// What money is sitting on the shelf not moving.
 ///
@@ -76,9 +77,9 @@ class _DeadStockScreenState extends ConsumerState<DeadStockScreen> {
                 Text(
                   '${items.length} item(s) unsold for $_days days'
                   '${neverSold > 0 ? '  ·  $neverSold never sold at all' : ''}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
                 ),
               ],
             ),
@@ -103,9 +104,9 @@ class _DeadStockScreenState extends ConsumerState<DeadStockScreen> {
               ),
             )
           else if (items.isEmpty)
-            MobilePanel(
+            AppPanel(
               title: 'Nothing stuck',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.check_circle_rounded,
                 title: 'Everything is moving',
                 body: 'No stock has been sitting unsold for $_days days.',
@@ -115,9 +116,9 @@ class _DeadStockScreenState extends ConsumerState<DeadStockScreen> {
             Text(
               'Worst first, by money tied up. Consider a discount, a bundle, or '
               'returning it to the supplier.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
             ),
             const SizedBox(height: 12),
             for (final item in items.take(100))
@@ -158,9 +159,9 @@ class _DeadStockTile extends StatelessWidget {
                   item.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 3),
                 Row(
@@ -208,9 +209,9 @@ class _DeadStockTile extends StatelessWidget {
               ),
               Text(
                 item.costPrice == null ? 'at sale price' : 'at cost',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors.textTertiary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: colors.textTertiary),
               ),
             ],
           ),

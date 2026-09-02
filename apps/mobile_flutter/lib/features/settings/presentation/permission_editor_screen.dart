@@ -11,6 +11,7 @@ import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Role & permission editor for a single workspace member. Fetches the module
 /// x action catalog from the backend, renders a toggle matrix seeded with the
@@ -76,8 +77,9 @@ class _PermissionEditorScreenState
           .whereType<Map>()
           .map((m) => Map<String, dynamic>.from(m))
           .toList();
-      final labels = (data['action_labels'] as Map? ?? const {})
-          .map((k, v) => MapEntry(k.toString(), v.toString()));
+      final labels = (data['action_labels'] as Map? ?? const {}).map(
+        (k, v) => MapEntry(k.toString(), v.toString()),
+      );
       // Seed toggles from the member's current permissions.
       final current = widget.member.permissions;
       for (final module in catalog) {
@@ -121,7 +123,9 @@ class _PermissionEditorScreenState
     if (session == null) return;
     setState(() => _saving = true);
     try {
-      await ref.read(backendApiClientProvider).updateWorkspaceTeamMember(
+      await ref
+          .read(backendApiClientProvider)
+          .updateWorkspaceTeamMember(
             user: session.user,
             shopId: session.shopId!,
             membershipId: widget.member.id,
@@ -132,13 +136,16 @@ class _PermissionEditorScreenState
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved permissions for ${widget.member.memberName}.')),
+        SnackBar(
+          content: Text('Saved permissions for ${widget.member.memberName}.'),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Save failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     }
   }
 
@@ -153,8 +160,9 @@ class _PermissionEditorScreenState
   }
 
   Future<void> _export() async {
-    final json = const JsonEncoder.withIndent('  ')
-        .convert(_buildPermissionsJson());
+    final json = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(_buildPermissionsJson());
     await Clipboard.setData(ClipboardData(text: json));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -180,13 +188,17 @@ class _PermissionEditorScreenState
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Permission set imported from clipboard.')),
+          const SnackBar(
+            content: Text('Permission set imported from clipboard.'),
+          ),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Clipboard did not contain a valid permission set.')),
+          const SnackBar(
+            content: Text('Clipboard did not contain a valid permission set.'),
+          ),
         );
       }
     }
@@ -223,75 +235,75 @@ class _PermissionEditorScreenState
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(_error!, textAlign: TextAlign.center),
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(_error!, textAlign: TextAlign.center),
+              ),
+            )
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+              children: [
+                AppPanel(
+                  title: 'Role',
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _assignableRoles.any((r) => r.$1 == _role)
+                        ? _role
+                        : null,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _assignableRoles
+                        .map(
+                          (r) =>
+                              DropdownMenuItem(value: r.$1, child: Text(r.$2)),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() => _role = v ?? _role),
                   ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: (v) => setState(() => _search = v),
+                  decoration: InputDecoration(
+                    hintText: 'Search modules…',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    isDense: true,
+                    filled: true,
+                    fillColor: colors.backgroundSoft,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
                   children: [
-                    MobilePanel(
-                      title: 'Role',
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _assignableRoles.any((r) => r.$1 == _role)
-                            ? _role
-                            : null,
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                        ),
-                        items: _assignableRoles
-                            .map((r) => DropdownMenuItem(
-                                value: r.$1, child: Text(r.$2)))
-                            .toList(),
-                        onChanged: (v) =>
-                            setState(() => _role = v ?? _role),
-                      ),
+                    TextButton.icon(
+                      onPressed: _resetAll,
+                      icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                      label: const Text('Clear all'),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-      textCapitalization: TextCapitalization.sentences,
-                      onChanged: (v) => setState(() => _search = v),
-                      decoration: InputDecoration(
-                        hintText: 'Search modules…',
-                        prefixIcon: const Icon(Icons.search_rounded),
-                        isDense: true,
-                        filled: true,
-                        fillColor: colors.backgroundSoft,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
+                    TextButton.icon(
+                      onPressed: _export,
+                      icon: const Icon(Icons.copy_rounded, size: 18),
+                      label: const Text('Export'),
                     ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        TextButton.icon(
-                          onPressed: _resetAll,
-                          icon: const Icon(Icons.restart_alt_rounded, size: 18),
-                          label: const Text('Clear all'),
-                        ),
-                        TextButton.icon(
-                          onPressed: _export,
-                          icon: const Icon(Icons.copy_rounded, size: 18),
-                          label: const Text('Export'),
-                        ),
-                        TextButton.icon(
-                          onPressed: _import,
-                          icon: const Icon(Icons.paste_rounded, size: 18),
-                          label: const Text('Import'),
-                        ),
-                      ],
+                    TextButton.icon(
+                      onPressed: _import,
+                      icon: const Icon(Icons.paste_rounded, size: 18),
+                      label: const Text('Import'),
                     ),
-                    const SizedBox(height: 6),
-                    for (final module in visibleModules)
-                      _moduleCard(module),
                   ],
                 ),
+                const SizedBox(height: 6),
+                for (final module in visibleModules) _moduleCard(module),
+              ],
+            ),
     );
   }
 
@@ -303,7 +315,7 @@ class _PermissionEditorScreenState
     final state = _perms[mk] ?? {};
     return Padding(
       padding: const EdgeInsets.only(top: 12),
-      child: MobilePanel(
+      child: AppPanel(
         title: module['label'].toString(),
         action: MobileTag(
           label: '${state.values.where((v) => v).length}/${actions.length}',
@@ -318,8 +330,7 @@ class _PermissionEditorScreenState
               FilterChip(
                 label: Text(_actionLabels[a] ?? a),
                 selected: state[a] ?? false,
-                onSelected: (sel) =>
-                    setState(() => _perms[mk]![a] = sel),
+                onSelected: (sel) => setState(() => _perms[mk]![a] = sel),
               ),
           ],
         ),

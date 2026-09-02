@@ -30,6 +30,7 @@ import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/sync/mobile_sync_coordinator.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 class SettingsOpsScreen extends ConsumerStatefulWidget {
   const SettingsOpsScreen({super.key});
@@ -72,9 +73,9 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            const MobilePanel(
+            const AppPanel(
               title: 'Upgrade path',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.lock_outline_rounded,
                 title: 'Advanced ops stay hidden here',
                 body:
@@ -104,7 +105,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Open security first',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,7 +302,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'Workspace identity',
             action: MobileTag(
               label: session != null && session.isOwnerLike
@@ -372,7 +373,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'Mobile runtime',
             action: MobileTag(
               label: pending > 0 ? '$pending queued' : 'Queue clear',
@@ -497,7 +498,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'App and account',
             action: MobileTag(
               label: _showAdvancedTools ? 'ADVANCED OPEN' : 'SIMPLE MODE',
@@ -602,7 +603,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'Advanced operator tools',
             action: MobileTag(
               label: _showAdvancedTools ? 'VISIBLE' : 'HIDDEN',
@@ -629,7 +630,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
           ),
           if (_showAdvancedTools) ...<Widget>[
             const SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Domain cutover map',
               action: MobileTag(
                 label:
@@ -649,7 +650,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Pilot handoff snapshot',
               action: MobileTag(
                 label: diagnostics == null ? 'Loading' : 'Copy ready',
@@ -721,7 +722,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
             const SizedBox(height: 18),
             Column(
               children: <Widget>[
-                MobilePanel(
+                AppPanel(
                   title: 'Operator action center',
                   action: MobileTag(
                     label: actionPlan == null
@@ -745,7 +746,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : AppPalette.success,
                   ),
                   child: actionPlan == null
-                      ? const MobileEmptyState(
+                      ? const AppEmptyState(
                           icon: Icons.sync_rounded,
                           title: 'Preparing operator action plan',
                           body:
@@ -955,7 +956,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                 ),
                 const SizedBox(height: 18),
-                MobilePanel(
+                AppPanel(
                   title: 'Evidence tracker',
                   action: MobileTag(
                     label: evidenceTrackerAsync.asData == null
@@ -1274,7 +1275,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                MobilePanel(
+                AppPanel(
                   title: 'Pilot readiness signoff',
                   action: MobileTag(
                     label: readinessReport == null
@@ -1296,7 +1297,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : AppPalette.error,
                   ),
                   child: readinessReport == null
-                      ? const MobileEmptyState(
+                      ? const AppEmptyState(
                           icon: Icons.sync_rounded,
                           title: 'Building readiness verdict',
                           body:
@@ -1410,7 +1411,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                 ),
                 const SizedBox(height: 18),
-                MobilePanel(
+                AppPanel(
                   title: 'Pilot smoke execution',
                   action: MobileTag(
                     label: readinessReport == null ? 'Loading' : 'Floor check',
@@ -1422,7 +1423,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : AppPalette.primary,
                   ),
                   child: diagnostics == null || readinessReport == null
-                      ? const MobileEmptyState(
+                      ? const AppEmptyState(
                           icon: Icons.sync_rounded,
                           title: 'Preparing smoke execution',
                           body:
@@ -1484,7 +1485,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                 ),
                 const SizedBox(height: 18),
-                MobilePanel(
+                AppPanel(
                   title: 'Recovery desk',
                   action: MobileTag(
                     label: attentionEntries.isEmpty
@@ -1510,7 +1511,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                       ),
                       const SizedBox(height: 14),
                       if (attentionEntries.isEmpty)
-                        const MobileEmptyState(
+                        const AppEmptyState(
                           icon: Icons.health_and_safety_rounded,
                           title: 'No recovery work is waiting',
                           body:
@@ -1626,7 +1627,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                MobilePanel(
+                AppPanel(
                   title: 'Shift closeout',
                   action: MobileTag(
                     label:
@@ -1652,7 +1653,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                       diagnostics == null ||
                           readinessReport == null ||
                           recoveryReport == null
-                      ? const MobileEmptyState(
+                      ? const AppEmptyState(
                           icon: Icons.sync_rounded,
                           title: 'Preparing shift closeout',
                           body:
@@ -1718,7 +1719,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                 ),
                 const SizedBox(height: 18),
-                MobilePanel(
+                AppPanel(
                   title: 'Rollout decision summary',
                   action: MobileTag(
                     label: rolloutDecisionSummary == null
@@ -1744,7 +1745,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : AppPalette.success,
                   ),
                   child: rolloutDecisionSummary == null
-                      ? const MobileEmptyState(
+                      ? const AppEmptyState(
                           icon: Icons.sync_rounded,
                           title: 'Preparing rollout decision summary',
                           body:
@@ -1826,7 +1827,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                 ),
                 const SizedBox(height: 18),
-                MobilePanel(
+                AppPanel(
                   title: 'Wave closeout readiness',
                   action: MobileTag(
                     label: waveCloseoutReadiness == null
@@ -1852,7 +1853,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : AppPalette.success,
                   ),
                   child: waveCloseoutReadiness == null
-                      ? const MobileEmptyState(
+                      ? const AppEmptyState(
                           icon: Icons.sync_rounded,
                           title: 'Preparing wave closeout readiness',
                           body:
@@ -1954,7 +1955,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                 ),
                 const SizedBox(height: 18),
-                MobilePanel(
+                AppPanel(
                   title: 'Wave signoff pack',
                   action: MobileTag(
                     label: waveSignoffPack == null
@@ -1980,7 +1981,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : AppPalette.success,
                   ),
                   child: waveSignoffPack == null
-                      ? const MobileEmptyState(
+                      ? const AppEmptyState(
                           icon: Icons.sync_rounded,
                           title: 'Preparing wave signoff pack',
                           body:
@@ -2055,7 +2056,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                 ),
                 const SizedBox(height: 18),
-                MobilePanel(
+                AppPanel(
                   title: 'Wave archive pack',
                   action: MobileTag(
                     label: waveArchivePack == null
@@ -2081,7 +2082,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : AppPalette.success,
                   ),
                   child: waveArchivePack == null
-                      ? const MobileEmptyState(
+                      ? const AppEmptyState(
                           icon: Icons.sync_rounded,
                           title: 'Preparing wave archive pack',
                           body:
@@ -2157,7 +2158,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                 ),
                 const SizedBox(height: 18),
-                MobilePanel(
+                AppPanel(
                   title: 'Rollout evidence pack',
                   action: MobileTag(
                     label:
@@ -2183,7 +2184,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                       diagnostics == null ||
                           readinessReport == null ||
                           recoveryReport == null
-                      ? const MobileEmptyState(
+                      ? const AppEmptyState(
                           icon: Icons.sync_rounded,
                           title: 'Preparing rollout evidence',
                           body:
@@ -2245,7 +2246,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                 ),
                 const SizedBox(height: 18),
-                MobilePanel(
+                AppPanel(
                   title: 'Incident escalation pack',
                   action: MobileTag(
                     label:
@@ -2271,7 +2272,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                       diagnostics == null ||
                           readinessReport == null ||
                           recoveryReport == null
-                      ? const MobileEmptyState(
+                      ? const AppEmptyState(
                           icon: Icons.sync_rounded,
                           title: 'Preparing escalation pack',
                           body:
@@ -2463,7 +2464,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         }),
                         const SizedBox(height: 6),
                         TextField(
-      textCapitalization: TextCapitalization.sentences,
+                          textCapitalization: TextCapitalization.sentences,
                           controller: notesController,
                           minLines: 2,
                           maxLines: 4,
@@ -2653,7 +2654,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                         const SizedBox(height: 14),
                         TextField(
-      textCapitalization: TextCapitalization.sentences,
+                          textCapitalization: TextCapitalization.sentences,
                           controller: notesController,
                           minLines: 2,
                           maxLines: 4,
@@ -2849,7 +2850,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                         const SizedBox(height: 12),
                         TextField(
-      textCapitalization: TextCapitalization.sentences,
+                          textCapitalization: TextCapitalization.sentences,
                           controller: smokeNotesController,
                           minLines: 2,
                           maxLines: 3,
@@ -2897,7 +2898,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                         const SizedBox(height: 12),
                         TextField(
-      textCapitalization: TextCapitalization.sentences,
+                          textCapitalization: TextCapitalization.sentences,
                           controller: closeoutNotesController,
                           minLines: 2,
                           maxLines: 3,
@@ -2943,7 +2944,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                         const SizedBox(height: 12),
                         TextField(
-      textCapitalization: TextCapitalization.sentences,
+                          textCapitalization: TextCapitalization.sentences,
                           controller: rolloutNotesController,
                           minLines: 2,
                           maxLines: 4,
@@ -3190,7 +3191,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         ),
                         const SizedBox(height: 14),
                         TextField(
-      textCapitalization: TextCapitalization.sentences,
+                          textCapitalization: TextCapitalization.sentences,
                           controller: notesController,
                           minLines: 2,
                           maxLines: 4,
@@ -3363,7 +3364,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                       ),
                       const SizedBox(height: 12),
                       TextField(
-      textCapitalization: TextCapitalization.sentences,
+                        textCapitalization: TextCapitalization.sentences,
                         controller: footerController,
                         minLines: 2,
                         maxLines: 3,

@@ -140,4 +140,3 @@ class _PosScannerSheetState extends State<PosScannerSheet> {
     );
   }
 }
-

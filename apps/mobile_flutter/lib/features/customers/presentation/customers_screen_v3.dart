@@ -51,7 +51,7 @@ class _CustomersScreenV3State extends ConsumerState<CustomersScreenV3> {
     final searchingServer = query.length >= 2;
     final serverResults = searchingServer
         ? (ref.watch(customerSearchProvider(query)).asData?.value ??
-            const <BackendCustomerSummary>[])
+              const <BackendCustomerSummary>[])
         : null;
     final baseList = serverResults ?? customers;
 
@@ -163,8 +163,10 @@ class _CustomersScreenV3State extends ConsumerState<CustomersScreenV3> {
             ),
             child: Row(
               children: <Widget>[
-                const Icon(Icons.account_balance_wallet_rounded,
-                    color: AppPalette.warning),
+                const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: AppPalette.warning,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -360,7 +362,7 @@ class _CustomersScreenV3State extends ConsumerState<CustomersScreenV3> {
       subtitle: (customer.phone ?? '').isEmpty
           ? (hasDues ? 'Due: ${formatCurrency(customer.balance)}' : 'No dues')
           : '${customer.phone}${hasDues ? ' • Due: ${formatCurrency(customer.balance)}' : ''}'
-              '${customer.loyaltyPoints > 0 ? ' • ${customer.loyaltyPoints} pts' : ''}',
+                '${customer.loyaltyPoints > 0 ? ' • ${customer.loyaltyPoints} pts' : ''}',
       leadingIcon: Icons.person_rounded,
       leadingColor: hasDues ? AppPalette.warning : AppPalette.customer,
       trailing: hasDues
@@ -572,10 +574,15 @@ class _CustomersScreenV3State extends ConsumerState<CustomersScreenV3> {
       // pay link silently never appeared in the reminder.
       upiVpa: shop?.upiVpa ?? '',
     );
-    final ok = await openWhatsApp(phone: customer.phone ?? '', message: message);
+    final ok = await openWhatsApp(
+      phone: customer.phone ?? '',
+      message: message,
+    );
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open WhatsApp for this number.')),
+        const SnackBar(
+          content: Text('Could not open WhatsApp for this number.'),
+        ),
       );
     }
   }
@@ -652,13 +659,13 @@ class _CustomersScreenV3State extends ConsumerState<CustomersScreenV3> {
                               e.isPayment
                                   ? Icons.south_west_rounded
                                   : e.isOpening
-                                      ? Icons.flag_rounded
-                                      : Icons.north_east_rounded,
+                                  ? Icons.flag_rounded
+                                  : Icons.north_east_rounded,
                               color: e.isPayment
                                   ? AppPalette.success
                                   : e.isOpening
-                                      ? AppPalette.info
-                                      : AppPalette.error,
+                                  ? AppPalette.info
+                                  : AppPalette.error,
                             ),
                             title: Text(
                               '${e.typeLabel} '
@@ -772,38 +779,32 @@ class _CustomersScreenV3State extends ConsumerState<CustomersScreenV3> {
                 offline = true;
               }
 
-              final id = synced?.id ??
+              final id =
+                  synced?.id ??
                   existing?.id ??
                   'local-cust-${now.microsecondsSinceEpoch}';
-              await repo.mergeRemoteCustomerDocument(
-                id,
-                <String, dynamic>{
-                  'name': name,
-                  'phone': phone,
-                  'email': email,
-                  'notes': notes,
-                  'status': 'active',
-                  'balance':
-                      synced?.balance ?? (isEdit ? existing.balance : opening),
-                  'total_spent':
-                      synced?.totalSpent ?? (isEdit ? existing.totalSpent : 0),
-                  'tombstone': false,
-                  'updatedAt': now.toIso8601String(),
-                },
-                updatedAt: now.millisecondsSinceEpoch,
-              );
+              await repo.mergeRemoteCustomerDocument(id, <String, dynamic>{
+                'name': name,
+                'phone': phone,
+                'email': email,
+                'notes': notes,
+                'status': 'active',
+                'balance':
+                    synced?.balance ?? (isEdit ? existing.balance : opening),
+                'total_spent':
+                    synced?.totalSpent ?? (isEdit ? existing.totalSpent : 0),
+                'tombstone': false,
+                'updatedAt': now.toIso8601String(),
+              }, updatedAt: now.millisecondsSinceEpoch);
               // If a local-only customer was just promoted to a real server
               // record, tombstone the stale local row so it isn't duplicated.
               if (synced != null && isEdit && !existingIsRemote) {
-                await repo.mergeRemoteCustomerDocument(
-                  existing.id,
-                  <String, dynamic>{
-                    'tombstone': true,
-                    'status': 'archived',
-                    'updatedAt': now.toIso8601String(),
-                  },
-                  updatedAt: now.millisecondsSinceEpoch,
-                );
+                await repo
+                    .mergeRemoteCustomerDocument(existing.id, <String, dynamic>{
+                      'tombstone': true,
+                      'status': 'archived',
+                      'updatedAt': now.toIso8601String(),
+                    }, updatedAt: now.millisecondsSinceEpoch);
               }
               ref.invalidate(customersProvider);
               if (!sheetContext.mounted) return;
@@ -820,9 +821,9 @@ class _CustomersScreenV3State extends ConsumerState<CustomersScreenV3> {
             } catch (error) {
               if (!sheetContext.mounted) return;
               setSheetState(() => isSaving = false);
-              ScaffoldMessenger.of(sheetContext).showSnackBar(
-                SnackBar(content: Text('Save failed: $error')),
-              );
+              ScaffoldMessenger.of(
+                sheetContext,
+              ).showSnackBar(SnackBar(content: Text('Save failed: $error')));
             }
           }
 
@@ -885,7 +886,7 @@ class _CustomersScreenV3State extends ConsumerState<CustomersScreenV3> {
                       ),
                       const SizedBox(height: 12),
                       TextField(
-      textCapitalization: TextCapitalization.sentences,
+                        textCapitalization: TextCapitalization.sentences,
                         controller: notesController,
                         decoration: const InputDecoration(
                           labelText: 'Notes (optional)',
@@ -969,9 +970,9 @@ class _CustomersScreenV3State extends ConsumerState<CustomersScreenV3> {
             } catch (error) {
               if (!sheetContext.mounted) return;
               setSheetState(() => isSaving = false);
-              ScaffoldMessenger.of(sheetContext).showSnackBar(
-                SnackBar(content: Text('Failed: $error')),
-              );
+              ScaffoldMessenger.of(
+                sheetContext,
+              ).showSnackBar(SnackBar(content: Text('Failed: $error')));
             }
           }
 
@@ -1006,7 +1007,10 @@ class _CustomersScreenV3State extends ConsumerState<CustomersScreenV3> {
                     const SizedBox(height: 24),
                     const Text(
                       'Record payment',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(

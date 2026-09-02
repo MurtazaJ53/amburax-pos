@@ -7,6 +7,7 @@ import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 double _num(Object? value) {
   if (value is num) return value.toDouble();
@@ -19,39 +20,37 @@ String _showQty(Object? value) {
   return n == n.roundToDouble() ? n.toStringAsFixed(0) : n.toString();
 }
 
-final purchaseOrdersProvider =
-    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  final session = ref.watch(mobileSessionProvider).asData?.value;
-  if (session == null || !session.hasShop) return const <String, dynamic>{};
-  return ref.read(backendApiClientProvider).fetchPurchaseOrders(
-        user: session.user,
-        shopId: session.shopId!,
-      );
-});
+final purchaseOrdersProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
+  (ref) async {
+    final session = ref.watch(mobileSessionProvider).asData?.value;
+    if (session == null || !session.hasShop) return const <String, dynamic>{};
+    return ref
+        .read(backendApiClientProvider)
+        .fetchPurchaseOrders(user: session.user, shopId: session.shopId!);
+  },
+);
 
 final orderSuppliersProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final session = ref.watch(mobileSessionProvider).asData?.value;
-  if (session == null || !session.hasShop) {
-    return const <Map<String, dynamic>>[];
-  }
-  return ref.read(backendApiClientProvider).fetchSuppliers(
-        user: session.user,
-        shopId: session.shopId!,
-      );
-});
+      final session = ref.watch(mobileSessionProvider).asData?.value;
+      if (session == null || !session.hasShop) {
+        return const <Map<String, dynamic>>[];
+      }
+      return ref
+          .read(backendApiClientProvider)
+          .fetchSuppliers(user: session.user, shopId: session.shopId!);
+    });
 
 final orderStockItemsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final session = ref.watch(mobileSessionProvider).asData?.value;
-  if (session == null || !session.hasShop) {
-    return const <Map<String, dynamic>>[];
-  }
-  return ref.read(backendApiClientProvider).fetchInventoryItems(
-        user: session.user,
-        shopId: session.shopId!,
-      );
-});
+      final session = ref.watch(mobileSessionProvider).asData?.value;
+      if (session == null || !session.hasShop) {
+        return const <Map<String, dynamic>>[];
+      }
+      return ref
+          .read(backendApiClientProvider)
+          .fetchInventoryItems(user: session.user, shopId: session.shopId!);
+    });
 
 /// What is on order, and booking in what actually turned up.
 ///
@@ -69,8 +68,9 @@ class _PurchaseOrdersScreenState extends ConsumerState<PurchaseOrdersScreen> {
   bool _canOrder(MobileSession s) => s.isOwner || s.isAdmin || s.isManager;
 
   void _toast(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -109,8 +109,7 @@ class _PurchaseOrdersScreenState extends ConsumerState<PurchaseOrdersScreen> {
                     label: 'Overdue',
                     value: '$overdue',
                     icon: Icons.schedule_rounded,
-                    accent:
-                        overdue > 0 ? AppPalette.error : AppPalette.success,
+                    accent: overdue > 0 ? AppPalette.error : AppPalette.success,
                   ),
                 ),
               ],
@@ -138,7 +137,7 @@ class _PurchaseOrdersScreenState extends ConsumerState<PurchaseOrdersScreen> {
                 ),
               )
             else if (async.hasError)
-              MobilePanel(
+              AppPanel(
                 title: 'Could not load orders',
                 child: Text(
                   'Check your connection and pull down to try again.',
@@ -146,12 +145,13 @@ class _PurchaseOrdersScreenState extends ConsumerState<PurchaseOrdersScreen> {
                 ),
               )
             else if (orders.isEmpty)
-              const MobilePanel(
+              const AppPanel(
                 title: 'Nothing on order',
-                child: MobileEmptyState(
+                child: AppEmptyState(
                   icon: Icons.receipt_long_outlined,
                   title: 'No purchase orders yet',
-                  body: 'Raising an order changes no stock and owes the '
+                  body:
+                      'Raising an order changes no stock and owes the '
                       'supplier nothing. Both happen when you book in the '
                       'delivery.',
                 ),
@@ -225,7 +225,7 @@ class _OrderCard extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: MobilePanel(
+      child: AppPanel(
         title: (order['reference'] ?? '').toString(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,8 +333,9 @@ class _ReceiveSheetState extends ConsumerState<_ReceiveSheet> {
   }
 
   void _toast(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _submit(List<Map<String, dynamic>> lines) async {
@@ -367,7 +368,9 @@ class _ReceiveSheetState extends ConsumerState<_ReceiveSheet> {
 
     setState(() => _saving = true);
     try {
-      await ref.read(backendApiClientProvider).receivePurchaseOrder(
+      await ref
+          .read(backendApiClientProvider)
+          .receivePurchaseOrder(
             user: session.user,
             shopId: session.shopId!,
             orderId: (widget.order['id'] ?? '').toString(),
@@ -400,7 +403,8 @@ class _ReceiveSheetState extends ConsumerState<_ReceiveSheet> {
         children: <Widget>[
           MobileSheetHeader(
             title: 'Book in ${widget.order['reference']}',
-            subtitle: 'Enter what actually arrived. A short delivery is normal '
+            subtitle:
+                'Enter what actually arrived. A short delivery is normal '
                 '— the rest stays outstanding.',
             icon: Icons.inventory_rounded,
           ),
@@ -441,8 +445,9 @@ class _ReceiveSheetState extends ConsumerState<_ReceiveSheet> {
                         (line['id'] ?? '').toString(),
                         TextEditingController.new,
                       ),
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       textAlign: TextAlign.center,
                       decoration: InputDecoration(
                         hintText: _showQty(line['quantity_outstanding']),
@@ -495,8 +500,9 @@ class _OrderComposerSheetState extends ConsumerState<_OrderComposerSheet> {
   }
 
   void _toast(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _submit(List<Map<String, dynamic>> items) async {
@@ -526,13 +532,14 @@ class _OrderComposerSheetState extends ConsumerState<_OrderComposerSheet> {
 
     setState(() => _saving = true);
     try {
-      await ref.read(backendApiClientProvider).createPurchaseOrder(
+      await ref
+          .read(backendApiClientProvider)
+          .createPurchaseOrder(
             user: session.user,
             shopId: session.shopId!,
             lines: lines,
             supplierId: _supplierId,
-            expectedDate:
-                _expected?.toIso8601String().split('T').first,
+            expectedDate: _expected?.toIso8601String().split('T').first,
           );
       if (mounted) Navigator.of(context).pop();
     } on BackendApiException catch (error) {
@@ -547,9 +554,11 @@ class _OrderComposerSheetState extends ConsumerState<_OrderComposerSheet> {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final suppliers = ref.watch(orderSuppliersProvider).asData?.value ??
+    final suppliers =
+        ref.watch(orderSuppliersProvider).asData?.value ??
         const <Map<String, dynamic>>[];
-    final items = ref.watch(orderStockItemsProvider).asData?.value ??
+    final items =
+        ref.watch(orderStockItemsProvider).asData?.value ??
         const <Map<String, dynamic>>[];
 
     return DraggableScrollableSheet(
@@ -561,7 +570,8 @@ class _OrderComposerSheetState extends ConsumerState<_OrderComposerSheet> {
         children: <Widget>[
           const MobileSheetHeader(
             title: 'New purchase order',
-            subtitle: 'This moves no stock and owes nothing until you book in '
+            subtitle:
+                'This moves no stock and owes nothing until you book in '
                 'the delivery.',
             icon: Icons.add_shopping_cart_outlined,
           ),
@@ -633,8 +643,9 @@ class _OrderComposerSheetState extends ConsumerState<_OrderComposerSheet> {
                         (item['id'] ?? '').toString(),
                         TextEditingController.new,
                       ),
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       textAlign: TextAlign.center,
                       decoration: const InputDecoration(hintText: 'Qty'),
                     ),
@@ -647,8 +658,9 @@ class _OrderComposerSheetState extends ConsumerState<_OrderComposerSheet> {
                         (item['id'] ?? '').toString(),
                         TextEditingController.new,
                       ),
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       textAlign: TextAlign.center,
                       decoration: const InputDecoration(hintText: 'Cost'),
                     ),

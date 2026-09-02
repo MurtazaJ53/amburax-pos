@@ -13,6 +13,7 @@ import '../../../core/session/mobile_session_controller.dart';
 import '../../shell/presentation/mobile_surface.dart';
 import 'invite_share_sheet.dart';
 import 'permission_editor_screen.dart';
+import '../../../ui/ui.dart';
 
 class SettingsTeamScreen extends ConsumerWidget {
   const SettingsTeamScreen({super.key});
@@ -32,9 +33,9 @@ class SettingsTeamScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
           children: const <Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Loading workspace team',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.sync_rounded,
                 title: 'Checking access',
                 body:
@@ -52,9 +53,9 @@ class SettingsTeamScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
           children: const <Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Owner/admin only',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.lock_outline_rounded,
                 title: 'Team control stays elevated',
                 body:
@@ -89,7 +90,7 @@ class SettingsTeamScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'How staff joins',
             action: const MobileTag(
               label: 'SIGN-IN FLOW',
@@ -119,7 +120,7 @@ class SettingsTeamScreen extends ConsumerWidget {
             const _CloudInvitePanel(),
           ],
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'Team roster',
             action: MobileTag(
               label: members.isEmpty
@@ -129,7 +130,7 @@ class SettingsTeamScreen extends ConsumerWidget {
               accent: AppPalette.primary,
             ),
             child: members.isEmpty
-                ? MobileEmptyState(
+                ? AppEmptyState(
                     icon: membersAsync.isLoading
                         ? Icons.sync_rounded
                         : Icons.group_off_rounded,
@@ -159,7 +160,7 @@ class SettingsTeamScreen extends ConsumerWidget {
                   ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'Add member',
             action: const MobileTag(
               label: 'OWNER / ADMIN',
@@ -290,7 +291,7 @@ class SettingsTeamScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 12),
                           TextField(
-      textCapitalization: TextCapitalization.sentences,
+                            textCapitalization: TextCapitalization.sentences,
                             controller: nameController,
                             decoration: const InputDecoration(
                               labelText: 'Full name',
@@ -839,8 +840,9 @@ class _CloudInvitePanelState extends ConsumerState<_CloudInvitePanel> {
       _lastCode = result.code;
     });
     if (result.error != null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(result.error!)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.error!)));
     } else {
       _emailController.clear();
       // Honest feedback: distinguish "email delivered" from "invite created
@@ -848,17 +850,18 @@ class _CloudInvitePanelState extends ConsumerState<_CloudInvitePanel> {
       final msg = result.emailSent
           ? 'Invite emailed to $email.'
           : 'Invite created. Email not delivered'
-              '${result.emailError.isNotEmpty ? ' (${result.emailError})' : ''} '
-              '- share the code below instead.';
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 6)));
+                '${result.emailError.isNotEmpty ? ' (${result.emailError})' : ''} '
+                '- share the code below instead.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), duration: const Duration(seconds: 6)),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return MobilePanel(
+    return AppPanel(
       title: 'Invite a teammate',
       action: const MobileTag(
         label: 'CLOUD',
@@ -871,10 +874,9 @@ class _CloudInvitePanelState extends ConsumerState<_CloudInvitePanel> {
           Text(
             'They get an email with a code. In the app they choose '
             '"Join with a code" to set a password and join your shop.',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: colors.textSecondary),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -910,8 +912,9 @@ class _CloudInvitePanelState extends ConsumerState<_CloudInvitePanel> {
                     ),
                   ),
                   items: _roles
-                      .map((r) => DropdownMenuItem(
-                          value: r.$1, child: Text(r.$2)))
+                      .map(
+                        (r) => DropdownMenuItem(value: r.$1, child: Text(r.$2)),
+                      )
                       .toList(),
                   onChanged: (v) => setState(() => _role = v ?? 'cashier'),
                 ),
@@ -930,7 +933,9 @@ class _CloudInvitePanelState extends ConsumerState<_CloudInvitePanel> {
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2),
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Text('Invite'),
                 ),
@@ -948,15 +953,18 @@ class _CloudInvitePanelState extends ConsumerState<_CloudInvitePanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Share this code directly if needed:',
-                      style: Theme.of(context).textTheme.bodySmall),
+                  Text(
+                    'Share this code directly if needed:',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                   const SizedBox(height: 4),
                   SelectableText(
                     _lastCode!,
                     style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13),
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),

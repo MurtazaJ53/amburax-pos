@@ -103,6 +103,7 @@ class _CheckoutPaymentSheetState extends State<CheckoutPaymentSheet> {
     }
     return sum;
   }
+
   double get _due => _resolution.dueFor(widget.cartTotal);
   double get _change => _resolution.change;
 
@@ -132,9 +133,9 @@ class _CheckoutPaymentSheetState extends State<CheckoutPaymentSheet> {
         note: 'Bill ${widget.shopName}',
       );
     } on UpiRequestError catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
       return;
     }
     showDialog<void>(
@@ -200,7 +201,9 @@ class _CheckoutPaymentSheetState extends State<CheckoutPaymentSheet> {
     final isSplit = _lines.length > 1;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: colors.background,
@@ -332,7 +335,8 @@ class _CheckoutPaymentSheetState extends State<CheckoutPaymentSheet> {
                 // Picking UPI shows the collect-QR straight away for the exact
                 // amount on that line — the cashier shouldn't have to hunt for
                 // a button before the customer can scan.
-                if (_upiAmount > 0 && widget.upiVpa.trim().isNotEmpty) ...<Widget>[
+                if (_upiAmount > 0 &&
+                    widget.upiVpa.trim().isNotEmpty) ...<Widget>[
                   const SizedBox(height: 12),
                   _UpiCollectCard(
                     vpa: widget.upiVpa.trim(),
@@ -422,15 +426,18 @@ class _LoyaltyRedeemCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              const Icon(Icons.card_giftcard_rounded,
-                  color: AppPalette.success, size: 20),
+              const Icon(
+                Icons.card_giftcard_rounded,
+                color: AppPalette.success,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '$available points available',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               if (redeeming > 0)
@@ -453,9 +460,9 @@ class _LoyaltyRedeemCard extends StatelessWidget {
               // Be explicit that the bill caps it, so a cashier isn't confused
               // when a big balance only knocks off part of a small bill.
               'Up to $maxRedeemable can be used on this bill',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
             ),
           Slider(
             value: redeeming.toDouble().clamp(0, maxRedeemable.toDouble()),
@@ -510,9 +517,9 @@ class _UpiCollectCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Scan to pay',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
               ),
               const Spacer(),
               Text(
@@ -529,26 +536,26 @@ class _UpiCollectCard extends StatelessWidget {
             Text(
               'Add a valid UPI ID in Business settings to show a payment QR.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textTertiary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.textTertiary),
             )
           else ...<Widget>[
             UpiQrView(data: uri, size: 190),
             const SizedBox(height: 8),
             Text(
               vpa,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textTertiary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.textTertiary),
             ),
             const SizedBox(height: 6),
             Text(
               'Confirm the payment in your UPI app, then complete the sale.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.textTertiary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: colors.textTertiary),
             ),
           ],
         ],

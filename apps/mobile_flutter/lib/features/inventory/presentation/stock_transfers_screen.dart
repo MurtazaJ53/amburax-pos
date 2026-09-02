@@ -8,6 +8,7 @@ import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Quantities arrive from DRF as JSON strings.
 double _qty(Object? value) {
@@ -21,43 +22,46 @@ String _showQty(Object? value) {
   return n == n.roundToDouble() ? n.toStringAsFixed(0) : n.toString();
 }
 
-final stockTransfersProvider =
-    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  final session = ref.watch(mobileSessionProvider).asData?.value;
-  if (session == null || !session.hasShop) return const <String, dynamic>{};
-  return ref.read(backendApiClientProvider).fetchStockTransfers(
-        user: session.user,
-        shopId: session.shopId!,
-      );
-});
+final stockTransfersProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
+  (ref) async {
+    final session = ref.watch(mobileSessionProvider).asData?.value;
+    if (session == null || !session.hasShop) return const <String, dynamic>{};
+    return ref
+        .read(backendApiClientProvider)
+        .fetchStockTransfers(user: session.user, shopId: session.shopId!);
+  },
+);
 
 /// Every other shop this account belongs to — a transfer needs somewhere to go.
 final transferDestinationsProvider =
     FutureProvider.autoDispose<List<ShopMembershipAccessRecord>>((ref) async {
-  final session = ref.watch(mobileSessionProvider).asData?.value;
-  if (session == null || !session.hasShop) {
-    return const <ShopMembershipAccessRecord>[];
-  }
-  final all = await ref
-      .read(backendApiClientProvider)
-      .getShopMemberships(user: session.user);
-  return all.where((m) => m.shopId != session.shopId).toList(growable: false);
-});
+      final session = ref.watch(mobileSessionProvider).asData?.value;
+      if (session == null || !session.hasShop) {
+        return const <ShopMembershipAccessRecord>[];
+      }
+      final all = await ref
+          .read(backendApiClientProvider)
+          .getShopMemberships(user: session.user);
+      return all
+          .where((m) => m.shopId != session.shopId)
+          .toList(growable: false);
+    });
 
 final transferStockItemsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final session = ref.watch(mobileSessionProvider).asData?.value;
-  if (session == null || !session.hasShop) {
-    return const <Map<String, dynamic>>[];
-  }
-  final rows = await ref.read(backendApiClientProvider).fetchInventoryItems(
-        user: session.user,
-        shopId: session.shopId!,
-      );
-  // Nothing on the shelf cannot be sent, so keep it out of the picker rather
-  // than letting the server reject it after the fact.
-  return rows.where((r) => _qty(r['stock_on_hand']) > 0).toList(growable: false);
-});
+      final session = ref.watch(mobileSessionProvider).asData?.value;
+      if (session == null || !session.hasShop) {
+        return const <Map<String, dynamic>>[];
+      }
+      final rows = await ref
+          .read(backendApiClientProvider)
+          .fetchInventoryItems(user: session.user, shopId: session.shopId!);
+      // Nothing on the shelf cannot be sent, so keep it out of the picker rather
+      // than letting the server reject it after the fact.
+      return rows
+          .where((r) => _qty(r['stock_on_hand']) > 0)
+          .toList(growable: false);
+    });
 
 /// Moving stock between the owner's shops.
 ///
@@ -101,8 +105,9 @@ class _StockTransfersScreenState extends ConsumerState<StockTransfersScreen> {
   }
 
   void _toast(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -132,9 +137,7 @@ class _StockTransfersScreenState extends ConsumerState<StockTransfersScreen> {
                     label: 'To receive',
                     value: '$incoming',
                     icon: Icons.call_received_rounded,
-                    accent: incoming > 0
-                        ? AppPalette.warning
-                        : AppPalette.info,
+                    accent: incoming > 0 ? AppPalette.warning : AppPalette.info,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -166,7 +169,7 @@ class _StockTransfersScreenState extends ConsumerState<StockTransfersScreen> {
                 ),
               )
             else if (async.hasError)
-              MobilePanel(
+              AppPanel(
                 title: 'Could not load transfers',
                 child: Text(
                   'Check your connection and pull down to try again.',
@@ -174,12 +177,13 @@ class _StockTransfersScreenState extends ConsumerState<StockTransfersScreen> {
                 ),
               )
             else if (transfers.isEmpty)
-              const MobilePanel(
+              const AppPanel(
                 title: 'Nothing in transit',
-                child: MobileEmptyState(
+                child: AppEmptyState(
                   icon: Icons.swap_horiz_rounded,
                   title: 'No transfers yet',
-                  body: 'Transfers move stock between your shops. Nothing '
+                  body:
+                      'Transfers move stock between your shops. Nothing '
                       'arrives until the receiving shop confirms it.',
                 ),
               )
@@ -264,7 +268,7 @@ class _TransferCard extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: MobilePanel(
+      child: AppPanel(
         title: (transfer['reference'] ?? '').toString(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,7 +405,9 @@ class _TransferComposerSheetState
 
     setState(() => _sending = true);
     try {
-      await ref.read(backendApiClientProvider).dispatchStockTransfer(
+      await ref
+          .read(backendApiClientProvider)
+          .dispatchStockTransfer(
             user: session.user,
             shopId: session.shopId!,
             destinationShopId: _destinationId!,
@@ -419,8 +425,9 @@ class _TransferComposerSheetState
   }
 
   void _toast(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -428,8 +435,9 @@ class _TransferComposerSheetState
     final colors = AppColors.of(context);
     final destinations =
         ref.watch(transferDestinationsProvider).asData?.value ??
-            const <ShopMembershipAccessRecord>[];
-    final items = ref.watch(transferStockItemsProvider).asData?.value ??
+        const <ShopMembershipAccessRecord>[];
+    final items =
+        ref.watch(transferStockItemsProvider).asData?.value ??
         const <Map<String, dynamic>>[];
 
     return DraggableScrollableSheet(
@@ -441,14 +449,15 @@ class _TransferComposerSheetState
         children: <Widget>[
           const MobileSheetHeader(
             title: 'Send stock',
-            subtitle: 'The stock leaves this shop now. It only appears at the '
+            subtitle:
+                'The stock leaves this shop now. It only appears at the '
                 'other shop once someone there confirms it arrived.',
             icon: Icons.local_shipping_outlined,
           ),
           const SizedBox(height: 16),
 
           if (destinations.isEmpty)
-            MobilePanel(
+            AppPanel(
               title: 'Nowhere to send it',
               child: Text(
                 'Transfers move stock between your shops. This account is a '
@@ -519,8 +528,9 @@ class _TransferComposerSheetState
                       SizedBox(
                         width: 84,
                         child: TextField(
-                          controller:
-                              _controllerFor((item['id'] ?? '').toString()),
+                          controller: _controllerFor(
+                            (item['id'] ?? '').toString(),
+                          ),
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),

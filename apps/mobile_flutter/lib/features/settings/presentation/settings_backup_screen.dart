@@ -10,6 +10,7 @@ import '../../../core/backup/backup_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 class SettingsBackupScreen extends ConsumerStatefulWidget {
   const SettingsBackupScreen({super.key});
@@ -45,15 +46,15 @@ class _SettingsBackupScreenState extends ConsumerState<SettingsBackupScreen> {
     try {
       final file = await ref.read(backupServiceProvider).createBackup();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Backup saved: ${_name(file)}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Backup saved: ${_name(file)}')));
       await _refresh();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Backup failed: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Backup failed: $error')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -71,9 +72,9 @@ class _SettingsBackupScreenState extends ConsumerState<SettingsBackupScreen> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$label export failed: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$label export failed: $error')));
     }
   }
 
@@ -122,9 +123,9 @@ class _SettingsBackupScreenState extends ConsumerState<SettingsBackupScreen> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Restore failed: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Restore failed: $error')));
     }
   }
 
@@ -150,7 +151,7 @@ class _SettingsBackupScreenState extends ConsumerState<SettingsBackupScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
         children: <Widget>[
-          MobilePanel(
+          AppPanel(
             title: 'Backup',
             action: const MobileTag(
               label: 'ON THIS DEVICE',
@@ -190,7 +191,7 @@ class _SettingsBackupScreenState extends ConsumerState<SettingsBackupScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: L.of(context).backupSaved,
             action: MobileTag(
               label: '${_backups.length}',
@@ -202,7 +203,7 @@ class _SettingsBackupScreenState extends ConsumerState<SettingsBackupScreen> {
                     child: Center(child: CircularProgressIndicator()),
                   )
                 : _backups.isEmpty
-                ? const MobileEmptyState(
+                ? const AppEmptyState(
                     icon: Icons.inbox_rounded,
                     title: 'No backups yet',
                     body: 'Tap "Create backup now" to make your first one.',
@@ -258,7 +259,7 @@ class _SettingsBackupScreenState extends ConsumerState<SettingsBackupScreen> {
                   ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'Export to CSV',
             action: const MobileTag(
               label: 'FOR EXCEL',
@@ -313,9 +314,9 @@ class _SettingsBackupScreenState extends ConsumerState<SettingsBackupScreen> {
             'Backups and exports are stored on this device (in business-hub-'
             'backups / business-hub-exports). Copy them to Google Drive or a '
             'computer for off-device safety.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.textTertiary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.textTertiary),
           ),
         ],
       ),

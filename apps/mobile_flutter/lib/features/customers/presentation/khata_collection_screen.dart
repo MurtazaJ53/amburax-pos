@@ -16,6 +16,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/util/whatsapp.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 final khataDebtorsProvider = StreamProvider.autoDispose<List<KhataDebtor>>(
   (ref) => ref.watch(customerRepositoryProvider).watchDebtors(),
@@ -60,12 +61,13 @@ class _KhataCollectionScreenState extends ConsumerState<KhataCollectionScreen> {
     final session = ref.read(mobileSessionProvider).asData?.value;
     if (session == null || !session.hasShop) return '';
     try {
-      final result =
-          await ref.read(backendApiClientProvider).createCustomerStatementLink(
-                user: session.user,
-                shopId: session.shopId!,
-                customerId: debtor.id,
-              );
+      final result = await ref
+          .read(backendApiClientProvider)
+          .createCustomerStatementLink(
+            user: session.user,
+            shopId: session.shopId!,
+            customerId: debtor.id,
+          );
       final path = (result['path'] ?? '').toString();
       if (path.isEmpty) return '';
       return '${origin.replaceAll(RegExp(r"/$"), "")}$path';
@@ -91,9 +93,9 @@ class _KhataCollectionScreenState extends ConsumerState<KhataCollectionScreen> {
     if (opened) {
       // Via the coordinator so the reminder is shared with the web and every
       // other device, not just this phone.
-      await ref.read(mobileSyncCoordinatorProvider).markCustomerReminded(
-            debtor.id,
-          );
+      await ref
+          .read(mobileSyncCoordinatorProvider)
+          .markCustomerReminded(debtor.id);
     }
     return opened;
   }
@@ -102,9 +104,7 @@ class _KhataCollectionScreenState extends ConsumerState<KhataCollectionScreen> {
     final ok = await _remind(debtor);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not open WhatsApp for ${debtor.name}.'),
-        ),
+        SnackBar(content: Text('Could not open WhatsApp for ${debtor.name}.')),
       );
     }
   }
@@ -161,7 +161,7 @@ class _KhataCollectionScreenState extends ConsumerState<KhataCollectionScreen> {
             ok
                 ? 'Sent to ${debtor.name}. Continue with ${queue[i + 1].name}?'
                 : 'Could not open WhatsApp for ${debtor.name}. Skip and '
-                    'continue with ${queue[i + 1].name}?',
+                      'continue with ${queue[i + 1].name}?',
           ),
           actions: <Widget>[
             TextButton(
@@ -179,9 +179,9 @@ class _KhataCollectionScreenState extends ConsumerState<KhataCollectionScreen> {
     }
     if (mounted) {
       setState(() => _running = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reminder run finished.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Reminder run finished.')));
     }
   }
 
@@ -270,16 +270,16 @@ class _KhataCollectionScreenState extends ConsumerState<KhataCollectionScreen> {
               ),
             )
           else if (visible.isEmpty)
-            MobilePanel(
+            AppPanel(
               title: _onlyOverdue ? 'Nothing overdue' : 'No dues',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.check_circle_rounded,
                 title: _onlyOverdue
                     ? 'Everyone has been reminded recently'
                     : 'No customer owes you money',
                 body: _onlyOverdue
                     ? 'Turn off "Only overdue" to see every customer with a '
-                        'balance.'
+                          'balance.'
                     : 'Credit sales will appear here automatically.',
               ),
             )
@@ -297,9 +297,9 @@ class _KhataCollectionScreenState extends ConsumerState<KhataCollectionScreen> {
           Text(
             'The message includes a UPI pay link for the exact amount, so the '
             'customer can clear their balance in one tap.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.textTertiary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.textTertiary),
           ),
         ],
       ),

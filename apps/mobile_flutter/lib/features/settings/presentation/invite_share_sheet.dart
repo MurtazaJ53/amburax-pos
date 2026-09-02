@@ -140,7 +140,8 @@ class _InviteShareSheet extends StatelessWidget {
                 children: <Widget>[
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _copy(context, record.inviteCode, 'Code'),
+                      onPressed: () =>
+                          _copy(context, record.inviteCode, 'Code'),
                       icon: const Icon(Icons.copy_rounded, size: 18),
                       label: const Text('Copy code'),
                     ),
@@ -182,9 +183,9 @@ class _InviteShareSheet extends StatelessWidget {
   Future<void> _copy(BuildContext context, String value, String label) async {
     await Clipboard.setData(ClipboardData(text: value));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label copied to clipboard.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label copied to clipboard.')));
   }
 }
 

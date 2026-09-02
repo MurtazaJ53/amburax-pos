@@ -15,17 +15,15 @@ import '../../../core/utils/formatters.dart';
 /// records a zero refund because the value carries into the replacement bill
 /// the cashier rings up next, and calling it a refund invites paying the money
 /// out as well.
-const List<({String value, String label})> kRefundModes = <({
-  String value,
-  String label
-})>[
-  (value: 'CASH', label: 'Cash'),
-  (value: 'UPI', label: 'UPI'),
-  (value: 'CARD', label: 'Card'),
-  (value: 'BANK', label: 'Bank'),
-  (value: 'KHATA', label: 'Reduce khata'),
-  (value: 'EXCHANGE', label: 'Exchange'),
-];
+const List<({String value, String label})> kRefundModes =
+    <({String value, String label})>[
+      (value: 'CASH', label: 'Cash'),
+      (value: 'UPI', label: 'UPI'),
+      (value: 'CARD', label: 'Card'),
+      (value: 'BANK', label: 'Bank'),
+      (value: 'KHATA', label: 'Reduce khata'),
+      (value: 'EXCHANGE', label: 'Exchange'),
+    ];
 
 /// Quantities and money arrive from DRF as JSON strings.
 double parseAmount(Object? value) {
@@ -50,14 +48,14 @@ class ReturnableLine {
   });
 
   factory ReturnableLine.fromJson(Map<String, dynamic> json) => ReturnableLine(
-        saleItemId: '${json['sale_item_id'] ?? ''}',
-        name: '${json['name'] ?? ''}',
-        size: '${json['size'] ?? ''}',
-        sold: parseAmount(json['sold']),
-        returned: parseAmount(json['returned']),
-        returnable: parseAmount(json['returnable']),
-        unitPrice: parseAmount(json['unit_price']),
-      );
+    saleItemId: '${json['sale_item_id'] ?? ''}',
+    name: '${json['name'] ?? ''}',
+    size: '${json['size'] ?? ''}',
+    sold: parseAmount(json['sold']),
+    returned: parseAmount(json['returned']),
+    returnable: parseAmount(json['returnable']),
+    unitPrice: parseAmount(json['unit_price']),
+  );
 
   final String saleItemId;
   final String name;
@@ -97,8 +95,9 @@ String? returnBlocker({
   required String refundMode,
   required bool hasCustomer,
 }) {
-  final chosen =
-      quantities.entries.where((e) => e.value > 0).toList(growable: false);
+  final chosen = quantities.entries
+      .where((e) => e.value > 0)
+      .toList(growable: false);
   if (chosen.isEmpty) return 'Choose what is coming back.';
 
   for (final line in lines) {
@@ -169,12 +168,13 @@ class _SaleReturnSheetState extends ConsumerState<SaleReturnSheet> {
       return;
     }
     try {
-      final payload =
-          await ref.read(backendApiClientProvider).fetchReturnableSale(
-                user: session.user,
-                shopId: session.shopId!,
-                saleId: widget.backendSaleId,
-              );
+      final payload = await ref
+          .read(backendApiClientProvider)
+          .fetchReturnableSale(
+            user: session.user,
+            shopId: session.shopId!,
+            saleId: widget.backendSaleId,
+          );
       if (!mounted) return;
       setState(() {
         _lines = (payload['lines'] as List<dynamic>? ?? const <dynamic>[])
@@ -233,17 +233,21 @@ class _SaleReturnSheetState extends ConsumerState<SaleReturnSheet> {
       _error = null;
     });
     try {
-      await ref.read(backendApiClientProvider).createSaleReturn(
+      await ref
+          .read(backendApiClientProvider)
+          .createSaleReturn(
             user: session.user,
             shopId: session.shopId!,
             saleId: widget.backendSaleId,
             refundMode: _mode,
             lines: _quantities.entries
                 .where((e) => e.value > 0)
-                .map((e) => <String, dynamic>{
-                      'sale_item_id': e.key,
-                      'quantity': '${e.value}',
-                    })
+                .map(
+                  (e) => <String, dynamic>{
+                    'sale_item_id': e.key,
+                    'quantity': '${e.value}',
+                  },
+                )
                 .toList(growable: false),
           );
       if (!mounted) return;
@@ -371,9 +375,7 @@ class _SaleReturnSheetState extends ConsumerState<SaleReturnSheet> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   child: Text(
-                    _busy
-                        ? 'Processing…'
-                        : blocker ?? 'Take these back',
+                    _busy ? 'Processing…' : blocker ?? 'Take these back',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
@@ -433,9 +435,9 @@ class _SaleReturnSheetState extends ConsumerState<SaleReturnSheet> {
                   onSelected: mode.value == 'KHATA' && !_hasCustomer
                       ? null
                       : (_) => setState(() {
-                            _mode = mode.value;
-                            _error = null;
-                          }),
+                          _mode = mode.value;
+                          _error = null;
+                        }),
                   label: Text(mode.label),
                 ),
             ],
@@ -478,7 +480,9 @@ class _LineRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    line.size.isEmpty ? line.name : '${line.name} · ${line.size}',
+                    line.size.isEmpty
+                        ? line.name
+                        : '${line.name} · ${line.size}',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -490,8 +494,8 @@ class _LineRow extends StatelessWidget {
                     exhausted
                         ? 'All ${showQuantity(line.sold)} returned'
                         : '${showQuantity(line.returnable)} of '
-                            '${showQuantity(line.sold)} left · '
-                            '${formatCurrency(line.unitPrice)} each',
+                              '${showQuantity(line.sold)} left · '
+                              '${formatCurrency(line.unitPrice)} each',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -505,8 +509,7 @@ class _LineRow extends StatelessWidget {
               Row(
                 children: <Widget>[
                   IconButton(
-                    onPressed:
-                        chosen <= 0 ? null : () => onChanged(chosen - 1),
+                    onPressed: chosen <= 0 ? null : () => onChanged(chosen - 1),
                     icon: const Icon(Icons.remove_circle_outline, size: 22),
                     visualDensity: VisualDensity.compact,
                   ),

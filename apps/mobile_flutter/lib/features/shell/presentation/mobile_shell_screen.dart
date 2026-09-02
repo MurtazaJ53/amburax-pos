@@ -156,9 +156,13 @@ class _MobileShellScreenState extends ConsumerState<MobileShellScreen> {
                     ),
                     Expanded(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: horizontalInset),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: horizontalInset,
+                        ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(compactChrome ? 20 : 24),
+                          borderRadius: BorderRadius.circular(
+                            compactChrome ? 20 : 24,
+                          ),
                           child: widget.navigationShell,
                         ),
                       ),
@@ -201,7 +205,9 @@ class _MobileShellScreenState extends ConsumerState<MobileShellScreen> {
                                         child: _NavButton(
                                           item: entry.item,
                                           active:
-                                              widget.navigationShell.currentIndex ==
+                                              widget
+                                                  .navigationShell
+                                                  .currentIndex ==
                                               entry.branchIndex,
                                           compact: compactChrome,
                                           onTap: () =>
@@ -457,7 +463,9 @@ class _NavButton extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: compact ? 2 : 4),
       child: Material(
-        color: active ? AppPalette.primary.withValues(alpha: 0.14) : Colors.transparent,
+        color: active
+            ? AppPalette.primary.withValues(alpha: 0.14)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: onTap,
@@ -597,7 +605,6 @@ const List<_VisibleShellNavItem> _cashierNavItems = <_VisibleShellNavItem>[
   _VisibleShellNavItem(branchIndex: 3, item: _historyNavItem),
   _VisibleShellNavItem(branchIndex: 0, item: _dashboardNavItem),
 ];
-
 
 /// Translate a bottom-nav label. Nav items are `const`, so they can't hold a
 /// BuildContext — resolve at render time and fall back to the English label

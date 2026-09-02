@@ -12,6 +12,7 @@ import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 class SettingsPulseScreen extends ConsumerStatefulWidget {
   const SettingsPulseScreen({super.key});
@@ -114,9 +115,9 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
           children: const <Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Loading pulse desk',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.sync_rounded,
                 title: 'Checking owner access',
                 body:
@@ -134,9 +135,9 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
           children: const <Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Owner/admin only',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.lock_outline_rounded,
                 title: 'Pulse stays with elevated roles',
                 body:
@@ -190,7 +191,7 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
           ),
           const SizedBox(height: 18),
           if (!hasFreshSecurityWindow)
-            MobilePanel(
+            AppPanel(
               title: 'Security check required',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -215,7 +216,7 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
             )
           else ...<Widget>[
             if (_message != null) ...<Widget>[
-              MobilePanel(
+              AppPanel(
                 title: _messageIsError
                     ? 'Pulse control failed'
                     : 'Pulse updated',
@@ -229,7 +230,7 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
               ),
               const SizedBox(height: 18),
             ],
-            MobilePanel(
+            AppPanel(
               title: 'Pulse headline',
               action: FilledButton.tonalIcon(
                 onPressed: _busySignalId == null ? _refreshDesk : null,
@@ -237,7 +238,7 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
                 label: const Text('Refresh'),
               ),
               child: pulse == null
-                  ? MobileEmptyState(
+                  ? AppEmptyState(
                       icon: pulseAsync.isLoading
                           ? Icons.sync_rounded
                           : Icons.wifi_tethering_error_rounded,
@@ -297,7 +298,7 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
                     ),
             ),
             const SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Open pulse desk',
               action: MobileTag(
                 label: openSignals.isEmpty
@@ -311,14 +312,14 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
                     : AppPalette.primary,
               ),
               child: signalsAsync.isLoading
-                  ? const MobileEmptyState(
+                  ? const AppEmptyState(
                       icon: Icons.sync_rounded,
                       title: 'Refreshing pulse signals',
                       body:
                           'Business Hub is loading the latest acknowledged, open, and resolved signals for this workspace.',
                     )
                   : openSignals.isEmpty
-                  ? const MobileEmptyState(
+                  ? const AppEmptyState(
                       icon: Icons.verified_rounded,
                       title: 'No open pulse signals',
                       body:
@@ -380,7 +381,7 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
                     ),
             ),
             const SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Recently resolved',
               action: MobileTag(
                 label: '${resolvedSignals.length} shown',
@@ -388,7 +389,7 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
                 accent: AppPalette.success,
               ),
               child: resolvedSignals.isEmpty
-                  ? const MobileEmptyState(
+                  ? const AppEmptyState(
                       icon: Icons.inbox_rounded,
                       title: 'No resolved signals yet',
                       body:
@@ -737,5 +738,3 @@ String _roleLabel(String? role) {
       return 'Staff';
   }
 }
-
-

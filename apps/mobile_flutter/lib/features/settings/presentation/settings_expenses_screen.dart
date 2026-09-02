@@ -12,6 +12,7 @@ import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/sync/mobile_sync_coordinator.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 class SettingsExpensesScreen extends ConsumerStatefulWidget {
   const SettingsExpensesScreen({super.key});
@@ -133,7 +134,7 @@ class _SettingsExpensesScreenState
                       child: Column(
                         children: <Widget>[
                           TextField(
-      textCapitalization: TextCapitalization.sentences,
+                            textCapitalization: TextCapitalization.sentences,
                             controller: categoryController,
                             decoration: const InputDecoration(
                               labelText: 'Category',
@@ -190,7 +191,7 @@ class _SettingsExpensesScreenState
                           ),
                           const SizedBox(height: 12),
                           TextField(
-      textCapitalization: TextCapitalization.sentences,
+                            textCapitalization: TextCapitalization.sentences,
                             controller: paymentReferenceController,
                             decoration: const InputDecoration(
                               labelText: 'Reference',
@@ -199,7 +200,7 @@ class _SettingsExpensesScreenState
                           ),
                           const SizedBox(height: 12),
                           TextField(
-      textCapitalization: TextCapitalization.sentences,
+                            textCapitalization: TextCapitalization.sentences,
                             controller: descriptionController,
                             minLines: 2,
                             maxLines: 3,
@@ -319,9 +320,9 @@ class _SettingsExpensesScreenState
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
           children: const <Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Loading expenses',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.sync_rounded,
                 title: 'Checking workspace access',
                 body:
@@ -339,9 +340,9 @@ class _SettingsExpensesScreenState
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
           children: const <Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Expenses unlock on Growth and Pro',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.workspace_premium_rounded,
                 title: 'Expenses are not active on this plan',
                 body:
@@ -382,7 +383,7 @@ class _SettingsExpensesScreenState
           ),
           const SizedBox(height: 18),
           if (_message != null) ...<Widget>[
-            MobilePanel(
+            AppPanel(
               title: _messageIsError ? 'Expense issue' : 'Expense saved',
               child: Text(
                 _message!,
@@ -394,7 +395,7 @@ class _SettingsExpensesScreenState
             ),
             const SizedBox(height: 18),
           ],
-          MobilePanel(
+          AppPanel(
             title: 'Expense posture',
             action: FilledButton.tonalIcon(
               onPressed: _busy ? null : _refreshExpenses,
@@ -446,7 +447,7 @@ class _SettingsExpensesScreenState
             ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: L.of(context).expAdd,
             action: MobileTag(
               label: session.isViewer ? 'View only' : 'Daily ops',
@@ -479,7 +480,7 @@ class _SettingsExpensesScreenState
             ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'Recent expenses',
             action: MobileTag(
               label: topExpenses.isEmpty
@@ -489,14 +490,14 @@ class _SettingsExpensesScreenState
               accent: AppPalette.warning,
             ),
             child: expensesAsync.isLoading
-                ? const MobileEmptyState(
+                ? const AppEmptyState(
                     icon: Icons.sync_rounded,
                     title: 'Refreshing store spend',
                     body:
                         'Business Hub is loading the latest outgoing expense records for this workspace.',
                   )
                 : topExpenses.isEmpty
-                ? const MobileEmptyState(
+                ? const AppEmptyState(
                     icon: Icons.wallet_rounded,
                     title: 'No expense activity yet',
                     body:

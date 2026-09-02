@@ -40,8 +40,9 @@ class DashboardScreenV3 extends ConsumerWidget {
     // Server-computed all-time totals (correct even when the phone only holds a
     // recent window of sales); fall back to local when offline.
     final serverSummary = ref.watch(salesServerSummaryProvider).asData?.value;
-    final serverGross =
-        double.tryParse('${serverSummary?['gross_revenue'] ?? ''}');
+    final serverGross = double.tryParse(
+      '${serverSummary?['gross_revenue'] ?? ''}',
+    );
 
     final isLoading = shopAsync.isLoading || overviewAsync.isLoading;
     final hasError = shopAsync.hasError || overviewAsync.hasError;
@@ -124,8 +125,10 @@ class DashboardScreenV3 extends ConsumerWidget {
                   ),
                   child: Row(
                     children: <Widget>[
-                      const Icon(Icons.rocket_launch_rounded,
-                          color: AppPalette.primary),
+                      const Icon(
+                        Icons.rocket_launch_rounded,
+                        color: AppPalette.primary,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
@@ -133,9 +136,7 @@ class DashboardScreenV3 extends ConsumerWidget {
                           children: <Widget>[
                             Text(
                               'Finish setting up your shop',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
+                              style: Theme.of(context).textTheme.titleSmall
                                   ?.copyWith(fontWeight: FontWeight.w800),
                             ),
                             Text(
@@ -160,7 +161,9 @@ class DashboardScreenV3 extends ConsumerWidget {
           value: formatCurrency(overview.todayRevenue),
           caption:
               '${overview.todaySalesCount} ${overview.todaySalesCount == 1 ? 'sale' : 'sales'} today',
-          trend: history.queuedSales > 0 ? '${history.queuedSales} queued' : null,
+          trend: history.queuedSales > 0
+              ? '${history.queuedSales} queued'
+              : null,
         ),
         const SizedBox(height: 16),
 
@@ -198,7 +201,9 @@ class DashboardScreenV3 extends ConsumerWidget {
             Expanded(
               child: _StatCard(
                 label: 'Total sales',
-                value: formatCurrencyCompact(serverGross ?? history.totalRevenue),
+                value: formatCurrencyCompact(
+                  serverGross ?? history.totalRevenue,
+                ),
                 caption: 'View reports',
                 icon: Icons.insights_rounded,
                 accent: AppPalette.info,
@@ -231,8 +236,7 @@ class DashboardScreenV3 extends ConsumerWidget {
         // Recent sales
         _SectionRow(
           title: L.of(context).dashRecentSales,
-          actionLabel:
-              recentSales.isEmpty ? null : L.of(context).dashViewAll,
+          actionLabel: recentSales.isEmpty ? null : L.of(context).dashViewAll,
           onAction: () => context.go('/history'),
         ),
         const SizedBox(height: 12),
@@ -242,9 +246,7 @@ class DashboardScreenV3 extends ConsumerWidget {
             text: 'No sales yet. Tap Start New Sale to begin.',
           )
         else
-          ...recentSales
-              .take(5)
-              .map((sale) => _RecentSaleTile(sale: sale)),
+          ...recentSales.take(5).map((sale) => _RecentSaleTile(sale: sale)),
 
         // Low stock
         if (lowStock.isNotEmpty) ...<Widget>[
@@ -255,12 +257,14 @@ class DashboardScreenV3 extends ConsumerWidget {
             onAction: () => context.go('/inventory'),
           ),
           const SizedBox(height: 12),
-          ...lowStock.take(4).map(
-            (item) => _LowStockTile(
-              item: item,
-              onTap: () => context.go('/inventory'),
-            ),
-          ),
+          ...lowStock
+              .take(4)
+              .map(
+                (item) => _LowStockTile(
+                  item: item,
+                  onTap: () => context.go('/inventory'),
+                ),
+              ),
         ],
       ],
     );
@@ -564,9 +568,9 @@ class _EmptyHint extends StatelessWidget {
           Text(
             text,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: colors.textTertiary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: colors.textTertiary),
           ),
         ],
       ),
@@ -593,8 +597,9 @@ class _GettingStartedCardState extends ConsumerState<_GettingStartedCard> {
   }
 
   Future<void> _load() async {
-    final done =
-        await ref.read(shopRepositoryProvider).readSetting('onboarding_done');
+    final done = await ref
+        .read(shopRepositoryProvider)
+        .readSetting('onboarding_done');
     if (mounted) {
       setState(() {
         _visible = done != 'true';
@@ -642,20 +647,34 @@ class _GettingStartedCardState extends ConsumerState<_GettingStartedCard> {
               const Spacer(),
               TextButton(
                 onPressed: _dismiss,
-                child: const Text('Dismiss',
-                    style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Dismiss',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          _step('1', 'Set your business details', 'Name, phone, receipt footer',
-              () => context.push('/settings/business')),
+          _step(
+            '1',
+            'Set your business details',
+            'Name, phone, receipt footer',
+            () => context.push('/settings/business'),
+          ),
           const SizedBox(height: 8),
-          _step('2', 'Add your first product', 'Build your inventory',
-              () => context.go('/inventory')),
+          _step(
+            '2',
+            'Add your first product',
+            'Build your inventory',
+            () => context.go('/inventory'),
+          ),
           const SizedBox(height: 8),
-          _step('3', 'Make your first sale', 'Open the POS',
-              () => context.go('/pos')),
+          _step(
+            '3',
+            'Make your first sale',
+            'Open the POS',
+            () => context.go('/pos'),
+          ),
         ],
       ),
     );
@@ -689,13 +708,20 @@ class _GettingStartedCardState extends ConsumerState<_GettingStartedCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(title,
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.w700)),
-                    Text(subtitle,
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.8),
-                            fontSize: 12)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -733,9 +759,9 @@ class _UpdateBanner extends ConsumerWidget {
               children: <Widget>[
                 Text(
                   'Update available',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 Text(
                   'Version ${status.latestVersion} is ready. Please update for the latest fixes.',

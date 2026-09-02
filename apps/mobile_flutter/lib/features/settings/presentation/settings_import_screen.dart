@@ -23,6 +23,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
 import 'universal_import_sheet.dart';
+import '../../../ui/ui.dart';
 
 /// Migrate data in from another POS (currently Zobaze .xlsx exports).
 class SettingsImportScreen extends ConsumerStatefulWidget {
@@ -133,7 +134,10 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
     final label = _labelFor(kind);
     if (!mounted) return;
     final mapping = await showMappingSheet(
-      context, table: table, kind: kind, title: 'Import $label',
+      context,
+      table: table,
+      kind: kind,
+      title: 'Import $label',
     );
     if (mapping == null) {
       if (mounted) setState(() => _busy = false);
@@ -149,12 +153,15 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
       ImportKind.customers => await _pushImport(kind, mapped),
       ImportKind.sales => await _pushSalesImport(mapped),
       ImportKind.expenses => await service.importExpenses(mapped),
-      ImportKind.suppliers => throw Exception('Suppliers import is not available yet.'),
+      ImportKind.suppliers => throw Exception(
+        'Suppliers import is not available yet.',
+      ),
     };
     if (!mounted) return;
     setState(() {
       _busy = false;
-      _successText = '${outcome.imported} $label imported'
+      _successText =
+          '${outcome.imported} $label imported'
           '${outcome.skipped > 0 ? ' (${outcome.skipped} skipped)' : ''}.'
           // Say it plainly when dates could not be read - these rows got
           // stamped with today, and the owner needs to know their history
@@ -170,7 +177,10 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
   /// Import products/customers by pushing each row to the server (so they
   /// persist like manual adds), showing a live progress bar. Each network call
   /// yields the UI thread, so the bar animates instead of freezing.
-  Future<ImportOutcome> _pushImport(ImportKind kind, MappedImport mapped) async {
+  Future<ImportOutcome> _pushImport(
+    ImportKind kind,
+    MappedImport mapped,
+  ) async {
     final session = ref.read(mobileSessionProvider).asData?.value;
     if (session == null || !session.hasShop) {
       throw Exception('Sign in to a shop before importing.');
@@ -188,14 +198,16 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
         showDialog<void>(
           context: context,
           barrierDismissible: false,
-          builder: (_) => _ImportProgressDialog(total: total, progress: progress),
+          builder: (_) =>
+              _ImportProgressDialog(total: total, progress: progress),
         ),
       );
     }
     try {
       for (var start = 0; start < rows.length; start += batchSize) {
-        final end =
-            (start + batchSize) > rows.length ? rows.length : start + batchSize;
+        final end = (start + batchSize) > rows.length
+            ? rows.length
+            : start + batchSize;
         final payload = <Map<String, dynamic>>[];
         for (final row in rows.sublist(start, end)) {
           final name = (row['name'] ?? '').trim();
@@ -237,9 +249,15 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
           try {
             final res = kind == ImportKind.products
                 ? await api.bulkCreateInventory(
-                    user: session.user, shopId: session.shopId!, items: payload)
+                    user: session.user,
+                    shopId: session.shopId!,
+                    items: payload,
+                  )
                 : await api.bulkCreateCustomers(
-                    user: session.user, shopId: session.shopId!, customers: payload);
+                    user: session.user,
+                    shopId: session.shopId!,
+                    customers: payload,
+                  );
             created += (res['created'] as num?)?.toInt() ?? 0;
             skipped += (res['skipped'] as num?)?.toInt() ?? 0;
           } catch (_) {
@@ -277,14 +295,16 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
         showDialog<void>(
           context: context,
           barrierDismissible: false,
-          builder: (_) => _ImportProgressDialog(total: total, progress: progress),
+          builder: (_) =>
+              _ImportProgressDialog(total: total, progress: progress),
         ),
       );
     }
     try {
       for (var start = 0; start < rows.length; start += batchSize) {
-        final end =
-            (start + batchSize) > rows.length ? rows.length : start + batchSize;
+        final end = (start + batchSize) > rows.length
+            ? rows.length
+            : start + batchSize;
         final payload = <Map<String, dynamic>>[];
         for (var j = start; j < end; j++) {
           final row = rows[j];
@@ -309,7 +329,10 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
         if (payload.isNotEmpty) {
           try {
             final res = await api.bulkImportSalesHistory(
-              user: session.user, shopId: session.shopId!, sales: payload);
+              user: session.user,
+              shopId: session.shopId!,
+              sales: payload,
+            );
             created += (res['created'] as num?)?.toInt() ?? 0;
             skipped += (res['skipped'] as num?)?.toInt() ?? 0;
           } catch (_) {
@@ -335,7 +358,10 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
       await _runImport(kind, table);
     } catch (error) {
       if (!mounted) return;
-      setState(() { _busy = false; _error = error.toString(); });
+      setState(() {
+        _busy = false;
+        _error = error.toString();
+      });
     }
   }
 
@@ -359,7 +385,10 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
       await _runImport(kind, table);
     } catch (error) {
       if (!mounted) return;
-      setState(() { _busy = false; _error = error.toString(); });
+      setState(() {
+        _busy = false;
+        _error = error.toString();
+      });
     }
   }
 
@@ -371,7 +400,9 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
         for (final k in detectableKinds)
           SimpleDialogOption(
             onPressed: () => Navigator.pop(ctx, k),
-            child: Text('${_labelFor(k)[0].toUpperCase()}${_labelFor(k).substring(1)}'),
+            child: Text(
+              '${_labelFor(k)[0].toUpperCase()}${_labelFor(k).substring(1)}',
+            ),
           ),
       ],
     ),
@@ -388,32 +419,55 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
       _successText = null;
     });
     try {
-      final status = await FlutterContacts.permissions.request(PermissionType.read);
-      if (status != PermissionStatus.granted && status != PermissionStatus.limited) {
-        throw Exception('Contacts permission denied. Enable it in Settings to import.');
+      final status = await FlutterContacts.permissions.request(
+        PermissionType.read,
+      );
+      if (status != PermissionStatus.granted &&
+          status != PermissionStatus.limited) {
+        throw Exception(
+          'Contacts permission denied. Enable it in Settings to import.',
+        );
       }
       final contacts = await FlutterContacts.getAll(
-        properties: <ContactProperty>{ContactProperty.name, ContactProperty.phone},
+        properties: <ContactProperty>{
+          ContactProperty.name,
+          ContactProperty.phone,
+        },
       );
       final rows = <Map<String, String>>[];
       for (final c in contacts) {
         final name = (c.displayName ?? '').trim();
         final phone = c.phones.isNotEmpty ? c.phones.first.number.trim() : '';
         if (name.isEmpty && phone.isEmpty) continue;
-        rows.add(<String, String>{'name': name.isEmpty ? phone : name, 'phone': phone});
+        rows.add(<String, String>{
+          'name': name.isEmpty ? phone : name,
+          'phone': phone,
+        });
       }
-      if (rows.isEmpty) throw Exception('No contacts with a name or phone were found.');
+      if (rows.isEmpty) {
+        throw Exception('No contacts with a name or phone were found.');
+      }
       final service = ref.read(universalImportServiceProvider);
       final outcome = await service.importCustomers(
-        MappedImport(rows, const <String>[], ColumnMapping(const <String>[], const <String, int>{})),
+        MappedImport(
+          rows,
+          const <String>[],
+          ColumnMapping(const <String>[], const <String, int>{}),
+        ),
       );
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _successText = '${outcome.imported} customer(s) imported from contacts.';
+        _successText =
+            '${outcome.imported} customer(s) imported from contacts.';
       });
     } catch (e) {
-      if (mounted) setState(() { _busy = false; _error = e.toString(); });
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = e.toString();
+        });
+      }
     }
   }
 
@@ -443,7 +497,12 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
     try {
       await _saveCsv(templateCsvFor(kind), '${label}_template.csv');
     } catch (e) {
-      if (mounted) setState(() { _busy = false; _error = e.toString(); });
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = e.toString();
+        });
+      }
     }
   }
 
@@ -462,7 +521,12 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
           : await service.exportCustomersCsv();
       await _saveCsv(csv, '${label}_export.csv');
     } catch (e) {
-      if (mounted) setState(() { _busy = false; _error = e.toString(); });
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = e.toString();
+        });
+      }
     }
   }
 
@@ -478,7 +542,7 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
           _SmartImportCard(busy: _busy, onTap: _smartImport),
           const SizedBox(height: 16),
           // 2) Or pick a specific type (individual icons).
-          MobilePanel(
+          AppPanel(
             title: 'Import a specific type',
             child: Wrap(
               spacing: 12,
@@ -519,38 +583,55 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
           ),
           const SizedBox(height: 16),
           // 3) Sample templates + CSV export (round-trip).
-          MobilePanel(
+          AppPanel(
             title: 'Templates & export',
             child: Wrap(
               spacing: 8,
               children: <Widget>[
                 TextButton.icon(
-                  onPressed: _busy ? null : () => _downloadTemplate(ImportKind.products, 'products'),
+                  onPressed: _busy
+                      ? null
+                      : () =>
+                            _downloadTemplate(ImportKind.products, 'products'),
                   icon: const Icon(Icons.description_outlined, size: 18),
                   label: const Text('Products sample'),
                 ),
                 TextButton.icon(
-                  onPressed: _busy ? null : () => _downloadTemplate(ImportKind.customers, 'customers'),
+                  onPressed: _busy
+                      ? null
+                      : () => _downloadTemplate(
+                          ImportKind.customers,
+                          'customers',
+                        ),
                   icon: const Icon(Icons.description_outlined, size: 18),
                   label: const Text('Customers sample'),
                 ),
                 TextButton.icon(
-                  onPressed: _busy ? null : () => _downloadTemplate(ImportKind.sales, 'sales'),
+                  onPressed: _busy
+                      ? null
+                      : () => _downloadTemplate(ImportKind.sales, 'sales'),
                   icon: const Icon(Icons.description_outlined, size: 18),
                   label: const Text('Sales sample'),
                 ),
                 TextButton.icon(
-                  onPressed: _busy ? null : () => _downloadTemplate(ImportKind.expenses, 'expenses'),
+                  onPressed: _busy
+                      ? null
+                      : () =>
+                            _downloadTemplate(ImportKind.expenses, 'expenses'),
                   icon: const Icon(Icons.description_outlined, size: 18),
                   label: const Text('Expenses sample'),
                 ),
                 TextButton.icon(
-                  onPressed: _busy ? null : () => _exportCsv(ImportKind.products, 'products'),
+                  onPressed: _busy
+                      ? null
+                      : () => _exportCsv(ImportKind.products, 'products'),
                   icon: const Icon(Icons.download_rounded, size: 18),
                   label: const Text('Export products'),
                 ),
                 TextButton.icon(
-                  onPressed: _busy ? null : () => _exportCsv(ImportKind.customers, 'customers'),
+                  onPressed: _busy
+                      ? null
+                      : () => _exportCsv(ImportKind.customers, 'customers'),
                   icon: const Icon(Icons.download_rounded, size: 18),
                   label: const Text('Export customers'),
                 ),
@@ -561,7 +642,7 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
           const _DuplicateCleanupPanel(),
           const _OpeningBalanceBackfillPanel(),
           const SizedBox(height: 16),
-          MobilePanel(
+          AppPanel(
             title: 'Import from Zobaze',
             action: const MobileTag(
               label: 'MIGRATION',
@@ -645,9 +726,12 @@ class _SmartImportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return MobilePanel(
+    return AppPanel(
       title: 'Smart import',
-      action: const MobileTag(label: 'ANY APP', icon: Icons.auto_awesome_rounded),
+      action: const MobileTag(
+        label: 'ANY APP',
+        icon: Icons.auto_awesome_rounded,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -711,7 +795,11 @@ class _ImportTile extends StatelessWidget {
                 Text(
                   label,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, height: 1.15),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    height: 1.15,
+                  ),
                 ),
               ],
             ),
@@ -755,9 +843,9 @@ class _Banner extends StatelessWidget {
               children: <Widget>[
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 4),
                 Text(body, style: Theme.of(context).textTheme.bodySmall),
@@ -853,17 +941,14 @@ class _DuplicateCleanupPanelState
   Widget build(BuildContext context) {
     final groups = _groups;
     if (_done != null) {
-      return MobilePanel(
-        title: 'Duplicate receipts',
-        child: Text(_done!),
-      );
+      return AppPanel(title: 'Duplicate receipts', child: Text(_done!));
     }
     // Nothing to clean: stay out of the way rather than offering a
     // destructive button with no work to do.
     if (groups == null || groups.isEmpty) return const SizedBox.shrink();
 
     final extras = groups.fold<int>(0, (sum, g) => sum + g.extras);
-    return MobilePanel(
+    return AppPanel(
       title: 'Duplicate receipts',
       action: const MobileTag(
         label: 'CLEANUP',
@@ -961,12 +1046,12 @@ class _OpeningBalanceBackfillPanelState
   @override
   Widget build(BuildContext context) {
     if (_done != null) {
-      return MobilePanel(title: 'Khata opening balances', child: Text(_done!));
+      return AppPanel(title: 'Khata opening balances', child: Text(_done!));
     }
     final pending = _pending;
     if (pending == null || pending == 0) return const SizedBox.shrink();
 
-    return MobilePanel(
+    return AppPanel(
       title: 'Khata opening balances',
       action: const MobileTag(
         label: 'REPAIR',
@@ -1029,7 +1114,10 @@ class _ImportProgressDialog extends StatelessWidget {
                 child: LinearProgressIndicator(value: frac, minHeight: 8),
               ),
               const SizedBox(height: 10),
-              Text('$done of $total', style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(
+                '$done of $total',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
             ],
           );
         },

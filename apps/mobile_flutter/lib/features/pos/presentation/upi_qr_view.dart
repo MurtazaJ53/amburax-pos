@@ -21,10 +21,7 @@ class UpiQrView extends StatelessWidget {
       height: size,
       color: Colors.white,
       padding: const EdgeInsets.all(8),
-      child: CustomPaint(
-        painter: _QrPainter(image),
-        size: Size.square(size),
-      ),
+      child: CustomPaint(painter: _QrPainter(image), size: Size.square(size)),
     );
   }
 }
@@ -53,5 +50,6 @@ class _QrPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _QrPainter oldDelegate) => oldDelegate.image != image;
+  bool shouldRepaint(covariant _QrPainter oldDelegate) =>
+      oldDelegate.image != image;
 }

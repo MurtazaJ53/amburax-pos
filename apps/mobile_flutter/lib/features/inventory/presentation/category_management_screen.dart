@@ -7,6 +7,7 @@ import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Manage product categories — rename a category across every item.
 class CategoryManagementScreen extends ConsumerWidget {
@@ -23,7 +24,7 @@ class CategoryManagementScreen extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
         children: <Widget>[
-          MobilePanel(
+          AppPanel(
             title: 'Product categories',
             action: MobileTag(
               label: '${categories.length}',
@@ -31,7 +32,7 @@ class CategoryManagementScreen extends ConsumerWidget {
               accent: AppPalette.primary,
             ),
             child: categories.isEmpty
-                ? const MobileEmptyState(
+                ? const AppEmptyState(
                     icon: Icons.category_outlined,
                     title: 'No categories yet',
                     body: 'Categories appear here as you add products.',
@@ -91,16 +92,14 @@ class CategoryManagementScreen extends ConsumerWidget {
           .renameCategory(summary.category, newName);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Renamed to "$newName" ($count item(s)).'),
-          ),
+          SnackBar(content: Text('Renamed to "$newName" ($count item(s)).')),
         );
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Rename failed: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Rename failed: $error')));
       }
     }
   }

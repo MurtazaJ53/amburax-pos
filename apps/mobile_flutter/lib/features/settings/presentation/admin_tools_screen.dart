@@ -7,6 +7,7 @@ import '../../../core/sync/mobile_sync_coordinator.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Owner/admin-only advanced tooling, kept out of everyday settings.
 class AdminToolsScreen extends ConsumerWidget {
@@ -49,7 +50,7 @@ class AdminToolsScreen extends ConsumerWidget {
             onTap: () => context.push('/settings/advanced'),
           ),
           const SizedBox(height: 22),
-          MobilePanel(
+          AppPanel(
             title: 'Sync',
             action: MobileTag(
               label: pending > 0 ? '$pending queued' : 'Clear',

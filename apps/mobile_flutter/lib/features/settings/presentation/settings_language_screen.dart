@@ -51,9 +51,9 @@ class SettingsLanguageScreen extends ConsumerWidget {
         children: <Widget>[
           Text(
             l.settingsLanguageSubtitle,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: colors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 14),
           for (final option in _options)

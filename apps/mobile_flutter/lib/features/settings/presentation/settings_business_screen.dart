@@ -7,6 +7,7 @@ import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/sync/mobile_sync_coordinator.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 const List<String> _currencies = <String>['INR', 'USD', 'GBP', 'AED'];
 
@@ -64,7 +65,8 @@ class _SettingsBusinessScreenState
       return;
     }
     final upi = _upi.text.trim();
-    if (upi.isNotEmpty && !RegExp(r'^[\w.\-]{1,256}@[a-zA-Z]{2,64}$').hasMatch(upi)) {
+    if (upi.isNotEmpty &&
+        !RegExp(r'^[\w.\-]{1,256}@[a-zA-Z]{2,64}$').hasMatch(upi)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Enter a valid UPI ID (e.g. name@bank).')),
       );
@@ -74,36 +76,39 @@ class _SettingsBusinessScreenState
     try {
       // Via the coordinator so these reach the server: the website and any
       // other device read the same shop details.
-      await ref.read(mobileSyncCoordinatorProvider).saveBusinessDetails(<String, dynamic>{
-        'name': _name.text.trim(),
-        'tagline': _tagline.text.trim(),
-        'footer': _footer.text.trim(),
-        'currency': _currency,
-        'business_phone': _phone.text.trim(),
-        'gstin': _gstin.text.trim(),
-        'upi_vpa': upi,
-        // Preserve plan + features (saveShopDocument does a full overwrite).
-        'plan_tier': shop.planTier,
-        'enabled_features': shop.enabledFeatures,
-      });
+      await ref.read(mobileSyncCoordinatorProvider).saveBusinessDetails(
+        <String, dynamic>{
+          'name': _name.text.trim(),
+          'tagline': _tagline.text.trim(),
+          'footer': _footer.text.trim(),
+          'currency': _currency,
+          'business_phone': _phone.text.trim(),
+          'gstin': _gstin.text.trim(),
+          'upi_vpa': upi,
+          // Preserve plan + features (saveShopDocument does a full overwrite).
+          'plan_tier': shop.planTier,
+          'enabled_features': shop.enabledFeatures,
+        },
+      );
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Business details saved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Business details saved.')));
       context.pop();
     } catch (error) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save failed: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $error')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final shop = ref.watch(shopInfoProvider).asData?.value ?? ShopInfo.fallback();
+    final shop =
+        ref.watch(shopInfoProvider).asData?.value ?? ShopInfo.fallback();
     _hydrate(shop);
     final colors = AppColors.of(context);
 
@@ -112,7 +117,7 @@ class _SettingsBusinessScreenState
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
         children: <Widget>[
-          MobilePanel(
+          AppPanel(
             title: 'Business',
             action: const MobileTag(
               label: 'ON RECEIPTS',
@@ -128,7 +133,7 @@ class _SettingsBusinessScreenState
                 ),
                 const SizedBox(height: 14),
                 TextField(
-      textCapitalization: TextCapitalization.sentences,
+                  textCapitalization: TextCapitalization.sentences,
                   controller: _tagline,
                   decoration: const InputDecoration(
                     labelText: 'Tagline / subtitle',
@@ -153,7 +158,7 @@ class _SettingsBusinessScreenState
             ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'Payments',
             action: const MobileTag(
               label: 'UPI QR',
@@ -186,7 +191,7 @@ class _SettingsBusinessScreenState
             ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'Receipt',
             action: const MobileTag(
               label: 'PRINTED',
@@ -197,7 +202,7 @@ class _SettingsBusinessScreenState
               children: <Widget>[
                 const SizedBox(height: 4),
                 TextField(
-      textCapitalization: TextCapitalization.sentences,
+                  textCapitalization: TextCapitalization.sentences,
                   controller: _footer,
                   maxLines: 3,
                   decoration: const InputDecoration(

@@ -11,6 +11,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Django REST Framework serialises DecimalField as a JSON *string*
 /// ("500.00"), not a number, so casting straight to num throws and takes the
@@ -31,8 +32,9 @@ int planCount(Object? value) {
 
 /// Subscription state + plan catalogue, straight from the server so the app
 /// never has to hardcode prices.
-final subscriptionProvider =
-    FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+final subscriptionProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((
+  ref,
+) async {
   final session = ref.watch(mobileSessionProvider).asData?.value;
   if (session == null || !session.hasShop) return null;
   try {
@@ -70,22 +72,26 @@ class _SettingsBillingScreenState extends ConsumerState<SettingsBillingScreen> {
       // The shop profile carries the plan tier that gates the UI.
       ref.invalidate(shopInfoProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Plan status refreshed.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Plan status refreshed.')));
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not refresh: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not refresh: $error')));
       }
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
   }
 
-  Future<void> _startCheckout(String period, String label, double amount) async {
+  Future<void> _startCheckout(
+    String period,
+    String label,
+    double amount,
+  ) async {
     final session = ref.read(mobileSessionProvider).asData?.value;
     if (session == null || !session.hasShop) return;
 
@@ -159,7 +165,7 @@ class _SettingsBillingScreenState extends ConsumerState<SettingsBillingScreen> {
     final data = async.asData?.value;
     final subscription =
         (data?['subscription'] as Map?)?.cast<String, dynamic>() ??
-            const <String, dynamic>{};
+        const <String, dynamic>{};
     final plans = (data?['plans'] as List?) ?? const <dynamic>[];
     final paymentsEnabled = data?['payments_enabled'] == true;
 
@@ -171,17 +177,19 @@ class _SettingsBillingScreenState extends ConsumerState<SettingsBillingScreen> {
     return MobileStandaloneScaffold(
       title: L.of(context).billingTitle,
       child: async.isLoading
-          ? const Center(child: Padding(
-              padding: EdgeInsets.all(48),
-              child: CircularProgressIndicator(),
-            ))
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(48),
+                child: CircularProgressIndicator(),
+              ),
+            )
           : ListView(
               padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
               children: <Widget>[
                 if (data == null)
-                  const MobilePanel(
+                  const AppPanel(
                     title: 'Plan unavailable',
-                    child: MobileEmptyState(
+                    child: AppEmptyState(
                       icon: Icons.cloud_off_rounded,
                       title: 'Could not load your plan',
                       body:
@@ -234,8 +242,7 @@ class _SettingsBillingScreenState extends ConsumerState<SettingsBillingScreen> {
                       padding: const EdgeInsets.only(bottom: 10),
                       child: _PlanOptionCard(
                         option: (raw as Map).cast<String, dynamic>(),
-                        busy: _busyPeriod ==
-                            (raw['period'] ?? '').toString(),
+                        busy: _busyPeriod == (raw['period'] ?? '').toString(),
                         anyBusy: _busyPeriod != null,
                         onPay: () => _startCheckout(
                           (raw['period'] ?? '').toString(),
@@ -322,44 +329,47 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final (String title, String body, Color accent, IconData icon) = switch (
-      status
-    ) {
+    final (
+      String title,
+      String body,
+      Color accent,
+      IconData icon,
+    ) = switch (status) {
       'trialing' => (
-          'Free trial - ${_humanRemaining(daysLeft)} left',
-          'You have the complete Pro app during the trial. Pick a plan before '
-              'it ends to keep everything switched on.',
-          AppPalette.primary,
-          Icons.rocket_launch_rounded,
-        ),
+        'Free trial - ${_humanRemaining(daysLeft)} left',
+        'You have the complete Pro app during the trial. Pick a plan before '
+            'it ends to keep everything switched on.',
+        AppPalette.primary,
+        Icons.rocket_launch_rounded,
+      ),
       'active' => (
-          'Pro plan active',
-          '${_humanRemaining(daysLeft)} remaining. Renew any '
-              'time - extra days are added on top, never lost.',
-          AppPalette.success,
-          Icons.verified_rounded,
-        ),
+        'Pro plan active',
+        '${_humanRemaining(daysLeft)} remaining. Renew any '
+            'time - extra days are added on top, never lost.',
+        AppPalette.success,
+        Icons.verified_rounded,
+      ),
       'past_due' => (
-          'Payment due',
-          'Your plan has ended but you still have a short grace period. Renew '
-              'now to avoid losing the paid features.',
-          AppPalette.warning,
-          Icons.schedule_rounded,
-        ),
+        'Payment due',
+        'Your plan has ended but you still have a short grace period. Renew '
+            'now to avoid losing the paid features.',
+        AppPalette.warning,
+        Icons.schedule_rounded,
+      ),
       'cancelled' => (
-          'Plan cancelled',
-          'Paid features are locked. Your data is safe - renew any time to '
-              'switch everything back on.',
-          AppPalette.error,
-          Icons.cancel_rounded,
-        ),
+        'Plan cancelled',
+        'Paid features are locked. Your data is safe - renew any time to '
+            'switch everything back on.',
+        AppPalette.error,
+        Icons.cancel_rounded,
+      ),
       _ => (
-          'Plan expired',
-          'Paid features are locked. Your data is safe and billing still '
-              'works - choose a plan to unlock everything again.',
-          AppPalette.error,
-          Icons.lock_rounded,
-        ),
+        'Plan expired',
+        'Paid features are locked. Your data is safe and billing still '
+            'works - choose a plan to unlock everything again.',
+        AppPalette.error,
+        Icons.lock_rounded,
+      ),
     };
 
     return Container(
@@ -481,9 +491,9 @@ class _PlanOptionCard extends StatelessWidget {
                 ),
                 Text(
                   '${formatCurrency(perMonth)} / month',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.textTertiary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textTertiary),
                 ),
               ],
             ),

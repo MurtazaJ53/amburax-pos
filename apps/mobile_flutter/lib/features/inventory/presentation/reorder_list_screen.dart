@@ -11,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/util/whatsapp.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 final reorderListProvider = StreamProvider.autoDispose<List<ReorderItem>>(
   (ref) => ref.watch(inventoryRepositoryProvider).watchReorderList(),
@@ -32,9 +33,7 @@ String buildReorderMessage({
     final unit = (item.unit ?? '').trim();
     final qty = formatQty(item.suggestedQty) + (unit.isEmpty ? '' : ' $unit');
     final sku = (item.sku ?? '').trim();
-    buffer.writeln(
-      '- ${item.name}${sku.isEmpty ? '' : ' ($sku)'}: $qty',
-    );
+    buffer.writeln('- ${item.name}${sku.isEmpty ? '' : ' ($sku)'}: $qty');
   }
   buffer
     ..writeln()
@@ -144,11 +143,11 @@ class _ReorderListScreenState extends ConsumerState<ReorderListScreen> {
                 Text(
                   outOfStock > 0
                       ? '$outOfStock already out of stock - you are losing '
-                          'sales on these today.'
+                            'sales on these today.'
                       : 'All still in stock, but running low.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
                 ),
                 if (estimated > 0) ...<Widget>[
                   const SizedBox(height: 6),
@@ -174,8 +173,7 @@ class _ReorderListScreenState extends ConsumerState<ReorderListScreen> {
             ),
             const SizedBox(height: 10),
             FilledButton.icon(
-              onPressed:
-                  selected.isEmpty ? null : () => _sendOrder(selected),
+              onPressed: selected.isEmpty ? null : () => _sendOrder(selected),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),
               ),
@@ -192,9 +190,9 @@ class _ReorderListScreenState extends ConsumerState<ReorderListScreen> {
               ),
             )
           else if (all.isEmpty)
-            const MobilePanel(
+            const AppPanel(
               title: 'Stock is healthy',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.check_circle_rounded,
                 title: 'Nothing needs reordering',
                 body:
@@ -274,17 +272,18 @@ class _ReorderTile extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: (item.isOutOfStock
-                                    ? AppPalette.error
-                                    : AppPalette.warning)
-                                .withValues(alpha: 0.15),
+                            color:
+                                (item.isOutOfStock
+                                        ? AppPalette.error
+                                        : AppPalette.warning)
+                                    .withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             item.isOutOfStock
                                 ? 'OUT OF STOCK'
                                 : 'Left ${formatQty(item.stock)}'
-                                    '${unit.isEmpty ? '' : ' $unit'}',
+                                      '${unit.isEmpty ? '' : ' $unit'}',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
@@ -298,11 +297,11 @@ class _ReorderTile extends StatelessWidget {
                         Text(
                           'Order ${formatQty(item.suggestedQty)}'
                           '${unit.isEmpty ? '' : ' $unit'}',
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: colors.textSecondary,
-                          ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: colors.textSecondary,
+                              ),
                         ),
                       ],
                     ),

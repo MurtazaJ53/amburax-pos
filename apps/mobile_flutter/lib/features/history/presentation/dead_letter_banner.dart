@@ -31,7 +31,9 @@ class DeadLetterBanner extends ConsumerWidget {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppPalette.error.withValues(alpha: 0.4)),
+              border: Border.all(
+                color: AppPalette.error.withValues(alpha: 0.4),
+              ),
             ),
             child: Row(
               children: <Widget>[
@@ -69,7 +71,8 @@ class _DeadLetterSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = AppColors.of(context);
-    final entries = ref.watch(deadLetterEntriesProvider).asData?.value ??
+    final entries =
+        ref.watch(deadLetterEntriesProvider).asData?.value ??
         const <CommerceOutboxEntry>[];
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
@@ -86,19 +89,19 @@ class _DeadLetterSheet extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Text('Rejected sales',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800)),
+              Text(
+                'Rejected sales',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              ),
               const SizedBox(height: 2),
               Text(
                 'The backend rejected these permanently (usually a data issue). '
                 'Force-retry if the cause is fixed, or discard to stop the alert.',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: colors.textSecondary),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
               ),
               const SizedBox(height: 12),
               Expanded(
@@ -139,10 +142,12 @@ class _DeadLetterRow extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('${entry.commandType} · ${entry.commandId}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+          Text(
+            '${entry.commandType} · ${entry.commandId}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+          ),
           const SizedBox(height: 4),
           Text(
             entry.deadLetterReason ?? 'Rejected by the backend.',
@@ -166,8 +171,15 @@ class _DeadLetterRow extends ConsumerWidget {
               const Spacer(),
               TextButton.icon(
                 onPressed: () => repo.discardDeadLetter(entry.commandId),
-                icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppPalette.error),
-                label: const Text('Discard', style: TextStyle(color: AppPalette.error)),
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  size: 18,
+                  color: AppPalette.error,
+                ),
+                label: const Text(
+                  'Discard',
+                  style: TextStyle(color: AppPalette.error),
+                ),
               ),
             ],
           ),

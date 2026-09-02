@@ -60,9 +60,8 @@ class _QuickSettingsSheet extends ConsumerWidget {
                   ChoiceChip(
                     label: Text(option.label),
                     selected: !followingDevice && active == option.code,
-                    onSelected: (_) => localeController.setLocale(
-                      Locale(option.code),
-                    ),
+                    onSelected: (_) =>
+                        localeController.setLocale(Locale(option.code)),
                   ),
                 // Following the device is the right default — a phone already
                 // set to Gujarati should open the app in Gujarati — so it stays

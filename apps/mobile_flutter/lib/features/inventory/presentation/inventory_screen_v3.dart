@@ -245,7 +245,9 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
             ListTile(
               leading: const Icon(Icons.category_rounded),
               title: const Text('Product with variants'),
-              subtitle: const Text('Sizes/colours, each with own price & stock'),
+              subtitle: const Text(
+                'Sizes/colours, each with own price & stock',
+              ),
               onTap: () {
                 Navigator.pop(sheetContext);
                 showModalBottomSheet<void>(
@@ -414,8 +416,8 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
   }
 
   Widget _buildReorderBanner(BuildContext context) {
-    final due = ref.watch(reorderListProvider).asData?.value ??
-        const <ReorderItem>[];
+    final due =
+        ref.watch(reorderListProvider).asData?.value ?? const <ReorderItem>[];
     if (due.isEmpty) return const SizedBox.shrink();
     final out = due.where((i) => i.isOutOfStock).length;
     final accent = out > 0 ? AppPalette.error : AppPalette.warning;
@@ -463,7 +465,9 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: isSelected ? AppPalette.primary : AppColors.of(context).surfaceStrong,
+      color: isSelected
+          ? AppPalette.primary
+          : AppColors.of(context).surfaceStrong,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -475,7 +479,9 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: isSelected ? Colors.white : AppColors.of(context).textSecondary,
+              color: isSelected
+                  ? Colors.white
+                  : AppColors.of(context).textSecondary,
             ),
           ),
         ),
@@ -821,8 +827,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                 final price = double.tryParse(priceController.text.trim()) ?? 0;
                 final openingStock =
                     double.tryParse(stockController.text.trim()) ?? 0;
-                final gstRate =
-                    double.tryParse(gstController.text.trim()) ?? 0;
+                final gstRate = double.tryParse(gstController.text.trim()) ?? 0;
                 final costText = costController.text.trim();
                 final costPrice = costText.isEmpty
                     ? null
@@ -989,7 +994,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                           ),
                           const SizedBox(height: 20),
                           TextFormField(
-      textCapitalization: TextCapitalization.sentences,
+                            textCapitalization: TextCapitalization.sentences,
                             controller: nameController,
                             decoration: const InputDecoration(
                               labelText: 'Item name',
@@ -1074,7 +1079,8 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                                       ),
                                   ],
                                   onChanged: (value) => setSheetState(
-                                    () => selectedUnit = value ?? _unitOptions.first,
+                                    () => selectedUnit =
+                                        value ?? _unitOptions.first,
                                   ),
                                 ),
                               ),
@@ -1102,7 +1108,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
-      textCapitalization: TextCapitalization.sentences,
+                            textCapitalization: TextCapitalization.sentences,
                             controller: categoryController,
                             decoration: const InputDecoration(
                               labelText: 'Category',
@@ -1110,22 +1116,21 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
-      textCapitalization: TextCapitalization.sentences,
+                            textCapitalization: TextCapitalization.sentences,
                             controller: skuController,
                             decoration: InputDecoration(
                               labelText: 'SKU / barcode (optional)',
                               suffixIcon: IconButton(
-                                icon: const Icon(
-                                  Icons.qr_code_scanner_rounded,
-                                ),
+                                icon: const Icon(Icons.qr_code_scanner_rounded),
                                 tooltip: 'Scan barcode',
                                 onPressed: () async {
-                                  final code = await showModalBottomSheet<String>(
-                                    context: sheetContext,
-                                    isScrollControlled: true,
-                                    backgroundColor: Colors.transparent,
-                                    builder: (_) => const PosScannerSheet(),
-                                  );
+                                  final code =
+                                      await showModalBottomSheet<String>(
+                                        context: sheetContext,
+                                        isScrollControlled: true,
+                                        backgroundColor: Colors.transparent,
+                                        builder: (_) => const PosScannerSheet(),
+                                      );
                                   if (code != null && code.trim().isNotEmpty) {
                                     skuController.text = code.trim();
                                   }
@@ -1144,7 +1149,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
-      textCapitalization: TextCapitalization.sentences,
+                            textCapitalization: TextCapitalization.sentences,
                             controller: hsnController,
                             decoration: const InputDecoration(
                               labelText: 'HSN/SAC optional',
@@ -1219,7 +1224,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
             Text(
               (item.sku ?? '').trim().isEmpty
                   ? 'This item has no SKU, so the label will print name and '
-                      'price without a barcode.'
+                        'price without a barcode.'
                   : 'Barcode: ${item.sku}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -1514,14 +1519,14 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
           .read(mobileSyncCoordinatorProvider)
           .deleteInventoryItem(itemId: item.id, name: item.name);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${item.name} deleted.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${item.name} deleted.')));
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Delete failed: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Delete failed: $error')));
     }
   }
 
@@ -1611,7 +1616,10 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                       const SizedBox(height: 20),
                       const Text(
                         'Bulk add items',
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -1625,7 +1633,8 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                         child: ListView.separated(
                           shrinkWrap: true,
                           itemCount: rows.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 10),
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 10),
                           itemBuilder: (context, index) {
                             final r = rows[index];
                             return Row(
@@ -1633,7 +1642,8 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                                 Expanded(
                                   flex: 4,
                                   child: TextField(
-      textCapitalization: TextCapitalization.sentences,
+                                    textCapitalization:
+                                        TextCapitalization.sentences,
                                     controller: r.name,
                                     decoration: const InputDecoration(
                                       isDense: true,

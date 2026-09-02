@@ -51,7 +51,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final shop =
         ref.watch(shopInfoProvider).asData?.value ?? ShopInfo.fallback();
     final pending = ref.watch(pendingOutboxCountProvider).asData?.value ?? 0;
-    final version = ref.watch(appRuntimeInfoProvider).asData?.value.versionLabel;
+    final version = ref
+        .watch(appRuntimeInfoProvider)
+        .asData
+        ?.value
+        .versionLabel;
 
     final l = L.of(context);
     final owner = session?.isOwnerLike ?? false;

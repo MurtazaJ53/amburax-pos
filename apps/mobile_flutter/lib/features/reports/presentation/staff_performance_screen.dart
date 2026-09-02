@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Parse the money fields, which DRF serialises as JSON strings.
 double _money(Object? value) {
@@ -23,21 +24,21 @@ int _count(Object? value) {
   return 0;
 }
 
-final staffPerformanceProvider =
-    FutureProvider.autoDispose.family<List<Map<String, dynamic>>, int>(
-  (ref, days) async {
-    final session = ref.watch(mobileSessionProvider).asData?.value;
-    if (session == null || !session.hasShop) {
-      return const <Map<String, dynamic>>[];
-    }
-    final from = DateTime.now().subtract(Duration(days: days));
-    return ref.read(backendApiClientProvider).fetchStaffPerformance(
-          user: session.user,
-          shopId: session.shopId!,
-          dateFrom: from.toIso8601String().split('T').first,
-        );
-  },
-);
+final staffPerformanceProvider = FutureProvider.autoDispose
+    .family<List<Map<String, dynamic>>, int>((ref, days) async {
+      final session = ref.watch(mobileSessionProvider).asData?.value;
+      if (session == null || !session.hasShop) {
+        return const <Map<String, dynamic>>[];
+      }
+      final from = DateTime.now().subtract(Duration(days: days));
+      return ref
+          .read(backendApiClientProvider)
+          .fetchStaffPerformance(
+            user: session.user,
+            shopId: session.shopId!,
+            dateFrom: from.toIso8601String().split('T').first,
+          );
+    });
 
 /// Who is selling, and how. Useful for targets and for spotting a till that
 /// gives away far more discount than anyone else.
@@ -83,12 +84,13 @@ class _StaffPerformanceScreenState
               ),
             )
           else if (rows.isEmpty)
-            const MobilePanel(
+            const AppPanel(
               title: 'No sales in this period',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.people_outline_rounded,
                 title: 'Nothing to compare yet',
-                body: 'Sales are credited to whoever was signed in when they '
+                body:
+                    'Sales are credited to whoever was signed in when they '
                     'were billed.',
               ),
             )
@@ -117,9 +119,9 @@ class _StaffPerformanceScreenState
                   // that one person did everything.
                   'Everything is credited to one account. Give each team member '
                   'their own login from Settings > Team to compare them.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
                 ),
               ),
           ],
@@ -174,8 +176,9 @@ class _StaffTile extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 12,
-                    color:
-                        rank == 1 ? AppPalette.success : colors.textSecondary,
+                    color: rank == 1
+                        ? AppPalette.success
+                        : colors.textSecondary,
                   ),
                 ),
               ),
@@ -185,9 +188,9 @@ class _StaffTile extends StatelessWidget {
                   (row['name'] ?? 'Unattributed').toString(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               Text(
@@ -212,9 +215,9 @@ class _StaffTile extends StatelessWidget {
           Text(
             '$count bill(s)  ·  avg ${formatCurrency(_money(row['average_ticket']))}'
             '${discount > 0.009 ? '  ·  ${formatCurrency(discount)} discount given' : ''}',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: colors.textSecondary),
           ),
         ],
       ),

@@ -42,14 +42,14 @@ List<MapEntry<String, double>> jamaLines(Map<String, dynamic> jama) {
   return rows;
 }
 
-final dayBookProvider =
-    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+final dayBookProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
+  ref,
+) async {
   final session = ref.watch(mobileSessionProvider).asData?.value;
   if (session == null || !session.hasShop) return const <String, dynamic>{};
-  return ref.read(backendApiClientProvider).fetchDayBook(
-        user: session.user,
-        shopId: session.shopId!,
-      );
+  return ref
+      .read(backendApiClientProvider)
+      .fetchDayBook(user: session.user, shopId: session.shopId!);
 });
 
 /// The day book — Roj Mel — on the phone.
@@ -72,11 +72,14 @@ class DayBookScreen extends ConsumerWidget {
     final async = ref.watch(dayBookProvider);
     final payload = async.asData?.value ?? const <String, dynamic>{};
 
-    final jama = (payload['jama'] as Map?)?.cast<String, dynamic>() ??
+    final jama =
+        (payload['jama'] as Map?)?.cast<String, dynamic>() ??
         const <String, dynamic>{};
-    final udhaar = (payload['udhaar'] as Map?)?.cast<String, dynamic>() ??
+    final udhaar =
+        (payload['udhaar'] as Map?)?.cast<String, dynamic>() ??
         const <String, dynamic>{};
-    final moneyOut = (payload['money_out'] as Map?)?.cast<String, dynamic>() ??
+    final moneyOut =
+        (payload['money_out'] as Map?)?.cast<String, dynamic>() ??
         const <String, dynamic>{};
 
     final jamaTotal = parseMoney(jama['total']);
@@ -109,10 +112,12 @@ class DayBookScreen extends ConsumerWidget {
       child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(dayBookProvider),
         child: async.isLoading && payload.isEmpty
-            ? const Center(child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 60),
-                child: CircularProgressIndicator(),
-              ))
+            ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 60),
+                  child: CircularProgressIndicator(),
+                ),
+              )
             : ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                 children: <Widget>[

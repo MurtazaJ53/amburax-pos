@@ -13,6 +13,7 @@ import '../../../core/runtime/mobile_runtime_config.dart';
 import '../../../core/security/app_lock.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 class SettingsSecurityScreen extends ConsumerStatefulWidget {
   const SettingsSecurityScreen({super.key});
@@ -226,9 +227,9 @@ class _SettingsSecurityScreenState
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
           children: const <Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Loading security',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.sync_rounded,
                 title: 'Checking account access',
                 body:
@@ -261,9 +262,9 @@ class _SettingsSecurityScreenState
               ),
             ),
             SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'What works now',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.phone_android_rounded,
                 title: 'Device vault is unlocked locally',
                 body:
@@ -291,9 +292,9 @@ class _SettingsSecurityScreenState
           children: const <Widget>[
             AppLockPanel(),
             SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Security controls stay with elevated roles',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.lock_outline_rounded,
                 title: 'Owner/admin only',
                 body:
@@ -340,7 +341,7 @@ class _SettingsSecurityScreenState
           const AppLockPanel(),
           const SizedBox(height: 18),
           if (_message != null)
-            MobilePanel(
+            AppPanel(
               title: 'Security signal',
               child: Text(
                 _message!,
@@ -350,7 +351,7 @@ class _SettingsSecurityScreenState
               ),
             ),
           if (_message != null) const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'Current posture',
             action: MobileTag(
               label: hasFreshWindow ? 'Unlocked' : 'Locked',
@@ -394,9 +395,9 @@ class _SettingsSecurityScreenState
           ),
           const SizedBox(height: 18),
           if (status == null && _busy)
-            const MobilePanel(
+            const AppPanel(
               title: 'Loading security status',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.sync_rounded,
                 title: 'Checking MFA status',
                 body:
@@ -404,7 +405,7 @@ class _SettingsSecurityScreenState
               ),
             )
           else if (status != null && !status.totpEnabled) ...<Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Set up MFA',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -473,7 +474,7 @@ class _SettingsSecurityScreenState
               ),
             ),
           ] else if (status != null) ...<Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Verify owner/admin access',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,7 +507,7 @@ class _SettingsSecurityScreenState
               ),
             ),
             const SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Disable MFA',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -528,7 +529,7 @@ class _SettingsSecurityScreenState
             ),
           ],
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'Protected surfaces',
             child: Column(
               children: <Widget>[

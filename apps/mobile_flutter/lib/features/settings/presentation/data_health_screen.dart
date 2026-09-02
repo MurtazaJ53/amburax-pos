@@ -11,11 +11,13 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 final dataHealthProvider = Provider.autoDispose<DataHealthReport>((ref) {
   // Scan the whole catalog, not a page: a duplicate two screens down is
   // exactly the kind of thing nobody finds by browsing.
-  final items = ref
+  final items =
+      ref
           .watch(
             inventoryCatalogPageProvider(
               const InventoryCatalogFilter(page: 1, pageSize: 5000),
@@ -24,7 +26,8 @@ final dataHealthProvider = Provider.autoDispose<DataHealthReport>((ref) {
           .asData
           ?.value ??
       const <InventoryCatalogItem>[];
-  final customers = ref.watch(customersProvider).asData?.value ??
+  final customers =
+      ref.watch(customersProvider).asData?.value ??
       const <BackendCustomerSummary>[];
   return buildDataHealthReport(items: items, customers: customers);
 });
@@ -165,9 +168,9 @@ class _DataHealthScreenState extends ConsumerState<DataHealthScreen> {
       await _mergeGroupSilently(group);
     }
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Duplicates merged.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Duplicates merged.')));
     }
   }
 
@@ -219,9 +222,9 @@ class _DataHealthScreenState extends ConsumerState<DataHealthScreen> {
           _HeaderCard(report: report),
           const SizedBox(height: 16),
           if (report.isHealthy)
-            MobilePanel(
+            AppPanel(
               title: L.of(context).healthNothing,
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.verified_rounded,
                 title: 'Your data looks healthy',
                 body:
@@ -309,9 +312,9 @@ class _DataHealthScreenState extends ConsumerState<DataHealthScreen> {
           Text(
             'This screen updates as you fix things. Nothing here deletes a '
             'sale or a payment — only duplicate product rows are archived.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.textTertiary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.textTertiary),
           ),
         ],
       ),
@@ -398,9 +401,9 @@ class _SectionHeader extends StatelessWidget {
               Expanded(
                 child: Text(
                   '$title ($count)',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
                 ),
               ),
               ?action,
@@ -450,17 +453,17 @@ class _DuplicateTile extends StatelessWidget {
                   group.keeper.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${group.copies} copies  ·  combined stock '
                   '${formatQty(group.combinedStock)}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: colors.textSecondary),
                 ),
               ],
             ),

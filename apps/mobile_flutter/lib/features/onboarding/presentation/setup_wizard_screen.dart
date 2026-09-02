@@ -16,9 +16,9 @@ const String _kOnboardingKey = 'onboarding_completed';
 
 /// True until the owner finishes (or skips) first-run setup.
 final needsOnboardingProvider = FutureProvider<bool>((ref) async {
-  final done = await ref.watch(shopRepositoryProvider).readSetting(
-        _kOnboardingKey,
-      );
+  final done = await ref
+      .watch(shopRepositoryProvider)
+      .readSetting(_kOnboardingKey);
   return done != '1';
 });
 
@@ -94,7 +94,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
   Future<void> _finish() async {
     setState(() => _saving = true);
     final coordinator = ref.read(mobileSyncCoordinatorProvider);
-    final shop = ref.read(shopInfoProvider).asData?.value ?? ShopInfo.fallback();
+    final shop =
+        ref.read(shopInfoProvider).asData?.value ?? ShopInfo.fallback();
 
     try {
       // saveShopDocument does a full overwrite, so fall back to the current
@@ -107,8 +108,9 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
         'tagline': shop.tagline,
         'footer': shop.footer,
         'currency': shop.currency,
-        'business_phone':
-            _phone.text.trim().isEmpty ? shop.phone : _phone.text.trim(),
+        'business_phone': _phone.text.trim().isEmpty
+            ? shop.phone
+            : _phone.text.trim(),
         'gstin': shop.gstin,
         'upi_vpa': _upi.text.trim().isEmpty ? shop.upiVpa : _upi.text.trim(),
         'plan_tier': shop.planTier,
@@ -195,7 +197,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
                 _Step(
                   icon: Icons.qr_code_2_rounded,
                   title: 'Take UPI payments',
-                  body: 'Add your UPI ID and the app can show a scan-to-pay QR '
+                  body:
+                      'Add your UPI ID and the app can show a scan-to-pay QR '
                       'for the exact bill amount.',
                   children: <Widget>[
                     TextField(
@@ -217,14 +220,16 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
                 _Step(
                   icon: Icons.inventory_2_rounded,
                   title: 'Add your first product',
-                  body: 'One item is enough to start billing. You can import '
+                  body:
+                      'One item is enough to start billing. You can import '
                       'the rest later from a spreadsheet.',
                   children: <Widget>[
                     TextField(
                       controller: _itemName,
                       textCapitalization: TextCapitalization.words,
-                      decoration:
-                          const InputDecoration(labelText: 'Product name'),
+                      decoration: const InputDecoration(
+                        labelText: 'Product name',
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -246,8 +251,9 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
                           child: TextField(
                             controller: _itemStock,
                             keyboardType: TextInputType.number,
-                            decoration:
-                                const InputDecoration(labelText: 'In stock'),
+                            decoration: const InputDecoration(
+                              labelText: 'In stock',
+                            ),
                           ),
                         ),
                       ],
@@ -325,9 +331,9 @@ class _Step extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             title,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 6),
           Text(

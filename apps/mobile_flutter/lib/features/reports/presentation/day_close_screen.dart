@@ -12,6 +12,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// End-of-day close: today's takings, per-mode totals, and a cash count with
 /// expected-vs-counted variance.
@@ -40,7 +41,8 @@ class _DayCloseScreenState extends ConsumerState<DayCloseScreen> {
     final shop = ref.read(shopInfoProvider).asData?.value;
     final debtors =
         ref.read(khataDebtorsProvider).asData?.value ?? const <KhataDebtor>[];
-    final lowStock = ref.read(dashboardLowStockPreviewProvider).asData?.value ??
+    final lowStock =
+        ref.read(dashboardLowStockPreviewProvider).asData?.value ??
         const <LowStockItem>[];
 
     final message = buildDaySummary(
@@ -102,7 +104,7 @@ class _DayCloseScreenState extends ConsumerState<DayCloseScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
         children: <Widget>[
-          MobilePanel(
+          AppPanel(
             title: 'Today',
             action: MobileTag(
               label: '${z.salesCount} sales',
@@ -117,20 +119,29 @@ class _DayCloseScreenState extends ConsumerState<DayCloseScreen> {
                 const SizedBox(height: 8),
                 _kv('Tax collected', formatCurrency(z.taxCollected)),
                 const SizedBox(height: 8),
-                _kv('Collected', formatCurrency(z.collected),
-                    color: AppPalette.success),
+                _kv(
+                  'Collected',
+                  formatCurrency(z.collected),
+                  color: AppPalette.success,
+                ),
                 const SizedBox(height: 8),
-                _kv('Outstanding due', formatCurrency(z.due),
-                    color: z.due > 0 ? AppPalette.warning : AppPalette.success),
+                _kv(
+                  'Outstanding due',
+                  formatCurrency(z.due),
+                  color: z.due > 0 ? AppPalette.warning : AppPalette.success,
+                ),
               ],
             ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'Collected by tender',
-            action: const MobileTag(label: 'TODAY', icon: Icons.payments_rounded),
+            action: const MobileTag(
+              label: 'TODAY',
+              icon: Icons.payments_rounded,
+            ),
             child: modeEntries.isEmpty
-                ? const MobileEmptyState(
+                ? const AppEmptyState(
                     icon: Icons.query_stats_rounded,
                     title: 'No sales today',
                     body: 'Payment totals will appear here as you sell.',
@@ -145,7 +156,7 @@ class _DayCloseScreenState extends ConsumerState<DayCloseScreen> {
                   ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: 'Cash count',
             action: const MobileTag(
               label: 'RECONCILE',
@@ -168,8 +179,11 @@ class _DayCloseScreenState extends ConsumerState<DayCloseScreen> {
                 const SizedBox(height: 12),
                 _kv('+ Cash sales', formatCurrency(z.cashCollected)),
                 const SizedBox(height: 8),
-                _kv('= Expected in drawer', formatCurrency(expectedCash),
-                    bold: true),
+                _kv(
+                  '= Expected in drawer',
+                  formatCurrency(expectedCash),
+                  bold: true,
+                ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _counted,
@@ -187,10 +201,11 @@ class _DayCloseScreenState extends ConsumerState<DayCloseScreen> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: (variance.abs() < 0.01
-                              ? AppPalette.success
-                              : AppPalette.error)
-                          .withValues(alpha: 0.1),
+                      color:
+                          (variance.abs() < 0.01
+                                  ? AppPalette.success
+                                  : AppPalette.error)
+                              .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
@@ -262,8 +277,9 @@ class _DayCloseScreenState extends ConsumerState<DayCloseScreen> {
         const Spacer(),
         Text(
           v,
-          style: (bold ? theme.textTheme.titleMedium : theme.textTheme.bodyLarge)
-              ?.copyWith(fontWeight: FontWeight.w800, color: color),
+          style:
+              (bold ? theme.textTheme.titleMedium : theme.textTheme.bodyLarge)
+                  ?.copyWith(fontWeight: FontWeight.w800, color: color),
         ),
       ],
     );

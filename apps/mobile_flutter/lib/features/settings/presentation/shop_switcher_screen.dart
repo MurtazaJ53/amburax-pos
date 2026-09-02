@@ -8,6 +8,7 @@ import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Lets a user who belongs to multiple shops switch the active workspace
 /// without logging out. The current shop is marked; switching wipes the old
@@ -58,17 +59,19 @@ class _ShopSwitcherScreenState extends ConsumerState<ShopSwitcherScreen> {
 
   Future<void> _switch(ShopMembershipAccessRecord shop) async {
     setState(() => _switching = true);
-    final error =
-        await ref.read(mobileSessionProvider.notifier).switchShop(shop.shopId);
+    final error = await ref
+        .read(mobileSessionProvider.notifier)
+        .switchShop(shop.shopId);
     if (!mounted) return;
     setState(() => _switching = false);
     if (error != null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Switched to ${shop.shopName}.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Switched to ${shop.shopName}.')));
       // Re-enter the app so every screen rebuilds against the new shop.
       context.go('/');
     }
@@ -82,40 +85,44 @@ class _ShopSwitcherScreenState extends ConsumerState<ShopSwitcherScreen> {
     return MobileStandaloneScaffold(
       title: 'Switch shop',
       child: _loading
-          ? const Center(child: Padding(
-              padding: EdgeInsets.all(40),
-              child: CircularProgressIndicator()))
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: CircularProgressIndicator(),
+              ),
+            )
           : _error != null
-              ? Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(_error!, textAlign: TextAlign.center))
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
-                  children: [
-                    if (_shops.length <= 1)
-                      const MobilePanel(
-                        title: 'One workspace',
-                        child: MobileEmptyState(
-                          icon: Icons.storefront_rounded,
-                          title: 'You belong to one shop',
-                          body:
-                              'When you are invited to another shop, it will appear here so you can switch between them.',
-                        ),
-                      ),
-                    for (final shop in _shops)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _ShopCard(
-                          shop: shop,
-                          isCurrent: shop.shopId == currentShopId,
-                          disabled: _switching,
-                          onTap: shop.shopId == currentShopId || _switching
-                              ? null
-                              : () => _switch(shop),
-                        ),
-                      ),
-                  ],
-                ),
+          ? Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(_error!, textAlign: TextAlign.center),
+            )
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+              children: [
+                if (_shops.length <= 1)
+                  const AppPanel(
+                    title: 'One workspace',
+                    child: AppEmptyState(
+                      icon: Icons.storefront_rounded,
+                      title: 'You belong to one shop',
+                      body:
+                          'When you are invited to another shop, it will appear here so you can switch between them.',
+                    ),
+                  ),
+                for (final shop in _shops)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _ShopCard(
+                      shop: shop,
+                      isCurrent: shop.shopId == currentShopId,
+                      disabled: _switching,
+                      onTap: shop.shopId == currentShopId || _switching
+                          ? null
+                          : () => _switch(shop),
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 }
@@ -160,21 +167,31 @@ class _ShopCard extends StatelessWidget {
                   color: AppPalette.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.storefront_rounded,
-                    color: AppPalette.primary),
+                child: const Icon(
+                  Icons.storefront_rounded,
+                  color: AppPalette.primary,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(shop.shopName,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15)),
+                    Text(
+                      shop.shopName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text('${shop.roleLabel} · ${shop.shopPlanTier}',
-                        style: TextStyle(
-                            color: colors.textTertiary, fontSize: 12.5)),
+                    Text(
+                      '${shop.roleLabel} · ${shop.shopPlanTier}',
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 12.5,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -185,8 +202,7 @@ class _ShopCard extends StatelessWidget {
                   accent: AppPalette.success,
                 )
               else
-                Icon(Icons.chevron_right_rounded,
-                    color: colors.textTertiary),
+                Icon(Icons.chevron_right_rounded, color: colors.textTertiary),
             ],
           ),
         ),

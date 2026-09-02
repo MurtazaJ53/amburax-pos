@@ -7,17 +7,18 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
-final bestSellersProvider =
-    FutureProvider.autoDispose.family<List<BestSellerItem>, int>(
-  (ref, days) =>
-      ref.watch(reportsRepositoryProvider).bestSellers(days: days),
-);
+final bestSellersProvider = FutureProvider.autoDispose
+    .family<List<BestSellerItem>, int>(
+      (ref, days) =>
+          ref.watch(reportsRepositoryProvider).bestSellers(days: days),
+    );
 
-final cashFlowProvider =
-    FutureProvider.autoDispose.family<CashFlowSnapshot, int>(
-  (ref, days) => ref.watch(reportsRepositoryProvider).cashFlow(days: days),
-);
+final cashFlowProvider = FutureProvider.autoDispose
+    .family<CashFlowSnapshot, int>(
+      (ref, days) => ref.watch(reportsRepositoryProvider).cashFlow(days: days),
+    );
 
 /// Two questions an owner asks constantly: what is selling, and did the shop
 /// actually make money. Dead stock answers the opposite of the first; this is
@@ -38,8 +39,9 @@ class _BusinessPulseScreenState extends ConsumerState<BusinessPulseScreen> {
     final colors = AppColors.of(context);
     final sellers =
         ref.watch(bestSellersProvider(_days)).asData?.value ??
-            const <BestSellerItem>[];
-    final flow = ref.watch(cashFlowProvider(_days)).asData?.value ??
+        const <BestSellerItem>[];
+    final flow =
+        ref.watch(cashFlowProvider(_days)).asData?.value ??
         CashFlowSnapshot.empty;
 
     return MobileStandaloneScaffold(
@@ -70,15 +72,15 @@ class _BusinessPulseScreenState extends ConsumerState<BusinessPulseScreen> {
           const SizedBox(height: 4),
           Text(
             'What to keep in stock. The opposite of the dead stock list.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 12),
           if (sellers.isEmpty)
-            const MobilePanel(
+            const AppPanel(
               title: 'No sales yet',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.insights_rounded,
                 title: 'Nothing sold in this period',
                 body: 'Best sellers appear here once you start billing.',
@@ -132,10 +134,12 @@ class _CashFlowCard extends StatelessWidget {
             ),
           ),
           Text(
-            flow.isPositive ? 'kept in the business' : 'more went out than came in',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.textSecondary,
-            ),
+            flow.isPositive
+                ? 'kept in the business'
+                : 'more went out than came in',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 12),
           _FlowLine(label: 'Sales', value: flow.salesCollected, positive: true),
@@ -165,7 +169,9 @@ class _FlowLine extends StatelessWidget {
       child: Row(
         children: <Widget>[
           Icon(
-            positive ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+            positive
+                ? Icons.arrow_downward_rounded
+                : Icons.arrow_upward_rounded,
             size: 14,
             color: positive ? AppPalette.success : AppPalette.warning,
           ),
@@ -180,9 +186,9 @@ class _FlowLine extends StatelessWidget {
           ),
           Text(
             formatCurrency(value.abs()),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800),
           ),
         ],
       ),
@@ -236,16 +242,16 @@ class _SellerTile extends StatelessWidget {
                   item.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 Text(
                   '${formatQty(item.quantitySold)} sold  ·  '
                   '${formatCurrency(item.revenue)}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: colors.textSecondary),
                 ),
               ],
             ),

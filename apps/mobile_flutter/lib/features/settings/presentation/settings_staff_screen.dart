@@ -5,6 +5,7 @@ import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 const List<String> _roles = <String>['owner', 'manager', 'staff'];
 
@@ -114,9 +115,9 @@ class _SettingsStaffScreenState extends ConsumerState<SettingsStaffScreen> {
             pin: pinController.text.trim(),
           );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error ?? 'Staff added.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error ?? 'Staff added.')));
       }
       await _refresh();
     }
@@ -143,7 +144,7 @@ class _SettingsStaffScreenState extends ConsumerState<SettingsStaffScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
         children: <Widget>[
-          MobilePanel(
+          AppPanel(
             title: 'Staff accounts',
             action: MobileTag(
               label: '${_staff.length}',
@@ -167,12 +168,11 @@ class _SettingsStaffScreenState extends ConsumerState<SettingsStaffScreen> {
                           ),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor:
-                                  AppPalette.primary.withValues(alpha: 0.12),
+                              backgroundColor: AppPalette.primary.withValues(
+                                alpha: 0.12,
+                              ),
                               child: Text(
-                                s.name.isEmpty
-                                    ? '?'
-                                    : s.name[0].toUpperCase(),
+                                s.name.isEmpty ? '?' : s.name[0].toUpperCase(),
                                 style: const TextStyle(
                                   color: AppPalette.primary,
                                   fontWeight: FontWeight.w800,
@@ -215,9 +215,9 @@ class _SettingsStaffScreenState extends ConsumerState<SettingsStaffScreen> {
             'Each person signs in with their own PIN. Owners and managers get '
             'full control; staff run the till (no cost/profit, no deletes or '
             'refunds).',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.textTertiary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.textTertiary),
           ),
         ],
       ),

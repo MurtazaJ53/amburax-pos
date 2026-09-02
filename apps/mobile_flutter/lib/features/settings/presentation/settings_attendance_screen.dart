@@ -13,6 +13,7 @@ import '../../../core/runtime/mobile_runtime_config.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 class SettingsAttendanceScreen extends ConsumerStatefulWidget {
   const SettingsAttendanceScreen({super.key});
@@ -207,7 +208,7 @@ class _SettingsAttendanceScreenState
                           ),
                           const SizedBox(height: 12),
                           TextField(
-      textCapitalization: TextCapitalization.sentences,
+                            textCapitalization: TextCapitalization.sentences,
                             controller: noteController,
                             minLines: 2,
                             maxLines: 3,
@@ -311,9 +312,9 @@ class _SettingsAttendanceScreenState
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
           children: const <Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Loading attendance',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.sync_rounded,
                 title: 'Checking workspace access',
                 body:
@@ -331,9 +332,9 @@ class _SettingsAttendanceScreenState
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
           children: const <Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Attendance unlocks on Growth and Pro',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.workspace_premium_rounded,
                 title: 'Attendance is not active on this plan',
                 body:
@@ -391,7 +392,7 @@ class _SettingsAttendanceScreenState
           ),
           const SizedBox(height: 18),
           if (_message != null) ...<Widget>[
-            MobilePanel(
+            AppPanel(
               title: _messageIsError ? 'Attendance issue' : 'Attendance saved',
               child: Text(
                 _message!,
@@ -403,7 +404,7 @@ class _SettingsAttendanceScreenState
             ),
             const SizedBox(height: 18),
           ],
-          MobilePanel(
+          AppPanel(
             title: session.isOwnerLike
                 ? 'How staffing works'
                 : 'How your access works',
@@ -500,7 +501,7 @@ class _SettingsAttendanceScreenState
             },
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: session.isOwnerLike ? 'Mark today' : 'Mark my day',
             action: MobileTag(
               label: todayRecord == null ? 'Open' : 'Already marked',
@@ -512,7 +513,7 @@ class _SettingsAttendanceScreenState
                   : AppPalette.success,
             ),
             child: currentMembershipId == null && !session.isOwnerLike
-                ? const MobileEmptyState(
+                ? const AppEmptyState(
                     icon: Icons.sync_problem_rounded,
                     title: 'Your staff link is still missing',
                     body:
@@ -569,7 +570,7 @@ class _SettingsAttendanceScreenState
                   ),
           ),
           const SizedBox(height: 18),
-          MobilePanel(
+          AppPanel(
             title: session.isOwnerLike
                 ? 'Recent team sessions'
                 : 'My recent sessions',
@@ -585,14 +586,14 @@ class _SettingsAttendanceScreenState
               accent: AppPalette.primary,
             ),
             child: sessionsAsync.isLoading
-                ? const MobileEmptyState(
+                ? const AppEmptyState(
                     icon: Icons.sync_rounded,
                     title: 'Refreshing attendance',
                     body:
                         'Business Hub is loading the latest attendance records for this workspace.',
                   )
                 : sessions.isEmpty
-                ? MobileEmptyState(
+                ? AppEmptyState(
                     icon: Icons.fact_check_rounded,
                     title: session.isOwnerLike
                         ? 'No attendance sessions yet'

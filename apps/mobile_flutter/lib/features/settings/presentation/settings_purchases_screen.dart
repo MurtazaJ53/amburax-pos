@@ -12,6 +12,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Stock buying and supplier dues. Purchases are money-out with a running
 /// payable; suppliers roll up from those purchases. Fully local-first.
@@ -81,7 +82,7 @@ class SettingsPurchasesScreen extends ConsumerWidget {
             ),
           if (suppliers.any((s) => s.payable > 0)) ...<Widget>[
             const SizedBox(height: 16),
-            MobilePanel(
+            AppPanel(
               title: L.of(context).purOutstanding,
               action: const MobileTag(
                 label: 'PAYABLE',
@@ -96,7 +97,7 @@ class SettingsPurchasesScreen extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: 16),
-          MobilePanel(
+          AppPanel(
             title: L.of(context).purRecent,
             action: MobileTag(
               label: '${purchases.length} ENTRIES',
@@ -255,7 +256,7 @@ class SettingsPurchasesScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
-      textCapitalization: TextCapitalization.sentences,
+                        textCapitalization: TextCapitalization.sentences,
                         controller: referenceController,
                         decoration: const InputDecoration(
                           labelText: 'Bill / invoice no. (optional)',
@@ -314,9 +315,7 @@ class SettingsPurchasesScreen extends ConsumerWidget {
                         contentPadding: EdgeInsets.zero,
                         leading: const Icon(Icons.calendar_today_rounded),
                         title: const Text('Purchase date'),
-                        subtitle: Text(
-                          date.toIso8601String().split('T').first,
-                        ),
+                        subtitle: Text(date.toIso8601String().split('T').first),
                         trailing: TextButton(
                           onPressed: () async {
                             final picked = await showDatePicker(
@@ -334,7 +333,7 @@ class SettingsPurchasesScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
-      textCapitalization: TextCapitalization.sentences,
+                        textCapitalization: TextCapitalization.sentences,
                         controller: notesController,
                         maxLines: 2,
                         decoration: const InputDecoration(
@@ -514,7 +513,7 @@ class SettingsPurchasesScreen extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     TextField(
-      textCapitalization: TextCapitalization.sentences,
+                      textCapitalization: TextCapitalization.sentences,
                       controller: searchController,
                       autofocus: true,
                       decoration: const InputDecoration(
@@ -549,8 +548,7 @@ class SettingsPurchasesScreen extends ConsumerWidget {
                                 subtitle: Text(
                                   'Stock ${formatQty(item.stock)} · ${formatCurrency(item.price)}',
                                 ),
-                                onTap: () =>
-                                    Navigator.pop(sheetContext, item),
+                                onTap: () => Navigator.pop(sheetContext, item),
                               );
                             },
                           );
@@ -729,9 +727,9 @@ class _SupplierRow extends StatelessWidget {
                 Text(
                   '${supplier.purchaseCount} purchase(s) · '
                   '${formatCurrency(supplier.totalPurchased)} bought',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
                 ),
               ],
             ),
@@ -786,16 +784,16 @@ class _PurchaseRow extends StatelessWidget {
                 ),
                 Text(
                   subtitleParts.join(' · '),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
                 ),
                 if (purchase.notes.isNotEmpty)
                   Text(
                     purchase.notes,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.textTertiary,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: colors.textTertiary),
                   ),
               ],
             ),

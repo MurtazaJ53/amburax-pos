@@ -12,6 +12,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../pos/presentation/pos_scanner_sheet.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 class AuthGateScreen extends ConsumerStatefulWidget {
   const AuthGateScreen({super.key});
@@ -116,13 +117,17 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
       _triggerShake();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Enter the invite code and a password of 8+ characters.'),
+          content: Text(
+            'Enter the invite code and a password of 8+ characters.',
+          ),
         ),
       );
       return;
     }
     setState(() => _isLoggingIn = true);
-    final error = await ref.read(mobileSessionProvider.notifier).cloudAcceptInvite(
+    final error = await ref
+        .read(mobileSessionProvider.notifier)
+        .cloudAcceptInvite(
           code: _joinCodeController.text,
           name: _joinNameController.text,
           password: _joinPasswordController.text,
@@ -131,8 +136,9 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
     setState(() => _isLoggingIn = false);
     if (error != null) {
       _triggerShake();
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Joined! Welcome to the team.')),
@@ -156,23 +162,25 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
       return;
     }
     setState(() => _isLoggingIn = true);
-    final error =
-        await ref.read(mobileSessionProvider.notifier).cloudRegister(
-              ownerName: _regOwnerController.text,
-              email: _regEmailController.text,
-              password: _regPasswordController.text,
-              businessName: _regBusinessController.text,
-              mobile: _regMobileController.text,
-              businessType: _regBusinessType,
-              stateCode: _regStateCode,
-              gstin: _regGstinController.text,
-            );
+    final error = await ref
+        .read(mobileSessionProvider.notifier)
+        .cloudRegister(
+          ownerName: _regOwnerController.text,
+          email: _regEmailController.text,
+          password: _regPasswordController.text,
+          businessName: _regBusinessController.text,
+          mobile: _regMobileController.text,
+          businessType: _regBusinessType,
+          stateCode: _regStateCode,
+          gstin: _regGstinController.text,
+        );
     if (!mounted) return;
     setState(() => _isLoggingIn = false);
     if (error != null) {
       _triggerShake();
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Shop created! Welcome to Business Hub.')),
@@ -194,8 +202,9 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
     setState(() => _isLoggingIn = false);
     if (error != null) {
       _triggerShake();
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
     }
   }
 
@@ -230,19 +239,19 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
   }
 
   InputDecoration _fieldDecoration(String label) => InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: AppColors.of(context).backgroundSoft,
-        isDense: true,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-      );
+    labelText: label,
+    filled: true,
+    fillColor: AppColors.of(context).backgroundSoft,
+    isDense: true,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide.none,
+    ),
+  );
 
   Widget _buildCloudLoginPanel(BuildContext context) {
     final colors = AppColors.of(context);
-    return MobilePanel(
+    return AppPanel(
       title: 'Cloud Sign-in',
       action: const MobileTag(label: 'CLOUD', icon: Icons.cloud_outlined),
       child: Column(
@@ -253,9 +262,9 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
             'Sign in to sync with the cloud backend.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colors.textSecondary,
-                  height: 1.5,
-                ),
+              color: colors.textSecondary,
+              height: 1.5,
+            ),
           ),
           const SizedBox(height: 20),
           TextField(
@@ -288,13 +297,18 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2),
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
                     )
-                  : const Text('SIGN IN',
+                  : const Text(
+                      'SIGN IN',
                       style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2)),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 6),
@@ -318,10 +332,9 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
           Text(
             'First request may take ~40s while the free server wakes up.',
             textAlign: TextAlign.center,
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: colors.textTertiary),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.textTertiary),
           ),
         ],
       ),
@@ -330,10 +343,12 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
 
   Widget _buildCloudRegisterPanel(BuildContext context) {
     final colors = AppColors.of(context);
-    return MobilePanel(
+    return AppPanel(
       title: 'Create your shop',
       action: const MobileTag(
-          label: 'SIGN UP', icon: Icons.storefront_outlined),
+        label: 'SIGN UP',
+        icon: Icons.storefront_outlined,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -341,10 +356,10 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
           Text(
             'Set up a new business workspace in under a minute.',
             textAlign: TextAlign.center,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: colors.textSecondary, height: 1.4),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: colors.textSecondary,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 18),
           TextField(
@@ -388,15 +403,15 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                   items: const [
                     DropdownMenuItem(value: 'retail', child: Text('Retail')),
                     DropdownMenuItem(
-                        value: 'wholesale', child: Text('Wholesale')),
-                    DropdownMenuItem(
-                        value: 'grocery', child: Text('Grocery')),
+                      value: 'wholesale',
+                      child: Text('Wholesale'),
+                    ),
+                    DropdownMenuItem(value: 'grocery', child: Text('Grocery')),
                     // Pharmacy and Restaurant are deliberately absent until the
                     // app does what picking them implies — batch and expiry for
                     // a pharmacy, tables and orders for a restaurant. Both are
                     // planned. The website's list must match this one.
-                    DropdownMenuItem(
-                        value: 'service', child: Text('Service')),
+                    DropdownMenuItem(value: 'service', child: Text('Service')),
                     DropdownMenuItem(value: 'other', child: Text('Other')),
                   ],
                   onChanged: (v) =>
@@ -451,13 +466,18 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2),
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
                     )
-                  : const Text('CREATE SHOP',
+                  : const Text(
+                      'CREATE SHOP',
                       style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2)),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 8),
@@ -474,7 +494,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
 
   Widget _buildCloudJoinPanel(BuildContext context) {
     final colors = AppColors.of(context);
-    return MobilePanel(
+    return AppPanel(
       title: 'Join a shop',
       action: const MobileTag(label: 'INVITE', icon: Icons.group_add_outlined),
       child: Column(
@@ -484,10 +504,10 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
           Text(
             'Enter the invite code from your email to join your team.',
             textAlign: TextAlign.center,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: colors.textSecondary, height: 1.4),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: colors.textSecondary,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 18),
           SizedBox(
@@ -507,7 +527,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
           ),
           const SizedBox(height: 12),
           TextField(
-      textCapitalization: TextCapitalization.sentences,
+            textCapitalization: TextCapitalization.sentences,
             controller: _joinCodeController,
             autocorrect: false,
             decoration: _fieldDecoration('Invite code *'),
@@ -542,13 +562,18 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2),
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
                     )
-                  : const Text('JOIN SHOP',
+                  : const Text(
+                      'JOIN SHOP',
                       style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2)),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 8),
@@ -592,7 +617,9 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
               context.go(session.defaultRoute);
             }
           });
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
 
         // SHOW LOGIN SCREEN IF NO SESSION
@@ -620,7 +647,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
             children: [
               const _BrandHero(),
               const SizedBox(height: 28),
-              MobilePanel(
+              AppPanel(
                 title: _hasPin ? 'Staff Login' : 'Set up PIN',
                 action: MobileTag(
                   label: _hasPin ? 'SECURE' : 'FIRST TIME',
@@ -674,7 +701,10 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
                           gradient: const LinearGradient(
-                            colors: [AppPalette.primaryLight, AppPalette.primary],
+                            colors: [
+                              AppPalette.primaryLight,
+                              AppPalette.primary,
+                            ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -707,7 +737,9 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                                   ),
                                 )
                               : Text(
-                                  _hasPin ? 'UNLOCK TERMINAL' : 'SET PIN & UNLOCK',
+                                  _hasPin
+                                      ? 'UNLOCK TERMINAL'
+                                      : 'SET PIN & UNLOCK',
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -757,7 +789,11 @@ class _BrandHero extends StatelessWidget {
               ),
             ],
           ),
-          child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 40),
+          child: const Icon(
+            Icons.storefront_rounded,
+            color: Colors.white,
+            size: 40,
+          ),
         ),
         const SizedBox(height: 18),
         Text(
@@ -793,7 +829,8 @@ class _ShakeBuilder extends StatelessWidget {
       animation: controller,
       builder: (context, child) {
         // 3 quick oscillations that decay to zero as the controller completes.
-        final dx = math.sin(controller.value * math.pi * 6) *
+        final dx =
+            math.sin(controller.value * math.pi * 6) *
             10 *
             (1 - controller.value);
         return Transform.translate(offset: Offset(dx, 0), child: child);
@@ -872,7 +909,7 @@ class _BrandedStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final theme = Theme.of(context);
-    return MobilePanel(
+    return AppPanel(
       title: title,
       action: MobileTag(label: eyebrow.toUpperCase(), icon: icon),
       child: Column(

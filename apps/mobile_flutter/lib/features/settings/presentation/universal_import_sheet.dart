@@ -21,7 +21,11 @@ Future<ColumnMapping?> showMappingSheet(
 }
 
 class _MappingSheet extends StatefulWidget {
-  const _MappingSheet({required this.table, required this.kind, required this.title});
+  const _MappingSheet({
+    required this.table,
+    required this.kind,
+    required this.title,
+  });
 
   final ParsedTable table;
   final ImportKind kind;
@@ -61,7 +65,11 @@ class _MappingSheetState extends State<_MappingSheet> {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final preview = mapRows(widget.table, widget.kind, mapping: _currentMapping());
+    final preview = mapRows(
+      widget.table,
+      widget.kind,
+      mapping: _currentMapping(),
+    );
     return DraggableScrollableSheet(
       initialChildSize: 0.85,
       minChildSize: 0.5,
@@ -88,19 +96,19 @@ class _MappingSheetState extends State<_MappingSheet> {
                   ),
                 ),
               ),
-              Text(widget.title,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800)),
+              Text(
+                widget.title,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              ),
               const SizedBox(height: 2),
               Text(
                 'We matched your columns automatically. Adjust any that are wrong, '
                 'then import. ${preview.rows.length} of $_rowsIn row(s) look valid.',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: colors.textSecondary),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
               ),
               const SizedBox(height: 12),
               Expanded(
@@ -171,11 +179,17 @@ class _MappingSheetState extends State<_MappingSheet> {
               isExpanded: true,
               decoration: const InputDecoration(
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
                 border: OutlineInputBorder(),
               ),
               items: <DropdownMenuItem<int?>>[
-                const DropdownMenuItem<int?>(value: null, child: Text('— skip —')),
+                const DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text('— skip —'),
+                ),
                 ...List<DropdownMenuItem<int?>>.generate(
                   widget.table.headers.length,
                   (i) => DropdownMenuItem<int?>(
@@ -202,17 +216,20 @@ class _MappingSheetState extends State<_MappingSheet> {
     final fields = _fields.where((f) => _selection[f.key] != null).toList();
     final sample = preview.rows.take(3).toList();
     if (sample.isEmpty) {
-      return Text('No valid rows with the current mapping.',
-          style: TextStyle(color: colors.textSecondary));
+      return Text(
+        'No valid rows with the current mapping.',
+        style: TextStyle(color: colors.textSecondary),
+      );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('Preview',
-            style: Theme.of(context)
-                .textTheme
-                .labelLarge
-                ?.copyWith(fontWeight: FontWeight.w800)),
+        Text(
+          'Preview',
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
         const SizedBox(height: 6),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,

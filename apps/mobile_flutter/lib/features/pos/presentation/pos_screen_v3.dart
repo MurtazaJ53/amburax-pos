@@ -47,8 +47,10 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _discountController = TextEditingController();
   final TextEditingController _customerNameController = TextEditingController();
-  final TextEditingController _customerPhoneController = TextEditingController();
+  final TextEditingController _customerPhoneController =
+      TextEditingController();
   final List<PosCartItem> _cart = <PosCartItem>[];
+
   /// Loyalty points held by the customer attached to this bill.
   int _customerPoints = 0;
 
@@ -134,7 +136,9 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
             const SizedBox(height: 12),
             TextField(
               controller: priceController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(labelText: 'Price'),
             ),
           ],
@@ -202,7 +206,9 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
                     decimal: true,
                   ),
                   onChanged: (_) => setDialogState(() {}),
-                  decoration: const InputDecoration(labelText: 'Rate per kg/unit'),
+                  decoration: const InputDecoration(
+                    labelText: 'Rate per kg/unit',
+                  ),
                 ),
                 TextField(
                   controller: weightController,
@@ -458,9 +464,9 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
       _discountIsPercent = false;
       _saleDate = null;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Sale held.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Sale held.')));
   }
 
   void _resumeHeldSale(HeldSale held) {
@@ -511,9 +517,9 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
                 const SizedBox(height: 16),
                 Text(
                   'Held sales',
-                  style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(
+                    sheetContext,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 12),
                 ...held.map(
@@ -601,9 +607,9 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
       return sku == needle || item.id.toLowerCase() == needle;
     }).toList();
     if (match.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No product matches "$code".')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No product matches "$code".')));
       return;
     }
     _addToCart(match.first);
@@ -749,8 +755,9 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
                     final n = nameCtrl.text.trim();
                     final p = phoneCtrl.text.trim();
                     if (n.isEmpty || p.length < 7) {
-                      setDialogState(() => error =
-                          'Enter a name and a valid mobile number.');
+                      setDialogState(
+                        () => error = 'Enter a name and a valid mobile number.',
+                      );
                       return;
                     }
                     Navigator.pop(dialogContext, <String, String>{
@@ -812,26 +819,26 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
         session.hasShop &&
         MobileRuntimeConfig.backendSyncEnabled) {
       try {
-        final created = await ref.read(backendApiClientProvider).createCustomer(
-          user: session.user,
-          shopId: session.shopId!,
-          name: resolvedName,
-          phone: customerPhone,
-          notes: customerAddress.isEmpty ? '' : 'Address: $customerAddress',
-        );
-        await ref.read(customerRepositoryProvider).mergeRemoteCustomerDocument(
-          created.id,
-          <String, dynamic>{
-            'name': created.name,
-            'phone': created.phone ?? customerPhone,
-            'status': 'active',
-            'balance': created.balance,
-            'total_spent': created.totalSpent,
-            'tombstone': false,
-            'updatedAt': now.toIso8601String(),
-          },
-          updatedAt: now.millisecondsSinceEpoch,
-        );
+        final created = await ref
+            .read(backendApiClientProvider)
+            .createCustomer(
+              user: session.user,
+              shopId: session.shopId!,
+              name: resolvedName,
+              phone: customerPhone,
+              notes: customerAddress.isEmpty ? '' : 'Address: $customerAddress',
+            );
+        await ref
+            .read(customerRepositoryProvider)
+            .mergeRemoteCustomerDocument(created.id, <String, dynamic>{
+              'name': created.name,
+              'phone': created.phone ?? customerPhone,
+              'status': 'active',
+              'balance': created.balance,
+              'total_spent': created.totalSpent,
+              'tombstone': false,
+              'updatedAt': now.toIso8601String(),
+            }, updatedAt: now.millisecondsSinceEpoch);
         return created.id;
       } catch (_) {
         // fall through to local-only creation
@@ -839,20 +846,18 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
     }
 
     final id = 'local-cust-${now.microsecondsSinceEpoch}';
-    await ref.read(customerRepositoryProvider).mergeRemoteCustomerDocument(
-      id,
-      <String, dynamic>{
-        'name': resolvedName,
-        'phone': customerPhone,
-        if (customerAddress.isNotEmpty) 'address': customerAddress,
-        'status': 'active',
-        'balance': 0,
-        'total_spent': 0,
-        'tombstone': false,
-        'updatedAt': now.toIso8601String(),
-      },
-      updatedAt: now.millisecondsSinceEpoch,
-    );
+    await ref
+        .read(customerRepositoryProvider)
+        .mergeRemoteCustomerDocument(id, <String, dynamic>{
+          'name': resolvedName,
+          'phone': customerPhone,
+          if (customerAddress.isNotEmpty) 'address': customerAddress,
+          'status': 'active',
+          'balance': 0,
+          'total_spent': 0,
+          'tombstone': false,
+          'updatedAt': now.toIso8601String(),
+        }, updatedAt: now.millisecondsSinceEpoch);
     return id;
   }
 
@@ -915,7 +920,7 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
                       ),
                       const SizedBox(height: 12),
                       TextField(
-      textCapitalization: TextCapitalization.sentences,
+                        textCapitalization: TextCapitalization.sentences,
                         controller: searchController,
                         onChanged: (_) => setSheetState(() {}),
                         decoration: const InputDecoration(
@@ -974,7 +979,8 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
 
   Future<void> _openCheckout() async {
     final session = ref.read(mobileSessionProvider).asData?.value;
-    final shop = ref.read(shopInfoProvider).asData?.value ?? ShopInfo.fallback();
+    final shop =
+        ref.read(shopInfoProvider).asData?.value ?? ShopInfo.fallback();
     final salesRepository = ref.read(salesRepositoryProvider);
     final syncCoordinator = ref.read(mobileSyncCoordinatorProvider);
     final activeShopId = session?.shopId;
@@ -1020,9 +1026,7 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppPalette.error,
-              ),
+              style: FilledButton.styleFrom(backgroundColor: AppPalette.error),
               child: const Text('Save anyway'),
             ),
           ],
@@ -1036,7 +1040,8 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
     if (_discountAmount > 0) {
       final approved = await ManagerGate.requireManagerApproval(
         context,
-        reason: 'Approve a ${formatCurrency(_discountAmount)} discount on this sale?',
+        reason:
+            'Approve a ${formatCurrency(_discountAmount)} discount on this sale?',
       );
       if (!approved || !mounted) return;
     }
@@ -1053,8 +1058,7 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
     // the Clients khata. Address stays optional. Fully-paid sales skip this.
     final paidNow = payments.fold<double>(0, (sum, p) => sum + p.amount);
     final creditDue = _netTotal - paidNow;
-    if (creditDue > 0.009 &&
-        (customerName.isEmpty || customerPhone.isEmpty)) {
+    if (creditDue > 0.009 && (customerName.isEmpty || customerPhone.isEmpty)) {
       final captured = await _captureCreditCustomer(
         due: creditDue,
         name: customerName,
@@ -1164,9 +1168,9 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
       await Printing.sharePdf(bytes: bytes, filename: 'receipt-$saleId.pdf');
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Share failed: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Share failed: $error')));
       }
     }
   }
@@ -1231,8 +1235,9 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
             return Container(
               decoration: BoxDecoration(
                 color: colors.background,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
               ),
               padding: const EdgeInsets.all(24),
               child: SafeArea(
@@ -1274,24 +1279,26 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
                     // only fail is worse than not offering it, and the Share /
                     // PDF action below works on both platforms.
                     if (ReceiptPrinterService.supportsBluetoothPrinting)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: FilledButton.icon(
-                        onPressed: printing ? null : printReceipt,
-                        icon: printing
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.print_rounded),
-                        label: Text(printing ? 'Printing...' : 'Print receipt'),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: FilledButton.icon(
+                          onPressed: printing ? null : printReceipt,
+                          icon: printing
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.print_rounded),
+                          label: Text(
+                            printing ? 'Printing...' : 'Print receipt',
+                          ),
+                        ),
                       ),
-                    ),
                     if (ReceiptPrinterService.supportsBluetoothPrinting)
                       const SizedBox(height: 10),
                     SizedBox(
@@ -1362,10 +1369,14 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
           )
         else
           SliverPadding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, AdaptiveLayout.isPhone(context) && _cart.isEmpty ? 24 : 108),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              0,
+              16,
+              AdaptiveLayout.isPhone(context) && _cart.isEmpty ? 24 : 108,
+            ),
             sliver: SliverGrid.builder(
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
@@ -1400,36 +1411,36 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
     );
 
     Widget cartPane() => _CartSheet(
-          cart: _cart,
-          inline: true,
-          onChangeQty: _changeQtyById,
-          onSetQty: _setLineQuantity,
-          onSetLineDiscount: _setLineDiscount,
-          gstSummary: () => _gstSummary,
-          grossTotal: () => _cartTotal,
-          discountAmount: () => _discountAmount,
-          netTotal: () => _netTotal,
-          discountController: _discountController,
-          isPercent: () => _discountIsPercent,
-          onToggleType: () =>
-              setState(() => _discountIsPercent = !_discountIsPercent),
-          customerNameController: _customerNameController,
-          customerPhoneController: _customerPhoneController,
-          saleDate: () => _saleDate,
-          onCheckout: () => _openCheckout(),
-          onPickDate: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: _saleDate ?? DateTime.now(),
-              firstDate: DateTime(2020),
-              lastDate: DateTime.now(),
-            );
-            if (picked != null && mounted) {
-              setState(() => _saleDate = picked);
-            }
-          },
-          onPickCustomer: _pickCustomer,
+      cart: _cart,
+      inline: true,
+      onChangeQty: _changeQtyById,
+      onSetQty: _setLineQuantity,
+      onSetLineDiscount: _setLineDiscount,
+      gstSummary: () => _gstSummary,
+      grossTotal: () => _cartTotal,
+      discountAmount: () => _discountAmount,
+      netTotal: () => _netTotal,
+      discountController: _discountController,
+      isPercent: () => _discountIsPercent,
+      onToggleType: () =>
+          setState(() => _discountIsPercent = !_discountIsPercent),
+      customerNameController: _customerNameController,
+      customerPhoneController: _customerPhoneController,
+      saleDate: () => _saleDate,
+      onCheckout: () => _openCheckout(),
+      onPickDate: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: _saleDate ?? DateTime.now(),
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now(),
         );
+        if (picked != null && mounted) {
+          setState(() => _saleDate = picked);
+        }
+      },
+      onPickCustomer: _pickCustomer,
+    );
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -1525,7 +1536,7 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
             children: <Widget>[
               Expanded(
                 child: TextField(
-      textCapitalization: TextCapitalization.sentences,
+                  textCapitalization: TextCapitalization.sentences,
                   controller: _searchController,
                   onChanged: _onSearchChanged,
                   textInputAction: TextInputAction.search,
@@ -1592,7 +1603,7 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
     final favourites = pinned.isNotEmpty
         ? pinned
         : (ref.watch(autoTopSellersProvider).asData?.value ??
-            const <InventoryCatalogItem>[]);
+              const <InventoryCatalogItem>[]);
     if (favourites.isEmpty) return const SizedBox.shrink();
     return SizedBox(
       height: 44,
@@ -1622,8 +1633,20 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
 
   /// Weight/volume units that mark an item as sold loose (by weight).
   static const Set<String> _looseUnits = <String>{
-    'kg', 'kgs', 'g', 'gm', 'gms', 'gram', 'grams', 'kilogram', 'kilograms',
-    'l', 'ltr', 'litre', 'liter', 'ml',
+    'kg',
+    'kgs',
+    'g',
+    'gm',
+    'gms',
+    'gram',
+    'grams',
+    'kilogram',
+    'kilograms',
+    'l',
+    'ltr',
+    'litre',
+    'liter',
+    'ml',
   };
 
   bool _isLooseItem(InventoryCatalogItem item) {
@@ -1677,7 +1700,9 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
 
   /// Merchant UPI ID for QR collection. Seeded from --dart-define
   /// BUSINESS_HUB_UPI_VPA, editable in the dialog, remembered for the session.
-  static String _merchantVpa = const String.fromEnvironment('BUSINESS_HUB_UPI_VPA');
+  static String _merchantVpa = const String.fromEnvironment(
+    'BUSINESS_HUB_UPI_VPA',
+  );
 
   /// Show a dynamic UPI QR for [amount] so the customer scans and pays the exact
   /// total — no "did you pay?" guesswork. Prompts for the merchant VPA if unset.
@@ -1734,18 +1759,22 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
                     if (error != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 6),
-                        child: Text(error, style: const TextStyle(color: Colors.red)),
+                        child: Text(
+                          error,
+                          style: const TextStyle(color: Colors.red),
+                        ),
                       ),
                   ],
                   const SizedBox(height: 12),
                   TextField(
-      textCapitalization: TextCapitalization.sentences,
+                    textCapitalization: TextCapitalization.sentences,
                     controller: vpaController,
                     decoration: const InputDecoration(
                       labelText: 'Merchant UPI ID',
                       hintText: 'name@bank',
                     ),
-                    onChanged: (v) => setDialogState(() => _merchantVpa = v.trim()),
+                    onChanged: (v) =>
+                        setDialogState(() => _merchantVpa = v.trim()),
                   ),
                 ],
               ),
@@ -1790,7 +1819,9 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
               TextField(
                 controller: controller,
                 autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Weight',
                   hintText: 'e.g. 1.5',
@@ -1953,7 +1984,10 @@ class _ProductCard extends StatelessWidget {
                     const Positioned(
                       top: 8,
                       left: 8,
-                      child: _MiniBadge(label: 'Low', color: AppPalette.warning),
+                      child: _MiniBadge(
+                        label: 'Low',
+                        color: AppPalette.warning,
+                      ),
                     ),
                   if (selected)
                     Positioned(
@@ -2387,7 +2421,11 @@ class _ScanButton extends StatelessWidget {
         child: const SizedBox(
           width: 54,
           height: 54,
-          child: Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 26),
+          child: Icon(
+            Icons.qr_code_scanner_rounded,
+            color: Colors.white,
+            size: 26,
+          ),
         ),
       ),
     );
@@ -2467,7 +2505,10 @@ class _QuickWeighTile extends StatelessWidget {
                 item.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
@@ -2621,8 +2662,13 @@ class _CartSheet extends StatefulWidget {
 
 class _CartSheetState extends State<_CartSheet> {
   /// Ask for an exact quantity (supports decimals, e.g. 1.5 kg).
-  Future<double?> _promptQuantity(BuildContext context, PosCartItem line) async {
-    final controller = TextEditingController(text: formatQuantity(line.quantity));
+  Future<double?> _promptQuantity(
+    BuildContext context,
+    PosCartItem line,
+  ) async {
+    final controller = TextEditingController(
+      text: formatQuantity(line.quantity),
+    );
     final result = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -2675,8 +2721,9 @@ class _CartSheetState extends State<_CartSheet> {
           final resolved = isPercent
               ? line.grossLineTotal * (entered.clamp(0, 100) / 100)
               : entered;
-          final capped =
-              resolved > line.grossLineTotal ? line.grossLineTotal : resolved;
+          final capped = resolved > line.grossLineTotal
+              ? line.grossLineTotal
+              : resolved;
           return AlertDialog(
             title: Text('Discount / ${line.name}'),
             content: Column(
@@ -2698,8 +2745,9 @@ class _CartSheetState extends State<_CartSheet> {
                 TextField(
                   controller: controller,
                   autofocus: true,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   onChanged: (_) => setDialogState(() {}),
                   decoration: InputDecoration(
                     labelText: isPercent
@@ -2752,7 +2800,9 @@ class _CartSheetState extends State<_CartSheet> {
       return Container(
         decoration: BoxDecoration(
           color: colors.background,
-          borderRadius: widget.inline ? BorderRadius.zero : const BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: widget.inline
+              ? BorderRadius.zero
+              : const BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Column(
           children: <Widget>[
@@ -2767,120 +2817,117 @@ class _CartSheetState extends State<_CartSheet> {
                 ),
               ),
             ],
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: Row(
-                  children: <Widget>[
-                    Text(
-                      'Order summary',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(
+                children: <Widget>[
+                  Text(
+                    'Order summary',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
                     ),
-                    const Spacer(),
-                    Text(
-                      '${widget.cart.length} line${widget.cart.length == 1 ? '' : 's'}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colors.textTertiary,
-                      ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${widget.cart.length} line${widget.cart.length == 1 ? '' : 's'}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colors.textTertiary,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Expanded(
-                child: widget.cart.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Cart is empty',
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: colors.textTertiary,
-                          ),
+            ),
+            Expanded(
+              child: widget.cart.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Cart is empty',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: colors.textTertiary,
                         ),
-                      )
-                    : ListView(
-                        controller: scrollController,
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                        children: <Widget>[
-                          for (final line in widget.cart) ...<Widget>[
-                            _CartLine(
-                              line: line,
-                              onInc: () {
-                                widget.onChangeQty(line.id, 1);
-                                setState(() {});
-                              },
-                              onDec: () {
-                                widget.onChangeQty(line.id, -1);
-                                setState(() {});
-                              },
-                              onEditQty: () async {
-                                final qty = await _promptQuantity(
-                                  context,
-                                  line,
-                                );
-                                if (qty != null) {
-                                  widget.onSetQty(line.id, qty);
-                                  setState(() {});
-                                }
-                              },
-                              onEditDiscount: () async {
-                                final value = await _promptLineDiscount(
-                                  context,
-                                  line,
-                                );
-                                if (value != null) {
-                                  widget.onSetLineDiscount(line.id, value);
-                                  setState(() {});
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                          _DiscountCard(
-                            controller: widget.discountController,
-                            isPercent: widget.isPercent(),
-                            onToggle: () {
-                              widget.onToggleType();
-                              setState(() {});
-                            },
-                            onChanged: () => setState(() {}),
-                          ),
-                          const SizedBox(height: 10),
-                          _CustomerCard(
-                            nameController: widget.customerNameController,
-                            phoneController: widget.customerPhoneController,
-                            onPick: () async {
-                              await widget.onPickCustomer();
-                              setState(() {});
-                            },
-                          ),
-                          const SizedBox(height: 10),
-                          _DateCard(
-                            date: widget.saleDate(),
-                            onTap: () async {
-                              await widget.onPickDate();
-                              if (context.mounted) setState(() {});
-                            },
-                          ),
-                        ],
                       ),
-              ),
-              _CartFooter(
-                gst: gst,
-                discount: widget.discountAmount(),
-                total: widget.netTotal(),
-                onPay: widget.cart.isEmpty
-                    ? null
-                    : () {
-                        if (widget.inline) {
-                           if (widget.onCheckout != null) widget.onCheckout!();
-                        } else {
-                           Navigator.of(context).pop('checkout');
-                        }
-                      },
-              ),
-            ],
-          ),
-        );
+                    )
+                  : ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      children: <Widget>[
+                        for (final line in widget.cart) ...<Widget>[
+                          _CartLine(
+                            line: line,
+                            onInc: () {
+                              widget.onChangeQty(line.id, 1);
+                              setState(() {});
+                            },
+                            onDec: () {
+                              widget.onChangeQty(line.id, -1);
+                              setState(() {});
+                            },
+                            onEditQty: () async {
+                              final qty = await _promptQuantity(context, line);
+                              if (qty != null) {
+                                widget.onSetQty(line.id, qty);
+                                setState(() {});
+                              }
+                            },
+                            onEditDiscount: () async {
+                              final value = await _promptLineDiscount(
+                                context,
+                                line,
+                              );
+                              if (value != null) {
+                                widget.onSetLineDiscount(line.id, value);
+                                setState(() {});
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        _DiscountCard(
+                          controller: widget.discountController,
+                          isPercent: widget.isPercent(),
+                          onToggle: () {
+                            widget.onToggleType();
+                            setState(() {});
+                          },
+                          onChanged: () => setState(() {}),
+                        ),
+                        const SizedBox(height: 10),
+                        _CustomerCard(
+                          nameController: widget.customerNameController,
+                          phoneController: widget.customerPhoneController,
+                          onPick: () async {
+                            await widget.onPickCustomer();
+                            setState(() {});
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        _DateCard(
+                          date: widget.saleDate(),
+                          onTap: () async {
+                            await widget.onPickDate();
+                            if (context.mounted) setState(() {});
+                          },
+                        ),
+                      ],
+                    ),
+            ),
+            _CartFooter(
+              gst: gst,
+              discount: widget.discountAmount(),
+              total: widget.netTotal(),
+              onPay: widget.cart.isEmpty
+                  ? null
+                  : () {
+                      if (widget.inline) {
+                        if (widget.onCheckout != null) widget.onCheckout!();
+                      } else {
+                        Navigator.of(context).pop('checkout');
+                      }
+                    },
+            ),
+          ],
+        ),
+      );
     }
 
     if (widget.inline) return buildContent(null);
@@ -2925,7 +2972,9 @@ class _DiscountCard extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               onChanged: (_) => onChanged(),
               decoration: const InputDecoration(
                 isDense: true,
@@ -3031,27 +3080,27 @@ class _DateCard extends StatelessWidget {
           ),
           child: Row(
             children: <Widget>[
-              Icon(
-                Icons.event_rounded,
-                size: 20,
-                color: colors.textTertiary,
-              ),
+              Icon(Icons.event_rounded, size: 20, color: colors.textTertiary),
               const SizedBox(width: 12),
               Text(
                 'Sale date',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colors.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
               ),
               const Spacer(),
               Text(
                 date == null ? 'Today' : formatCompactDate(date!),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(width: 6),
-              Icon(Icons.edit_calendar_rounded, size: 18, color: AppPalette.primary),
+              Icon(
+                Icons.edit_calendar_rounded,
+                size: 18,
+                color: AppPalette.primary,
+              ),
             ],
           ),
         ),
@@ -3281,7 +3330,10 @@ class _CartFooter extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          _SummaryRow(label: 'Subtotal', value: formatCurrency(gst.taxableAmount)),
+          _SummaryRow(
+            label: 'Subtotal',
+            value: formatCurrency(gst.taxableAmount),
+          ),
           if (gst.hasTax) ...<Widget>[
             const SizedBox(height: 6),
             _SummaryRow(label: 'Tax', value: formatCurrency(gst.taxAmount)),
@@ -3333,7 +3385,11 @@ class _CartFooter extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.value, this.valueColor});
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
 
   final String label;
   final String value;
@@ -3347,7 +3403,9 @@ class _SummaryRow extends StatelessWidget {
       children: <Widget>[
         Text(
           label,
-          style: theme.textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: colors.textSecondary,
+          ),
         ),
         const Spacer(),
         Text(
@@ -3385,7 +3443,9 @@ class _EmptyCatalog extends StatelessWidget {
                 borderRadius: BorderRadius.circular(28),
               ),
               child: Icon(
-                searching ? Icons.search_off_rounded : Icons.inventory_2_rounded,
+                searching
+                    ? Icons.search_off_rounded
+                    : Icons.inventory_2_rounded,
                 size: 40,
                 color: AppPalette.primary,
               ),

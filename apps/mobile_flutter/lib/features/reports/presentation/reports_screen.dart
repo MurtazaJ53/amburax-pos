@@ -10,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 String _ymd(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -18,35 +19,37 @@ String _ymd(DateTime d) =>
 /// ALL sales in that period, not just the recent window held on the phone.
 final reportsSummaryProvider = FutureProvider.autoDispose
     .family<Map<String, dynamic>?, HistoryDateWindow>((ref, window) async {
-  final session = ref.watch(mobileSessionProvider).asData?.value;
-  if (session == null || !session.hasShop) return null;
-  final now = DateTime.now();
-  String? from;
-  String? to;
-  switch (window) {
-    case HistoryDateWindow.all:
-      break;
-    case HistoryDateWindow.today:
-      from = _ymd(now);
-      to = _ymd(now);
-    case HistoryDateWindow.sevenDays:
-      from = _ymd(now.subtract(const Duration(days: 6)));
-    case HistoryDateWindow.thirtyDays:
-      from = _ymd(now.subtract(const Duration(days: 29)));
-    case HistoryDateWindow.ninetyDays:
-      from = _ymd(now.subtract(const Duration(days: 89)));
-  }
-  try {
-    return await ref.read(backendApiClientProvider).fetchSalesSummary(
-          user: session.user,
-          shopId: session.shopId!,
-          dateFrom: from,
-          dateTo: to,
-        );
-  } catch (_) {
-    return null;
-  }
-});
+      final session = ref.watch(mobileSessionProvider).asData?.value;
+      if (session == null || !session.hasShop) return null;
+      final now = DateTime.now();
+      String? from;
+      String? to;
+      switch (window) {
+        case HistoryDateWindow.all:
+          break;
+        case HistoryDateWindow.today:
+          from = _ymd(now);
+          to = _ymd(now);
+        case HistoryDateWindow.sevenDays:
+          from = _ymd(now.subtract(const Duration(days: 6)));
+        case HistoryDateWindow.thirtyDays:
+          from = _ymd(now.subtract(const Duration(days: 29)));
+        case HistoryDateWindow.ninetyDays:
+          from = _ymd(now.subtract(const Duration(days: 89)));
+      }
+      try {
+        return await ref
+            .read(backendApiClientProvider)
+            .fetchSalesSummary(
+              user: session.user,
+              shopId: session.shopId!,
+              dateFrom: from,
+              dateTo: to,
+            );
+      } catch (_) {
+        return null;
+      }
+    });
 
 /// Sales reports — period totals, collected vs. due, and payment mix.
 class ReportsScreen extends ConsumerStatefulWidget {
@@ -81,7 +84,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     // Headline totals come from the server for the selected period so they are
     // correct across ALL sales, not just the recent window on the phone. The
     // payment mix / P&L below still use the local window.
-    final serverSummary = ref.watch(reportsSummaryProvider(_window)).asData?.value;
+    final serverSummary = ref
+        .watch(reportsSummaryProvider(_window))
+        .asData
+        ?.value;
     final grossV =
         double.tryParse('${serverSummary?['gross_revenue'] ?? ''}') ?? gross;
     final collectedV =
@@ -148,7 +154,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           const SizedBox(height: 18),
 
           // Headline
-          MobilePanel(
+          AppPanel(
             title: 'Sales',
             action: MobileTag(
               label: '$receiptsV receipt${receiptsV == 1 ? '' : 's'}',
@@ -193,14 +199,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           const SizedBox(height: 18),
 
           // Payment mix
-          MobilePanel(
+          AppPanel(
             title: 'Payment mix',
             action: const MobileTag(
               label: 'BY MODE',
               icon: Icons.donut_small_rounded,
             ),
             child: mixEntries.isEmpty
-                ? const MobileEmptyState(
+                ? const AppEmptyState(
                     icon: Icons.query_stats_rounded,
                     title: 'No sales in this period',
                     body: 'Pick a wider period or record a sale.',
@@ -222,7 +228,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           ),
           if (canViewProfit) ...<Widget>[
             const SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Profit & loss',
               action: MobileTag(
                 label: '${pl.marginPct.toStringAsFixed(0)}% MARGIN',
@@ -277,7 +283,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           ],
           if (pl.topProducts.isNotEmpty) ...<Widget>[
             const SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Top products',
               action: const MobileTag(
                 label: 'BY REVENUE',
@@ -300,7 +306,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           ],
           if (pl.topCustomers.isNotEmpty) ...<Widget>[
             const SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Top customers',
               action: const MobileTag(
                 label: 'BY SPEND',
@@ -361,8 +367,14 @@ class _StatRow extends StatelessWidget {
         const Spacer(),
         Text(
           value,
-          style: (strong ? theme.textTheme.titleLarge : theme.textTheme.titleMedium)
-              ?.copyWith(fontWeight: FontWeight.w800, color: strong ? accent : null),
+          style:
+              (strong
+                      ? theme.textTheme.titleLarge
+                      : theme.textTheme.titleMedium)
+                  ?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: strong ? accent : null,
+                  ),
         ),
       ],
     );

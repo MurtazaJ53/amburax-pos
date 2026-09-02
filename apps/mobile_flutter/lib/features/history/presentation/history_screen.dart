@@ -24,22 +24,23 @@ import '../../../core/sync/mobile_sync_coordinator.dart';
 import '../../../core/tax/gst.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Server-computed sales totals across ALL sales (accurate even when the phone
 /// only pulls a recent window of receipts). Falls back to null on error so the
 /// screen uses local figures.
 final historyServerSummaryProvider =
     FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
-  final session = ref.watch(mobileSessionProvider).asData?.value;
-  if (session == null || !session.hasShop) return null;
-  try {
-    return await ref
-        .read(backendApiClientProvider)
-        .fetchSalesSummary(user: session.user, shopId: session.shopId!);
-  } catch (_) {
-    return null;
-  }
-});
+      final session = ref.watch(mobileSessionProvider).asData?.value;
+      if (session == null || !session.hasShop) return null;
+      try {
+        return await ref
+            .read(backendApiClientProvider)
+            .fetchSalesSummary(user: session.user, shopId: session.shopId!);
+      } catch (_) {
+        return null;
+      }
+    });
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -211,216 +212,219 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ),
         if (_showFilters) const SizedBox(height: 12),
         if (_showFilters)
-        MobilePanel(
-          title: roleProfile.filterPanelTitle,
-          action: MobileTag(
-            label: _filter.syncState == null
-                ? 'ALL STATES'
-                : _syncLabel(_filter.syncState!),
-            icon: Icons.tune_rounded,
-            accent: AppPalette.info,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              TextField(
-      textCapitalization: TextCapitalization.sentences,
-                controller: _searchController,
-                onChanged: (value) {
-                  setState(() {
-                    _filter = _filter.copyWith(search: value);
-                  });
-                  // Pull matching receipts from the server (beyond the local
-                  // window) and cache them; the local list stream updates.
-                  _histSearchDebounce?.cancel();
-                  _histSearchDebounce =
-                      Timer(const Duration(milliseconds: 350), () {
-                    ref
-                        .read(mobileSyncCoordinatorProvider)
-                        .searchSalesFromServer(value);
-                  });
-                },
-                decoration: InputDecoration(
-                  hintText: 'Search customer, phone, or local receipt id',
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: _filter.search.isEmpty
-                      ? null
-                      : IconButton(
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {
-                              _filter = _filter.copyWith(search: '');
-                            });
-                          },
-                          icon: const Icon(Icons.close_rounded),
-                        ),
+          AppPanel(
+            title: roleProfile.filterPanelTitle,
+            action: MobileTag(
+              label: _filter.syncState == null
+                  ? 'ALL STATES'
+                  : _syncLabel(_filter.syncState!),
+              icon: Icons.tune_rounded,
+              accent: AppPalette.info,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                TextField(
+                  textCapitalization: TextCapitalization.sentences,
+                  controller: _searchController,
+                  onChanged: (value) {
+                    setState(() {
+                      _filter = _filter.copyWith(search: value);
+                    });
+                    // Pull matching receipts from the server (beyond the local
+                    // window) and cache them; the local list stream updates.
+                    _histSearchDebounce?.cancel();
+                    _histSearchDebounce = Timer(
+                      const Duration(milliseconds: 350),
+                      () {
+                        ref
+                            .read(mobileSyncCoordinatorProvider)
+                            .searchSalesFromServer(value);
+                      },
+                    );
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Search customer, phone, or local receipt id',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: _filter.search.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {
+                                _filter = _filter.copyWith(search: '');
+                              });
+                            },
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: <Widget>[
-                  _SyncFilterChip(
-                    label: 'All',
-                    active: _filter.syncState == null,
-                    onTap: () {
-                      setState(() {
-                        _filter = _filter.copyWith(clearSyncState: true);
-                      });
-                    },
-                  ),
-                  ...CommerceSyncState.values.map(
-                    (state) => _SyncFilterChip(
-                      label: _syncLabel(state),
-                      active: _filter.syncState == state,
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    _SyncFilterChip(
+                      label: 'All',
+                      active: _filter.syncState == null,
                       onTap: () {
                         setState(() {
-                          _filter = _filter.copyWith(syncState: state);
+                          _filter = _filter.copyWith(clearSyncState: true);
                         });
                       },
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: <Widget>[
-                  _SyncFilterChip(
-                    label: 'Any pay',
-                    active: _filter.paymentMode == null,
-                    onTap: () {
-                      setState(() {
-                        _filter = _filter.copyWith(clearPaymentMode: true);
-                      });
-                    },
-                  ),
-                  ..._historyPaymentModes.map(
-                    (mode) => _SyncFilterChip(
-                      label: mode,
-                      active: _filter.paymentMode == mode,
-                      onTap: () {
-                        setState(() {
-                          _filter = _filter.copyWith(paymentMode: mode);
-                        });
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: HistoryDateWindow.values
-                    .map(
-                      (window) => _SyncFilterChip(
-                        label: window.label,
-                        active: _filter.dateWindow == window,
+                    ...CommerceSyncState.values.map(
+                      (state) => _SyncFilterChip(
+                        label: _syncLabel(state),
+                        active: _filter.syncState == state,
                         onTap: () {
                           setState(() {
-                            _filter = _filter.copyWith(dateWindow: window);
+                            _filter = _filter.copyWith(syncState: state);
                           });
                         },
                       ),
-                    )
-                    .toList(growable: false),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: <Widget>[
-                  _SyncFilterChip(
-                    label: _filter.onlyDueSales ? 'Due only' : 'All balances',
-                    active: _filter.onlyDueSales,
-                    onTap: () {
-                      setState(() {
-                        _filter = _filter.copyWith(
-                          onlyDueSales: !_filter.onlyDueSales,
-                        );
-                      });
-                    },
-                  ),
-                ],
-              ),
-              if (hasActiveFilters) ...<Widget>[
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: <Widget>[
-                    if (_filter.search.trim().isNotEmpty)
-                      MobileTag(
-                        label: 'Search: ${_filter.search.trim()}',
-                        icon: Icons.search_rounded,
-                        accent: AppPalette.primary,
+                    _SyncFilterChip(
+                      label: 'Any pay',
+                      active: _filter.paymentMode == null,
+                      onTap: () {
+                        setState(() {
+                          _filter = _filter.copyWith(clearPaymentMode: true);
+                        });
+                      },
+                    ),
+                    ..._historyPaymentModes.map(
+                      (mode) => _SyncFilterChip(
+                        label: mode,
+                        active: _filter.paymentMode == mode,
+                        onTap: () {
+                          setState(() {
+                            _filter = _filter.copyWith(paymentMode: mode);
+                          });
+                        },
                       ),
-                    if (_filter.syncState != null)
-                      MobileTag(
-                        label: _syncLabel(_filter.syncState!),
-                        icon: Icons.sync_alt_rounded,
-                        accent: AppPalette.info,
-                      ),
-                    if (_filter.paymentMode != null)
-                      MobileTag(
-                        label: _filter.paymentMode!,
-                        icon: Icons.payments_rounded,
-                        accent: AppPalette.success,
-                      ),
-                    if (_filter.dateWindow != HistoryDateWindow.all)
-                      MobileTag(
-                        label: _filter.dateWindow.label,
-                        icon: Icons.date_range_rounded,
-                        accent: AppPalette.warning,
-                      ),
-                    if (_filter.onlyDueSales)
-                      const MobileTag(
-                        label: 'Due only',
-                        icon: Icons.account_balance_wallet_rounded,
-                        accent: AppPalette.error,
-                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: FilledButton.tonalIcon(
-                    onPressed: _resetFilters,
-                    icon: const Icon(Icons.restart_alt_rounded),
-                    label: const Text('Clear filters'),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: HistoryDateWindow.values
+                      .map(
+                        (window) => _SyncFilterChip(
+                          label: window.label,
+                          active: _filter.dateWindow == window,
+                          onTap: () {
+                            setState(() {
+                              _filter = _filter.copyWith(dateWindow: window);
+                            });
+                          },
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    _SyncFilterChip(
+                      label: _filter.onlyDueSales ? 'Due only' : 'All balances',
+                      active: _filter.onlyDueSales,
+                      onTap: () {
+                        setState(() {
+                          _filter = _filter.copyWith(
+                            onlyDueSales: !_filter.onlyDueSales,
+                          );
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                if (hasActiveFilters) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: <Widget>[
+                      if (_filter.search.trim().isNotEmpty)
+                        MobileTag(
+                          label: 'Search: ${_filter.search.trim()}',
+                          icon: Icons.search_rounded,
+                          accent: AppPalette.primary,
+                        ),
+                      if (_filter.syncState != null)
+                        MobileTag(
+                          label: _syncLabel(_filter.syncState!),
+                          icon: Icons.sync_alt_rounded,
+                          accent: AppPalette.info,
+                        ),
+                      if (_filter.paymentMode != null)
+                        MobileTag(
+                          label: _filter.paymentMode!,
+                          icon: Icons.payments_rounded,
+                          accent: AppPalette.success,
+                        ),
+                      if (_filter.dateWindow != HistoryDateWindow.all)
+                        MobileTag(
+                          label: _filter.dateWindow.label,
+                          icon: Icons.date_range_rounded,
+                          accent: AppPalette.warning,
+                        ),
+                      if (_filter.onlyDueSales)
+                        const MobileTag(
+                          label: 'Due only',
+                          icon: Icons.account_balance_wallet_rounded,
+                          accent: AppPalette.error,
+                        ),
+                    ],
                   ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.tonalIcon(
+                      onPressed: _resetFilters,
+                      icon: const Icon(Icons.restart_alt_rounded),
+                      label: const Text('Clear filters'),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                FilledButton.tonalIcon(
+                  onPressed:
+                      overview.queuedSales > 0 || overview.failedSales > 0
+                      ? () async {
+                          final result = await syncCoordinator
+                              .flushCommerceOutbox(force: true);
+                          if (!context.mounted) {
+                            return;
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                result.message ??
+                                    'Queued receipts are being retried.',
+                              ),
+                            ),
+                          );
+                        }
+                      : null,
+                  icon: const Icon(Icons.cloud_upload_rounded),
+                  label: const Text('Retry receipt sync'),
                 ),
               ],
-              const SizedBox(height: 12),
-              FilledButton.tonalIcon(
-                onPressed: overview.queuedSales > 0 || overview.failedSales > 0
-                    ? () async {
-                        final result = await syncCoordinator
-                            .flushCommerceOutbox(force: true);
-                        if (!context.mounted) {
-                          return;
-                        }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              result.message ??
-                                  'Queued receipts are being retried.',
-                            ),
-                          ),
-                        );
-                      }
-                    : null,
-                icon: const Icon(Icons.cloud_upload_rounded),
-                label: const Text('Retry receipt sync'),
-              ),
-            ],
+            ),
           ),
-        ),
         const SizedBox(height: 18),
-        MobilePanel(
+        AppPanel(
           title: roleProfile.summaryPanelTitle,
           action: MobileTag(
             label: _filter.dateWindow.label,
@@ -428,7 +432,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             accent: AppPalette.success,
           ),
           child: sales.isEmpty
-              ? const MobileEmptyState(
+              ? const AppEmptyState(
                   icon: Icons.query_stats_rounded,
                   title: 'No data for this filter',
                   body:
@@ -522,7 +526,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 ),
         ),
         const SizedBox(height: 18),
-        MobilePanel(
+        AppPanel(
           title: roleProfile.feedPanelTitle,
           action: MobileTag(
             label: overview.lastSyncedAt == null
@@ -532,7 +536,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             accent: AppPalette.info,
           ),
           child: sales.isEmpty
-              ? MobileEmptyState(
+              ? AppEmptyState(
                   icon: syncStatus == MobileSyncStatus.syncing
                       ? Icons.sync_rounded
                       : Icons.history_toggle_off_rounded,
@@ -580,7 +584,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               future: salesRepository.getSaleDetail(sale.id),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const MobileEmptyState(
+                  return const AppEmptyState(
                     icon: Icons.sync_rounded,
                     title: 'Loading receipt detail',
                     body:
@@ -590,7 +594,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
                 final detail = snapshot.data;
                 if (detail == null) {
-                  return const MobileEmptyState(
+                  return const AppEmptyState(
                     icon: Icons.receipt_long_outlined,
                     title: 'Receipt detail unavailable',
                     body:
@@ -625,7 +629,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                             icon: Icons.shopping_bag_rounded,
                             accent: AppPalette.info,
                           ),
-                          if (detail.footerNote != null && detail.footerNote!.contains('Buyer GSTIN:'))
+                          if (detail.footerNote != null &&
+                              detail.footerNote!.contains('Buyer GSTIN:'))
                             const MobileTag(
                               label: 'Tax Invoice',
                               icon: Icons.account_balance_rounded,
@@ -696,13 +701,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
                                 // Only apportion discount for local calc if items exist
                                 final discountToApportion = detail.discount;
-                                final lineTotals = detail.items.map((i) => i.lineTotal).toList();
-                                final apportionedDiscounts = apportionDiscount(lineTotals, discountToApportion);
+                                final lineTotals = detail.items
+                                    .map((i) => i.lineTotal)
+                                    .toList();
+                                final apportionedDiscounts = apportionDiscount(
+                                  lineTotals,
+                                  discountToApportion,
+                                );
 
                                 for (var i = 0; i < detail.items.length; i++) {
                                   final item = detail.items[i];
-                                  final postDiscountTotal = item.lineTotal - apportionedDiscounts[i];
-                                  final effectiveTotal = postDiscountTotal < 0 ? 0.0 : postDiscountTotal;
+                                  final postDiscountTotal =
+                                      item.lineTotal - apportionedDiscounts[i];
+                                  final effectiveTotal = postDiscountTotal < 0
+                                      ? 0.0
+                                      : postDiscountTotal;
 
                                   final lineGst = computeLineGst(
                                     lineTotal: effectiveTotal,
@@ -741,7 +754,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                       ),
                                       _SaleSummaryRow(
                                         label: 'CGST / SGST',
-                                        value: '${formatCurrency(cgstAmount)} / ${formatCurrency(sgstAmount)}',
+                                        value:
+                                            '${formatCurrency(cgstAmount)} / ${formatCurrency(sgstAmount)}',
                                       ),
                                       if (igstAmount > 0.009)
                                         _SaleSummaryRow(
@@ -793,60 +807,86 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       // thermal printer, so the button is hidden there rather
                       // than shown and then failing.
                       if (ReceiptPrinterService.supportsBluetoothPrinting)
-                      Consumer(
-                        builder: (context, ref, child) {
-                          return ElevatedButton.icon(
-                            onPressed: () async {
-                              final printerService = ref.read(receiptPrinterProvider);
-                              final shop = ref.read(shopInfoProvider).asData?.value;
-                              if (shop == null) return;
-                              
-                              try {
-                                final devices = await printerService.getDevices();
-                                if (devices.isEmpty) {
+                        Consumer(
+                          builder: (context, ref, child) {
+                            return ElevatedButton.icon(
+                              onPressed: () async {
+                                final printerService = ref.read(
+                                  receiptPrinterProvider,
+                                );
+                                final shop = ref
+                                    .read(shopInfoProvider)
+                                    .asData
+                                    ?.value;
+                                if (shop == null) return;
+
+                                try {
+                                  final devices = await printerService
+                                      .getDevices();
+                                  if (devices.isEmpty) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'No Bluetooth printers found.',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+
+                                  // Connect to first device for now
+                                  await printerService.connect(devices.first);
+                                  await printerService.printTaxInvoice(
+                                    detail,
+                                    shop,
+                                  );
+                                  await printerService.disconnect();
+
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('No Bluetooth printers found.')),
+                                      const SnackBar(
+                                        content: Text(
+                                          'Receipt printed successfully.',
+                                        ),
+                                      ),
                                     );
                                   }
-                                  return;
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Failed to print: $e'),
+                                      ),
+                                    );
+                                  }
                                 }
-                                
-                                // Connect to first device for now
-                                await printerService.connect(devices.first);
-                                await printerService.printTaxInvoice(detail, shop);
-                                await printerService.disconnect();
-                                
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Receipt printed successfully.')),
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Failed to print: $e')),
-                                  );
-                                }
-                              }
-                            },
-                            icon: const Icon(Icons.print_rounded),
-                            label: Text(
-                              detail.footerNote != null && detail.footerNote!.contains('Buyer GSTIN:') 
-                                ? 'PRINT TAX INVOICE' 
-                                : 'PRINT RECEIPT'
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppPalette.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                              },
+                              icon: const Icon(Icons.print_rounded),
+                              label: Text(
+                                detail.footerNote != null &&
+                                        detail.footerNote!.contains(
+                                          'Buyer GSTIN:',
+                                        )
+                                    ? 'PRINT TAX INVOICE'
+                                    : 'PRINT RECEIPT',
                               ),
-                            ),
-                          );
-                        }
-                      ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppPalette.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
                         onPressed: () => _shareReceiptPdf(detail),
@@ -905,12 +945,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       final shop = ref.read(shopInfoProvider).asData?.value;
       if (shop == null) return;
       final bytes = await buildReceiptPdf(detail, shop);
-      await Printing.sharePdf(bytes: bytes, filename: 'receipt-${detail.id}.pdf');
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'receipt-${detail.id}.pdf',
+      );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Share failed: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Share failed: $error')));
       }
     }
   }
@@ -957,9 +1000,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ref.invalidate(historyServerSummaryProvider);
         if (sheetContext.mounted) Navigator.pop(sheetContext);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Return recorded.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Return recorded.')));
         }
       }
       return;
@@ -1039,9 +1082,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Refund failed: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Refund failed: $error')));
       }
     }
   }
@@ -1189,10 +1232,7 @@ class _FilterToggleBar extends StatelessWidget {
         children: <Widget>[
           const Icon(Icons.tune_rounded, size: 20, color: AppPalette.primary),
           const SizedBox(width: 10),
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
           if (activeCount > 0) ...<Widget>[
             const SizedBox(width: 8),
             MobileTag(label: '$activeCount', accent: AppPalette.info),
@@ -1594,7 +1634,9 @@ class _SaleSummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
-      color: emphasize ? colors.textPrimary : Colors.black.withValues(alpha: 0.72),
+      color: emphasize
+          ? colors.textPrimary
+          : Colors.black.withValues(alpha: 0.72),
       fontWeight: emphasize ? FontWeight.w900 : FontWeight.w600,
     );
     return Padding(
@@ -1646,5 +1688,3 @@ Color _syncTone(BuildContext context, CommerceSyncState state) {
     CommerceSyncState.refunded => AppPalette.error,
   };
 }
-
-

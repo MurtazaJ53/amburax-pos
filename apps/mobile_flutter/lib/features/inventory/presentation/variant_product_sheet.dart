@@ -167,7 +167,7 @@ class _VariantProductSheetState extends ConsumerState<VariantProductSheet> {
                 children: <Widget>[
                   Expanded(
                     child: TextFormField(
-      textCapitalization: TextCapitalization.sentences,
+                      textCapitalization: TextCapitalization.sentences,
                       controller: _categoryController,
                       decoration: const InputDecoration(labelText: 'Category'),
                     ),
@@ -183,7 +183,8 @@ class _VariantProductSheetState extends ConsumerState<VariantProductSheet> {
                           DropdownMenuItem<String>(value: u, child: Text(u)),
                       ],
                       onChanged: (v) => setState(
-                        () => _unit = v ?? VariantProductSheet.unitOptions.first,
+                        () =>
+                            _unit = v ?? VariantProductSheet.unitOptions.first,
                       ),
                     ),
                   ),
@@ -198,7 +199,9 @@ class _VariantProductSheetState extends ConsumerState<VariantProductSheet> {
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      decoration: const InputDecoration(labelText: 'GST rate %'),
+                      decoration: const InputDecoration(
+                        labelText: 'GST rate %',
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -237,10 +240,7 @@ class _VariantProductSheetState extends ConsumerState<VariantProductSheet> {
               ),
               if (_error != null) ...<Widget>[
                 const SizedBox(height: 12),
-                Text(
-                  _error!,
-                  style: const TextStyle(color: AppPalette.error),
-                ),
+                Text(_error!, style: const TextStyle(color: AppPalette.error)),
               ],
               const SizedBox(height: 18),
               FilledButton.icon(
@@ -281,7 +281,7 @@ class _VariantProductSheetState extends ConsumerState<VariantProductSheet> {
             children: <Widget>[
               Expanded(
                 child: TextFormField(
-      textCapitalization: TextCapitalization.sentences,
+                  textCapitalization: TextCapitalization.sentences,
                   controller: row.label,
                   decoration: const InputDecoration(
                     labelText: 'Variant (e.g. S / Red)',
@@ -334,7 +334,7 @@ class _VariantProductSheetState extends ConsumerState<VariantProductSheet> {
             children: <Widget>[
               Expanded(
                 child: TextFormField(
-      textCapitalization: TextCapitalization.sentences,
+                  textCapitalization: TextCapitalization.sentences,
                   controller: row.sku,
                   decoration: const InputDecoration(
                     labelText: 'SKU / barcode',

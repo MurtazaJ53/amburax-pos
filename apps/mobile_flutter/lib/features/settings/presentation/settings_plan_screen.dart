@@ -11,6 +11,7 @@ import '../../../core/models/mobile_session.dart';
 import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 class SettingsPlanScreen extends ConsumerWidget {
   const SettingsPlanScreen({super.key});
@@ -86,9 +87,9 @@ class SettingsPlanScreen extends ConsumerWidget {
       );
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not send request: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not send request: $error')));
     }
   }
 
@@ -126,9 +127,9 @@ class SettingsPlanScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 18),
           if (!(session?.isOwnerLike ?? false))
-            const MobilePanel(
+            const AppPanel(
               title: 'Owner view only',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.lock_outline_rounded,
                 title: 'Plan compare is owner and admin only',
                 body:
@@ -136,7 +137,7 @@ class SettingsPlanScreen extends ConsumerWidget {
               ),
             )
           else ...<Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Current posture',
               action: MobileTag(
                 label: _nextPlanLabel(shop),
@@ -164,7 +165,7 @@ class SettingsPlanScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Current vs next',
               action: MobileTag(
                 label: _nextPlanSectionTitle(shop),
@@ -187,7 +188,7 @@ class SettingsPlanScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Plan compare',
               action: MobileTag(
                 label: '3 tiers',
@@ -205,7 +206,7 @@ class SettingsPlanScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Upgrade signals',
               action: MobileTag(
                 label: 'Owner action',
@@ -607,5 +608,3 @@ String _buildUpgradeBriefText(ShopInfo shop, MobileSession? session) {
 
   return buffer.toString().trimRight();
 }
-
-

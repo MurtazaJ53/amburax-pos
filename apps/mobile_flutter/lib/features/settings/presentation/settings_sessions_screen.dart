@@ -13,6 +13,7 @@ import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/utils/formatters.dart';
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 class SettingsSessionsScreen extends ConsumerStatefulWidget {
   const SettingsSessionsScreen({super.key});
@@ -32,8 +33,7 @@ class _SettingsSessionsScreenState
   Future<void> _signOutAllOthers(MobileSession session) async {
     setState(() => _signingOutAll = true);
     try {
-      final keep =
-          await ref.read(shopRepositoryProvider).ensureAppInstanceId();
+      final keep = await ref.read(shopRepositoryProvider).ensureAppInstanceId();
       final count = await ref
           .read(backendApiClientProvider)
           .revokeAllWorkspaceSessions(
@@ -144,9 +144,9 @@ class _SettingsSessionsScreenState
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
           children: const <Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Loading session control',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.sync_rounded,
                 title: 'Checking workspace access',
                 body:
@@ -164,9 +164,9 @@ class _SettingsSessionsScreenState
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
           children: const <Widget>[
-            MobilePanel(
+            AppPanel(
               title: 'Owner/admin only',
-              child: MobileEmptyState(
+              child: AppEmptyState(
                 icon: Icons.lock_outline_rounded,
                 title: 'Session control stays elevated',
                 body:
@@ -199,9 +199,7 @@ class _SettingsSessionsScreenState
               icon: riskyCount > 0
                   ? Icons.crisis_alert_rounded
                   : Icons.verified_rounded,
-              accent: riskyCount > 0
-                  ? AppPalette.error
-                  : AppPalette.success,
+              accent: riskyCount > 0 ? AppPalette.error : AppPalette.success,
             ),
           ),
           const SizedBox(height: 12),
@@ -209,8 +207,9 @@ class _SettingsSessionsScreenState
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed:
-                    _signingOutAll ? null : () => _signOutAllOthers(session),
+                onPressed: _signingOutAll
+                    ? null
+                    : () => _signOutAllOthers(session),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppPalette.error,
                   side: const BorderSide(color: AppPalette.error),
@@ -222,14 +221,16 @@ class _SettingsSessionsScreenState
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.logout_rounded),
-                label: Text(_signingOutAll
-                    ? 'Signing out…'
-                    : 'Sign out all other devices'),
+                label: Text(
+                  _signingOutAll
+                      ? 'Signing out…'
+                      : 'Sign out all other devices',
+                ),
               ),
             ),
           const SizedBox(height: 12),
           if (!hasFreshSecurityWindow)
-            MobilePanel(
+            AppPanel(
               title: 'Security check required',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,7 +255,7 @@ class _SettingsSessionsScreenState
             )
           else ...<Widget>[
             if (_message != null) ...<Widget>[
-              MobilePanel(
+              AppPanel(
                 title: _messageIsError
                     ? 'Session action failed'
                     : 'Session updated',
@@ -268,7 +269,7 @@ class _SettingsSessionsScreenState
               ),
               const SizedBox(height: 18),
             ],
-            MobilePanel(
+            AppPanel(
               title: 'Session posture',
               action: FilledButton.tonalIcon(
                 onPressed: _busySessionId == null ? _refreshSessions : null,
@@ -298,7 +299,7 @@ class _SettingsSessionsScreenState
               ),
             ),
             const SizedBox(height: 18),
-            MobilePanel(
+            AppPanel(
               title: 'Workspace devices',
               action: MobileTag(
                 label: sessions.isEmpty
@@ -308,14 +309,14 @@ class _SettingsSessionsScreenState
                 accent: AppPalette.primary,
               ),
               child: sessionsAsync.isLoading
-                  ? const MobileEmptyState(
+                  ? const AppEmptyState(
                       icon: Icons.sync_rounded,
                       title: 'Refreshing device sessions',
                       body:
                           'Business Hub is loading the latest mobile device access posture for this workspace.',
                     )
                   : sessions.isEmpty
-                  ? const MobileEmptyState(
+                  ? const AppEmptyState(
                       icon: Icons.smartphone_rounded,
                       title: 'No mobile sessions yet',
                       body:
@@ -638,5 +639,3 @@ IconData _trustIcon(String level) {
       return Icons.devices_rounded;
   }
 }
-
-

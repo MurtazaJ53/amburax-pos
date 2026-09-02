@@ -93,14 +93,15 @@ List<ShopNotification> sortForReading(List<ShopNotification> rows) {
 
 final notificationsProvider =
     FutureProvider.autoDispose<List<ShopNotification>>((ref) async {
-  final session = ref.watch(mobileSessionProvider).asData?.value;
-  if (session == null || !session.hasShop) return const <ShopNotification>[];
-  final rows = await ref.read(backendApiClientProvider).fetchNotifications(
-        user: session.user,
-        shopId: session.shopId!,
-      );
-  return sortForReading(rows.map(ShopNotification.fromJson).toList());
-});
+      final session = ref.watch(mobileSessionProvider).asData?.value;
+      if (session == null || !session.hasShop) {
+        return const <ShopNotification>[];
+      }
+      final rows = await ref
+          .read(backendApiClientProvider)
+          .fetchNotifications(user: session.user, shopId: session.shopId!);
+      return sortForReading(rows.map(ShopNotification.fromJson).toList());
+    });
 
 /// Alerts, on the device that is actually in the shopkeeper's hand.
 ///
@@ -128,7 +129,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       _error = null;
     });
     try {
-      await ref.read(backendApiClientProvider).markAllNotificationsRead(
+      await ref
+          .read(backendApiClientProvider)
+          .markAllNotificationsRead(
             user: session.user,
             shopId: session.shopId!,
           );
@@ -149,10 +152,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final session = ref.read(mobileSessionProvider).asData?.value;
     if (session == null) return;
     try {
-      await ref.read(backendApiClientProvider).markNotificationRead(
-            user: session.user,
-            notificationId: row.id,
-          );
+      await ref
+          .read(backendApiClientProvider)
+          .markNotificationRead(user: session.user, notificationId: row.id);
       ref.invalidate(notificationsProvider);
     } catch (_) {
       // Marking one as read is incidental to reading it. Failing loudly here
@@ -176,7 +178,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           children: <Widget>[
             if (_error != null) ...<Widget>[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppPalette.error.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(14),
@@ -280,7 +285,9 @@ class _NotificationRow extends StatelessWidget {
           // back so the eye lands on what has not been dealt with.
           color: row.isRead ? colors.backgroundSoft : colors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border(left: BorderSide(color: tone, width: row.isRead ? 0 : 3)),
+          border: Border(
+            left: BorderSide(color: tone, width: row.isRead ? 0 : 3),
+          ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,7 +300,9 @@ class _NotificationRow extends StatelessWidget {
                     row.title,
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: row.isRead ? FontWeight.w600 : FontWeight.w800,
+                      fontWeight: row.isRead
+                          ? FontWeight.w600
+                          : FontWeight.w800,
                       color: colors.textPrimary,
                     ),
                   ),
