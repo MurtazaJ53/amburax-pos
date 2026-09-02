@@ -103,4 +103,56 @@ void main() {
       expect(stockBadge(stock: -1, reorderLevel: 100)?.level, StockLevel.short);
     });
   });
+
+  group('catalogueScopeNotice', () {
+    test('says nothing when the whole catalogue is on screen', () {
+      expect(
+        catalogueScopeNotice(shown: 50, total: 50, searching: false),
+        isNull,
+      );
+      // Fewer rows than the page size is the ordinary small-shop case.
+      expect(
+        catalogueScopeNotice(shown: 50, total: 12, searching: false),
+        isNull,
+      );
+    });
+
+    test('browsing a large shop says how many are missing and what to do', () {
+      expect(
+        catalogueScopeNotice(shown: 50, total: 5000, searching: false),
+        'Showing 50 of 5000 · 4950 more products — search or scan to find them',
+      );
+    });
+
+    test('one hidden product is a product, not products', () {
+      expect(
+        catalogueScopeNotice(shown: 50, total: 51, searching: false),
+        'Showing 50 of 51 · 1 more product — search or scan to find them',
+      );
+    });
+
+    test('searching gets different advice, because search sees everything', () {
+      // The local catalogue is complete and search is a LIKE over every row,
+      // so telling a searching shopkeeper to "search to find them" would be
+      // useless — and the web's warning that products may be unfindable
+      // would be untrue here.
+      final notice = catalogueScopeNotice(
+        shown: 50,
+        total: 300,
+        searching: true,
+      );
+      expect(
+        notice,
+        'Showing the first 50 matches. Narrow the search to see fewer.',
+      );
+      expect(notice, isNot(contains('scan')));
+    });
+
+    test('a search that fits needs no notice either', () {
+      expect(
+        catalogueScopeNotice(shown: 50, total: 8, searching: true),
+        isNull,
+      );
+    });
+  });
 }

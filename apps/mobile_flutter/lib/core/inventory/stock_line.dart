@@ -82,3 +82,36 @@ enum StockLevel { short, empty, low, fine }
   }
   return null;
 }
+
+/// What the catalogue says about the products it is not showing, or null when
+/// it is showing all of them.
+///
+/// The phone was silent about this. It fetches one page — 50 products, with
+/// `page: 1` hardcoded and no pagination behind it — so a shop with 5,000
+/// items showed 50 and gave no sign the other 4,950 existed.
+///
+/// The wording deliberately differs from the web's, because the truth
+/// differs. The web pages against the server and warns that "some products
+/// may not be found by searching", which is fair there. On the phone the
+/// whole catalogue is in the local database and search is a SQL LIKE across
+/// every row, so anything can be found — it is only *browsing* that stops at
+/// [shown]. Repeating the web's warning here would tell a shopkeeper
+/// something untrue about their own device.
+String? catalogueScopeNotice({
+  required int shown,
+  required int total,
+  required bool searching,
+}) {
+  if (total <= shown) return null;
+
+  final hidden = total - shown;
+  final subject = hidden == 1 ? 'product' : 'products';
+
+  if (searching) {
+    // Search already covers the whole catalogue, so the only thing worth
+    // saying is that the list is capped — not that anything is unreachable.
+    return 'Showing the first $shown matches. Narrow the search to see fewer.';
+  }
+  return 'Showing $shown of $total · $hidden more $subject — search or scan '
+      'to find them';
+}

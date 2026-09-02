@@ -24,6 +24,7 @@ import '../../../core/receipt/barcode_labels_pdf.dart';
 import 'reorder_list_screen.dart';
 import 'variant_product_sheet.dart';
 import '../../../ui/ui.dart';
+import '../../../core/inventory/stock_line.dart';
 
 /// Redesigned Inventory Screen v3.0
 /// Simple, Clean, Premium, Professional
@@ -128,7 +129,21 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
 
     return Scaffold(
       backgroundColor: AppColors.of(context).background,
-      body: _buildCatalog(context, categories, filteredItems),
+      body: _buildCatalog(
+        context,
+        categories,
+        filteredItems,
+        catalogueScopeNotice(
+          shown: filteredItems.length,
+          total:
+              ref
+                  .watch(inventoryCatalogCountProvider(catalogFilter))
+                  .asData
+                  ?.value ??
+              filteredItems.length,
+          searching: _search.trim().isNotEmpty,
+        ),
+      ),
       // Add item FAB
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddChooser(context),
@@ -273,6 +288,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
     BuildContext context,
     List<InventoryCategorySummary> categories,
     List<InventoryCatalogItem> items,
+    String? scopeNotice,
   ) {
     final colors = AppColors.of(context);
     return CustomScrollView(
@@ -325,6 +341,17 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
         // Buying decisions are a daily job, so surface the reorder list here
         // rather than leaving reorder_level as data nobody acts on.
         SliverToBoxAdapter(child: _buildReorderBanner(context)),
+        if (scopeNotice != null)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            sliver: SliverToBoxAdapter(
+              child: AppNotice(
+                message: scopeNotice,
+                tone: AppTone.warning,
+                icon: Icons.filter_list_rounded,
+              ),
+            ),
+          ),
         if (items.isEmpty)
           SliverFillRemaining(
             hasScrollBody: false,

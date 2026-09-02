@@ -1350,6 +1350,16 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
     final items =
         ref.watch(posCatalogPageProvider(catalogFilter)).asData?.value ??
         const <InventoryCatalogItem>[];
+    // posCatalogCountProvider existed and nothing read it, which is why the
+    // screen could show 50 of 5,000 without saying so.
+    final catalogTotal =
+        ref.watch(posCatalogCountProvider(catalogFilter)).asData?.value ??
+        items.length;
+    final scopeNotice = catalogueScopeNotice(
+      shown: items.length,
+      total: catalogTotal,
+      searching: _search.trim().isNotEmpty,
+    );
 
     final allEntries = items.isEmpty ? const [] : groupCatalog(items);
     final entries = allEntries.take(100).toList(growable: false);
@@ -1361,6 +1371,17 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
           SliverToBoxAdapter(child: _buildCategoryFilters(categories)),
         SliverToBoxAdapter(child: _buildFavouritesStrip()),
         SliverToBoxAdapter(child: _buildQuickWeighGrid(items)),
+        if (scopeNotice != null)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            sliver: SliverToBoxAdapter(
+              child: AppNotice(
+                message: scopeNotice,
+                tone: AppTone.warning,
+                icon: Icons.filter_list_rounded,
+              ),
+            ),
+          ),
         const SliverToBoxAdapter(child: SizedBox(height: 8)),
         if (items.isEmpty)
           SliverFillRemaining(

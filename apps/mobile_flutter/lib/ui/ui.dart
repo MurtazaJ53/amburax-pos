@@ -24,6 +24,7 @@ export 'tone.dart';
 export 'widgets/app_button.dart';
 export 'widgets/app_card.dart';
 export 'widgets/app_list_row.dart';
+export 'widgets/app_notice.dart';
 export 'widgets/app_screen.dart';
 export 'widgets/app_sheet.dart';
 export 'widgets/app_tag.dart';
