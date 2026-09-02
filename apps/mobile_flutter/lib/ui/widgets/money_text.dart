@@ -144,21 +144,14 @@ class AppMetric extends StatelessWidget {
         borderRadius: Radii.lgAll,
         border: Border.all(color: colors.borderSoft, width: Strokes.hairline),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.sm + 2),
-        child: content,
-      ),
+      child: Padding(padding: const EdgeInsets.all(Gap.sm + 2), child: content),
     );
 
     if (onTap == null) return decorated;
 
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: Radii.lgAll,
-        child: decorated,
-      ),
+      child: InkWell(onTap: onTap, borderRadius: Radii.lgAll, child: decorated),
     );
   }
 }

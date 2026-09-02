@@ -49,11 +49,7 @@ class AppCard extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: Radii.lgAll,
-        child: decorated,
-      ),
+      child: InkWell(onTap: onTap, borderRadius: Radii.lgAll, child: decorated),
     );
   }
 }
