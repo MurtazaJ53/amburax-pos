@@ -9,11 +9,9 @@ import '../../features/dashboard/presentation/dashboard_screen_v3.dart';
 import '../../features/history/presentation/history_screen.dart';
 import '../../features/inventory/presentation/inventory_screen_v3.dart';
 import '../../features/pos/presentation/pos_screen_v3.dart';
-import '../../features/settings/presentation/admin_tools_screen.dart';
 import '../../features/settings/presentation/settings_backup_screen.dart';
 import '../../features/settings/presentation/settings_business_screen.dart';
 import '../../features/settings/presentation/settings_import_screen.dart';
-import '../../features/settings/presentation/settings_ops_screen.dart';
 import '../../features/settings/presentation/settings_attendance_screen.dart';
 import '../../features/settings/presentation/settings_expenses_screen.dart';
 import '../../features/settings/presentation/settings_billing_screen.dart';
@@ -30,7 +28,6 @@ import '../../features/reports/presentation/dead_stock_screen.dart';
 import '../../features/reports/presentation/staff_performance_screen.dart';
 import '../../features/settings/presentation/data_health_screen.dart';
 import '../../features/settings/presentation/settings_language_screen.dart';
-import '../../features/settings/presentation/settings_plan_screen.dart';
 import '../../features/settings/presentation/settings_purchases_screen.dart';
 import '../../features/settings/presentation/settings_pulse_screen.dart';
 import '../../features/settings/presentation/settings_security_screen.dart';
@@ -132,12 +129,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'import',
             pageBuilder: (context, state) =>
                 const NoTransitionPage<void>(child: SettingsImportScreen()),
-          ),
-          GoRoute(
-            parentNavigatorKey: appRootNavigatorKey,
-            path: 'plan',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage<void>(child: SettingsPlanScreen()),
           ),
           GoRoute(
             parentNavigatorKey: appRootNavigatorKey,
@@ -264,18 +255,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'pulse',
             pageBuilder: (context, state) =>
                 const NoTransitionPage<void>(child: SettingsPulseScreen()),
-          ),
-          GoRoute(
-            parentNavigatorKey: appRootNavigatorKey,
-            path: 'admin',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage<void>(child: AdminToolsScreen()),
-          ),
-          GoRoute(
-            parentNavigatorKey: appRootNavigatorKey,
-            path: 'advanced',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage<void>(child: SettingsOpsScreen()),
           ),
         ],
       ),
