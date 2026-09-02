@@ -9,8 +9,6 @@ import '../../../core/models/mobile_models.dart';
 import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 /// Role & permission editor for a single workspace member. Fetches the module
@@ -317,10 +315,10 @@ class _PermissionEditorScreenState
       padding: const EdgeInsets.only(top: 12),
       child: AppPanel(
         title: module['label'].toString(),
-        action: MobileTag(
+        action: AppTag(
           label: '${state.values.where((v) => v).length}/${actions.length}',
           icon: Icons.tune_rounded,
-          accent: AppPalette.info,
+          tone: AppTone.info,
         ),
         child: Wrap(
           spacing: 8,

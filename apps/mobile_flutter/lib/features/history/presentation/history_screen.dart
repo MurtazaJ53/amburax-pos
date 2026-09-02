@@ -126,15 +126,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           subtitle: roleProfile.leadSubtitle,
           icon: roleProfile.leadIcon,
           accent: roleProfile.leadAccent,
-          primaryTag: MobileTag(
+          primaryTag: AppTag(
             label: roleProfile.primaryTagLabel,
             icon: roleProfile.primaryTagIcon,
-            accent: roleProfile.primaryTagAccent,
+            tone: roleProfile.primaryTagAccent,
           ),
-          secondaryTag: MobileTag(
+          secondaryTag: AppTag(
             label: roleProfile.secondaryTagLabel,
             icon: roleProfile.secondaryTagIcon,
-            accent: roleProfile.secondaryTagAccent,
+            tone: roleProfile.secondaryTagAccent,
           ),
         ),
         const SizedBox(height: 12),
@@ -151,52 +151,52 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               // shorter; wider screens keep the taller stacked layout.
               childAspectRatio: constraints.maxWidth < 420 ? 1.45 : 1.02,
               children: <Widget>[
-                MobileMetricCard(
+                AppMetric(
                   label: 'Gross',
-                  value: formatCurrency(grossValue),
+                  value: Text(formatCurrency(grossValue)),
                   caption: '$grossCount receipts',
                   icon: Icons.currency_rupee_rounded,
                 ),
-                MobileMetricCard(
+                AppMetric(
                   label: 'Synced',
-                  value: '${overview.syncedSales}',
+                  value: Text('${overview.syncedSales}'),
                   caption: 'Accepted by backend',
                   icon: Icons.verified_rounded,
-                  accent: AppPalette.success,
+                  tone: AppTone.success,
                 ),
-                MobileMetricCard(
+                AppMetric(
                   label: 'Queued',
-                  value: '${overview.queuedSales}',
+                  value: Text('${overview.queuedSales}'),
                   caption: overview.queuedSales > 0
                       ? formatCurrency(overview.queuedRevenue)
                       : 'Outbox clear',
                   icon: Icons.cloud_upload_rounded,
-                  accent: AppPalette.warning,
+                  tone: AppTone.warning,
                 ),
                 // Only a server *rejection* needs the owner. A transient push
                 // failure retries itself on the next flush, so showing it in
                 // alarm-red as "needs review" sent people hunting for nothing.
                 if (overview.rejectedSales > 0)
-                  MobileMetricCard(
+                  AppMetric(
                     label: 'Attention',
-                    value: '${overview.rejectedSales}',
+                    value: Text('${overview.rejectedSales}'),
                     caption: 'Rejected — tap banner',
                     icon: Icons.error_outline_rounded,
-                    accent: AppPalette.error,
+                    tone: AppTone.danger,
                   )
                 else
-                  MobileMetricCard(
+                  AppMetric(
                     label: 'Retrying',
-                    value: '${overview.failedSales}',
+                    value: Text('${overview.failedSales}'),
                     caption: overview.failedSales > 0
                         ? 'Auto-retries when online'
                         : 'All receipts healthy',
                     icon: overview.failedSales > 0
                         ? Icons.sync_problem_rounded
                         : Icons.verified_rounded,
-                    accent: overview.failedSales > 0
-                        ? AppPalette.warning
-                        : AppPalette.success,
+                    tone: overview.failedSales > 0
+                        ? AppTone.warning
+                        : AppTone.success,
                   ),
               ],
             );
@@ -214,12 +214,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         if (_showFilters)
           AppPanel(
             title: roleProfile.filterPanelTitle,
-            action: MobileTag(
+            action: AppTag(
               label: _filter.syncState == null
                   ? 'ALL STATES'
                   : _syncLabel(_filter.syncState!),
               icon: Icons.tune_rounded,
-              accent: AppPalette.info,
+              tone: AppTone.info,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,34 +356,34 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     runSpacing: 8,
                     children: <Widget>[
                       if (_filter.search.trim().isNotEmpty)
-                        MobileTag(
+                        AppTag(
                           label: 'Search: ${_filter.search.trim()}',
                           icon: Icons.search_rounded,
-                          accent: AppPalette.primary,
+                          tone: AppTone.primary,
                         ),
                       if (_filter.syncState != null)
-                        MobileTag(
+                        AppTag(
                           label: _syncLabel(_filter.syncState!),
                           icon: Icons.sync_alt_rounded,
-                          accent: AppPalette.info,
+                          tone: AppTone.info,
                         ),
                       if (_filter.paymentMode != null)
-                        MobileTag(
+                        AppTag(
                           label: _filter.paymentMode!,
                           icon: Icons.payments_rounded,
-                          accent: AppPalette.success,
+                          tone: AppTone.success,
                         ),
                       if (_filter.dateWindow != HistoryDateWindow.all)
-                        MobileTag(
+                        AppTag(
                           label: _filter.dateWindow.label,
                           icon: Icons.date_range_rounded,
-                          accent: AppPalette.warning,
+                          tone: AppTone.warning,
                         ),
                       if (_filter.onlyDueSales)
-                        const MobileTag(
+                        const AppTag(
                           label: 'Due only',
                           icon: Icons.account_balance_wallet_rounded,
-                          accent: AppPalette.error,
+                          tone: AppTone.danger,
                         ),
                     ],
                   ),
@@ -426,10 +426,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         const SizedBox(height: 18),
         AppPanel(
           title: roleProfile.summaryPanelTitle,
-          action: MobileTag(
+          action: AppTag(
             label: _filter.dateWindow.label,
             icon: Icons.insights_rounded,
-            accent: AppPalette.success,
+            tone: AppTone.success,
           ),
           child: sales.isEmpty
               ? const AppEmptyState(
@@ -528,12 +528,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         const SizedBox(height: 18),
         AppPanel(
           title: roleProfile.feedPanelTitle,
-          action: MobileTag(
+          action: AppTag(
             label: overview.lastSyncedAt == null
                 ? 'Freshness unknown'
                 : 'Last sync ${formatCompactDate(overview.lastSyncedAt!)}',
             icon: Icons.schedule_rounded,
-            accent: AppPalette.info,
+            tone: AppTone.info,
           ),
           child: sales.isEmpty
               ? AppEmptyState(
@@ -607,40 +607,40 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   child: ListView(
                     shrinkWrap: true,
                     children: <Widget>[
-                      MobileSheetHeader(
+                      AppSheetHeader(
                         title: formatCurrency(detail.total),
                         subtitle:
                             '${detail.customerName?.isNotEmpty == true ? detail.customerName : 'Walk-in customer'} | ${detail.date}',
                         icon: Icons.receipt_long_rounded,
-                        accent: AppPalette.warning,
+                        tone: AppTone.warning,
                         tags: <Widget>[
-                          MobileTag(
+                          AppTag(
                             label: _syncLabel(detail.syncState),
                             icon: Icons.cloud_done_rounded,
-                            accent: _syncTone(context, detail.syncState),
+                            tone: _syncTone(detail.syncState),
                           ),
-                          MobileTag(
+                          AppTag(
                             label: detail.paymentMode,
                             icon: Icons.payments_rounded,
-                            accent: AppPalette.primary,
+                            tone: AppTone.primary,
                           ),
-                          MobileTag(
+                          AppTag(
                             label: '${detail.itemCount} items',
                             icon: Icons.shopping_bag_rounded,
-                            accent: AppPalette.info,
+                            tone: AppTone.info,
                           ),
                           if (detail.footerNote != null &&
                               detail.footerNote!.contains('Buyer GSTIN:'))
-                            const MobileTag(
+                            const AppTag(
                               label: 'Tax Invoice',
                               icon: Icons.account_balance_rounded,
-                              accent: AppPalette.success,
+                              tone: AppTone.success,
                             ),
                           if (detail.hasOutstandingDue)
-                            MobileTag(
+                            AppTag(
                               label: 'Due ${formatCurrency(detail.amountDue)}',
                               icon: Icons.warning_amber_rounded,
-                              accent: AppPalette.warning,
+                              tone: AppTone.warning,
                             ),
                         ],
                       ),
@@ -1113,10 +1113,10 @@ class _HistoryRoleProfile {
   final Color leadAccent;
   final String primaryTagLabel;
   final IconData primaryTagIcon;
-  final Color primaryTagAccent;
+  final AppTone primaryTagAccent;
   final String secondaryTagLabel;
   final IconData secondaryTagIcon;
-  final Color secondaryTagAccent;
+  final AppTone secondaryTagAccent;
   final String filterPanelTitle;
   final String summaryPanelTitle;
   final String feedPanelTitle;
@@ -1128,7 +1128,7 @@ class _HistoryRoleProfile {
   }) {
     final primaryLabel = '${overview.totalSales} receipts';
     final primaryIcon = Icons.receipt_long_rounded;
-    final primaryAccent = AppPalette.warning;
+    final primaryAccent = AppTone.warning;
     final secondaryLabel = overview.queuedSales > 0
         ? '${overview.queuedSales} queued'
         : (syncStatus == MobileSyncStatus.syncing ? 'Syncing' : 'Replay clear');
@@ -1138,8 +1138,8 @@ class _HistoryRoleProfile {
               ? Icons.sync_rounded
               : Icons.verified_rounded);
     final secondaryAccent = overview.queuedSales > 0
-        ? AppPalette.warning
-        : AppPalette.success;
+        ? AppTone.warning
+        : AppTone.success;
 
     if (session?.isCashierLike ?? false) {
       return _HistoryRoleProfile(
@@ -1235,7 +1235,7 @@ class _FilterToggleBar extends StatelessWidget {
           Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
           if (activeCount > 0) ...<Widget>[
             const SizedBox(width: 8),
-            MobileTag(label: '$activeCount', accent: AppPalette.info),
+            AppTag(label: '$activeCount', tone: AppTone.info),
           ],
           const Spacer(),
           if (onClear != null)
@@ -1311,7 +1311,7 @@ class _HistorySaleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final tone = _syncTone(context, sale.syncState);
+    final tone = toneColorsOf(context, _syncTone(sale.syncState));
 
     return Material(
       color: Colors.transparent,
@@ -1333,10 +1333,10 @@ class _HistorySaleRow extends StatelessWidget {
                   width: 46,
                   height: 46,
                   decoration: BoxDecoration(
-                    color: tone.withValues(alpha: 0.12),
+                    color: tone.background,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(Icons.receipt_long_rounded, color: tone),
+                  child: Icon(Icons.receipt_long_rounded, color: tone.foreground),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -1361,17 +1361,17 @@ class _HistorySaleRow extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 8,
                         children: <Widget>[
-                          MobileTag(
+                          AppTag(
                             label: sale.paymentMode,
                             icon: Icons.payments_rounded,
-                            accent: AppPalette.primary,
+                            tone: AppTone.primary,
                           ),
                           if (sale.hasOutstandingDue &&
                               sale.syncState != CommerceSyncState.refunded)
-                            MobileTag(
+                            AppTag(
                               label: 'Due ${formatCurrency(sale.amountDue)}',
                               icon: Icons.warning_amber_rounded,
-                              accent: AppPalette.warning,
+                              tone: AppTone.warning,
                             ),
                           Text(
                             'Tap for detail',
@@ -1390,7 +1390,7 @@ class _HistorySaleRow extends StatelessWidget {
                 Text(
                   _syncLabel(sale.syncState),
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: tone,
+                    color: tone.foreground,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -1678,13 +1678,15 @@ const List<String> _historyPaymentModes = <String>[
   'OTHERS',
 ];
 
-Color _syncTone(BuildContext context, CommerceSyncState state) {
+AppTone _syncTone(CommerceSyncState state) {
   return switch (state) {
-    CommerceSyncState.synced => AppPalette.success,
-    CommerceSyncState.queued => AppPalette.warning,
-    CommerceSyncState.syncing => AppPalette.primary,
-    CommerceSyncState.failed => AppPalette.warning,
-    CommerceSyncState.localOnly => AppColors.of(context).textTertiary,
-    CommerceSyncState.refunded => AppPalette.error,
+    CommerceSyncState.synced => AppTone.success,
+    CommerceSyncState.queued => AppTone.warning,
+    CommerceSyncState.syncing => AppTone.primary,
+    // Failed and queued were the same amber, which made a receipt the
+    // backend rejected look like one merely waiting its turn.
+    CommerceSyncState.failed => AppTone.danger,
+    CommerceSyncState.localOnly => AppTone.neutral,
+    CommerceSyncState.refunded => AppTone.danger,
   };
 }

@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/sync/mobile_sync_coordinator.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
@@ -31,19 +30,19 @@ class AdminToolsScreen extends ConsumerWidget {
             accent: colors.textTertiary,
           ),
           const SizedBox(height: 22),
-          MobileListTile(
+          AppListRow(
             title: 'Workspace pulse',
             subtitle: 'Tasks and anomaly signals',
             leadingIcon: Icons.monitor_heart_rounded,
             onTap: () => context.push('/settings/pulse'),
           ),
-          MobileListTile(
+          AppListRow(
             title: 'Device sessions',
             subtitle: 'Trusted devices and remote wipe',
             leadingIcon: Icons.devices_rounded,
             onTap: () => context.push('/settings/sessions'),
           ),
-          MobileListTile(
+          AppListRow(
             title: 'Advanced ops',
             subtitle: 'Recovery, rollout and technical tools',
             leadingIcon: Icons.settings_suggest_rounded,
@@ -52,12 +51,12 @@ class AdminToolsScreen extends ConsumerWidget {
           const SizedBox(height: 22),
           AppPanel(
             title: 'Sync',
-            action: MobileTag(
+            action: AppTag(
               label: pending > 0 ? '$pending queued' : 'Clear',
               icon: pending > 0
                   ? Icons.cloud_upload_rounded
                   : Icons.check_circle_rounded,
-              accent: pending > 0 ? AppPalette.warning : AppPalette.success,
+              tone: pending > 0 ? AppTone.warning : AppTone.success,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

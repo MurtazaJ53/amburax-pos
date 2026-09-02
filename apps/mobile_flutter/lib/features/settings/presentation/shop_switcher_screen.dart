@@ -196,10 +196,10 @@ class _ShopCard extends StatelessWidget {
                 ),
               ),
               if (isCurrent)
-                const MobileTag(
+                const AppTag(
                   label: 'CURRENT',
                   icon: Icons.check_circle_rounded,
-                  accent: AppPalette.success,
+                  tone: AppTone.success,
                 )
               else
                 Icon(Icons.chevron_right_rounded, color: colors.textTertiary),

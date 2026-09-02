@@ -121,7 +121,7 @@ class _SettingsExpensesScreenState
                 child: ListView(
                   shrinkWrap: true,
                   children: <Widget>[
-                    MobileSheetHeader(
+                    AppSheetHeader(
                       eyebrow: 'Store expenses',
                       title: L.of(context).expAdd,
                       subtitle:
@@ -368,17 +368,17 @@ class _SettingsExpensesScreenState
                 'Track outgoing spend, capture payment references, and keep day-to-day business costs visible from the same product.',
             icon: Icons.payments_rounded,
             accent: AppPalette.warning,
-            primaryTag: MobileTag(
+            primaryTag: AppTag(
               label: shop.planLabel,
               icon: Icons.workspace_premium_rounded,
-              accent: AppPalette.warning,
+              tone: AppTone.warning,
             ),
-            secondaryTag: MobileTag(
+            secondaryTag: AppTag(
               label: expenses.isEmpty
                   ? (expensesAsync.isLoading ? 'Refreshing' : 'No entries')
                   : '${expenses.length} entries',
               icon: Icons.receipt_long_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
             ),
           ),
           const SizedBox(height: 18),
@@ -413,33 +413,35 @@ class _SettingsExpensesScreenState
                   mainAxisSpacing: 10,
                   childAspectRatio: constraints.maxWidth < 420 ? 1.45 : 1.02,
                   children: <Widget>[
-                    MobileMetricCard(
+                    AppMetric(
                       label: 'Entries',
-                      value: '${summary?.totalEntries ?? expenses.length}',
+                      value: Text(
+                        '${summary?.totalEntries ?? expenses.length}',
+                      ),
                       caption: 'Tracked spend records',
                       icon: Icons.receipt_long_rounded,
-                      accent: AppPalette.primary,
+                      tone: AppTone.primary,
                     ),
-                    MobileMetricCard(
+                    AppMetric(
                       label: 'Total spend',
-                      value: formatCurrency(summary?.totalAmount ?? 0),
+                      value: Text(formatCurrency(summary?.totalAmount ?? 0)),
                       caption: 'Visible outgoing amount',
                       icon: Icons.currency_rupee_rounded,
-                      accent: AppPalette.error,
+                      tone: AppTone.danger,
                     ),
-                    MobileMetricCard(
+                    AppMetric(
                       label: 'Categories',
-                      value: '${summary?.uniqueCategories ?? 0}',
+                      value: Text('${summary?.uniqueCategories ?? 0}'),
                       caption: 'Spend buckets tracked',
                       icon: Icons.category_rounded,
-                      accent: AppPalette.success,
+                      tone: AppTone.success,
                     ),
-                    MobileMetricCard(
+                    AppMetric(
                       label: 'Top category',
-                      value: summary?.biggestCategory ?? 'None',
+                      value: Text(summary?.biggestCategory ?? 'None'),
                       caption: 'Largest spend bucket',
                       icon: Icons.trending_up_rounded,
-                      accent: AppPalette.info,
+                      tone: AppTone.info,
                     ),
                   ],
                 );
@@ -449,12 +451,12 @@ class _SettingsExpensesScreenState
           const SizedBox(height: 18),
           AppPanel(
             title: L.of(context).expAdd,
-            action: MobileTag(
+            action: AppTag(
               label: session.isViewer ? 'View only' : 'Daily ops',
               icon: session.isViewer
                   ? Icons.visibility_rounded
                   : Icons.add_circle_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -482,12 +484,12 @@ class _SettingsExpensesScreenState
           const SizedBox(height: 18),
           AppPanel(
             title: 'Recent expenses',
-            action: MobileTag(
+            action: AppTag(
               label: topExpenses.isEmpty
                   ? 'No outflow'
                   : '${topExpenses.length} visible',
               icon: Icons.payments_rounded,
-              accent: AppPalette.warning,
+              tone: AppTone.warning,
             ),
             child: expensesAsync.isLoading
                 ? const AppEmptyState(
@@ -550,10 +552,10 @@ class _ExpenseCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                MobileTag(
+                AppTag(
                   label: formatCurrency(expense.amount),
                   icon: Icons.currency_rupee_rounded,
-                  accent: AppPalette.error,
+                  tone: AppTone.danger,
                 ),
               ],
             ),
@@ -580,22 +582,22 @@ class _ExpenseCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: <Widget>[
-                MobileTag(
+                AppTag(
                   label: _paymentMethodLabel(expense.paymentMethod),
                   icon: Icons.account_balance_wallet_rounded,
-                  accent: AppPalette.primary,
+                  tone: AppTone.primary,
                 ),
                 if (expense.paymentReference.trim().isNotEmpty)
-                  MobileTag(
+                  AppTag(
                     label: expense.paymentReference,
                     icon: Icons.tag_rounded,
-                    accent: AppPalette.success,
+                    tone: AppTone.success,
                   ),
                 if ((expense.actorName ?? '').trim().isNotEmpty)
-                  MobileTag(
+                  AppTag(
                     label: expense.actorName!,
                     icon: Icons.person_rounded,
-                    accent: AppPalette.info,
+                    tone: AppTone.info,
                   ),
               ],
             ),

@@ -255,10 +255,10 @@ class _SettingsSecurityScreenState
                   'Backend deployment is paused, so MFA, passkeys, remote session wipe, and server-side session invalidation stay disabled in this APK.',
               icon: Icons.offline_bolt_rounded,
               accent: AppPalette.warning,
-              primaryTag: MobileTag(
+              primaryTag: AppTag(
                 label: 'LOCAL-FIRST',
                 icon: Icons.lock_open_rounded,
-                accent: AppPalette.warning,
+                tone: AppTone.warning,
               ),
             ),
             SizedBox(height: 18),
@@ -318,7 +318,7 @@ class _SettingsSecurityScreenState
                 'Use an authenticator app before opening Workspace plan, Advanced ops, or other sensitive business-control surfaces.',
             icon: Icons.verified_user_rounded,
             accent: AppPalette.primary,
-            primaryTag: MobileTag(
+            primaryTag: AppTag(
               label: status == null
                   ? 'Loading'
                   : status.totpEnabled
@@ -327,14 +327,14 @@ class _SettingsSecurityScreenState
                   ? 'Setup pending'
                   : 'MFA not set',
               icon: Icons.security_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
             ),
-            secondaryTag: MobileTag(
+            secondaryTag: AppTag(
               label: hasFreshWindow ? 'Window open' : 'Verify needed',
               icon: hasFreshWindow
                   ? Icons.verified_rounded
                   : Icons.lock_clock_rounded,
-              accent: hasFreshWindow ? AppPalette.success : AppPalette.warning,
+              tone: hasFreshWindow ? AppTone.success : AppTone.warning,
             ),
           ),
           const SizedBox(height: 18),
@@ -353,12 +353,12 @@ class _SettingsSecurityScreenState
           if (_message != null) const SizedBox(height: 18),
           AppPanel(
             title: 'Current posture',
-            action: MobileTag(
+            action: AppTag(
               label: hasFreshWindow ? 'Unlocked' : 'Locked',
               icon: hasFreshWindow
                   ? Icons.lock_open_rounded
                   : Icons.lock_outline_rounded,
-              accent: hasFreshWindow ? AppPalette.success : AppPalette.warning,
+              tone: hasFreshWindow ? AppTone.success : AppTone.warning,
             ),
             child: Column(
               children: <Widget>[

@@ -30,7 +30,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../ui/ui.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import 'checkout_payment_sheet.dart';
 import 'pos_catalog_grouping.dart';
 import 'pos_scanner_sheet.dart';
@@ -367,7 +366,7 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    MobileSheetHeader(
+                    AppSheetHeader(
                       eyebrow: 'Choose variant',
                       title: group.baseName,
                       subtitle:

@@ -66,10 +66,10 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                   'This workspace stays on the curated Business Hub path. Advanced recovery and rollout tooling only opens on Pro workspaces.',
               icon: Icons.lock_rounded,
               accent: AppPalette.warning,
-              primaryTag: MobileTag(
+              primaryTag: AppTag(
                 label: '${shop.planLabel} plan',
                 icon: Icons.workspace_premium_rounded,
-                accent: AppPalette.warning,
+                tone: AppTone.warning,
               ),
             ),
             const SizedBox(height: 18),
@@ -98,10 +98,10 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                   'Advanced ops now stays behind MFA on mobile. Verify the current owner/admin authenticator code from Security, then return here.',
               icon: Icons.security_rounded,
               accent: AppPalette.primary,
-              primaryTag: const MobileTag(
+              primaryTag: const AppTag(
                 label: 'MFA required',
                 icon: Icons.lock_clock_rounded,
-                accent: AppPalette.warning,
+                tone: AppTone.warning,
               ),
             ),
             const SizedBox(height: 18),
@@ -284,36 +284,36 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                 'Operator packs, rollout evidence, recovery, and migration-facing tools live here so the daily settings screen stays fast.',
             icon: Icons.settings_rounded,
             accent: AppPalette.info,
-            primaryTag: MobileTag(
+            primaryTag: AppTag(
               label: session?.displayRoleLabel ?? 'GUEST',
               icon: Icons.badge_rounded,
-              accent: AppPalette.info,
+              tone: AppTone.info,
             ),
-            secondaryTag: MobileTag(
+            secondaryTag: AppTag(
               label: syncStatus == MobileSyncStatus.syncing
                   ? 'Syncing config'
                   : 'Config stable',
               icon: syncStatus == MobileSyncStatus.syncing
                   ? Icons.sync_rounded
                   : Icons.verified_rounded,
-              accent: syncStatus == MobileSyncStatus.error
-                  ? AppPalette.error
-                  : AppPalette.success,
+              tone: syncStatus == MobileSyncStatus.error
+                  ? AppTone.danger
+                  : AppTone.success,
             ),
           ),
           const SizedBox(height: 18),
           AppPanel(
             title: 'Workspace identity',
-            action: MobileTag(
+            action: AppTag(
               label: session != null && session.isOwnerLike
                   ? 'CONTROL EDIT'
                   : 'VIEW ONLY',
               icon: session != null && session.isOwnerLike
                   ? Icons.edit_rounded
                   : Icons.lock_outline_rounded,
-              accent: session != null && session.isOwnerLike
-                  ? AppPalette.success
-                  : AppPalette.info,
+              tone: session != null && session.isOwnerLike
+                  ? AppTone.success
+                  : AppTone.info,
             ),
             child: Column(
               children: <Widget>[
@@ -375,12 +375,12 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
           const SizedBox(height: 18),
           AppPanel(
             title: 'Mobile runtime',
-            action: MobileTag(
+            action: AppTag(
               label: pending > 0 ? '$pending queued' : 'Queue clear',
               icon: pending > 0
                   ? Icons.cloud_upload_rounded
                   : Icons.check_circle_rounded,
-              accent: pending > 0 ? AppPalette.warning : AppPalette.success,
+              tone: pending > 0 ? AppTone.warning : AppTone.success,
             ),
             child: Column(
               children: <Widget>[
@@ -500,12 +500,12 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
           const SizedBox(height: 18),
           AppPanel(
             title: 'App and account',
-            action: MobileTag(
+            action: AppTag(
               label: _showAdvancedTools ? 'ADVANCED OPEN' : 'SIMPLE MODE',
               icon: _showAdvancedTools
                   ? Icons.admin_panel_settings_rounded
                   : Icons.favorite_rounded,
-              accent: _showAdvancedTools ? AppPalette.info : AppPalette.success,
+              tone: _showAdvancedTools ? AppTone.info : AppTone.success,
             ),
             child: Column(
               children: <Widget>[
@@ -605,14 +605,12 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
           const SizedBox(height: 18),
           AppPanel(
             title: 'Advanced operator tools',
-            action: MobileTag(
+            action: AppTag(
               label: _showAdvancedTools ? 'VISIBLE' : 'HIDDEN',
               icon: _showAdvancedTools
                   ? Icons.visibility_rounded
                   : Icons.visibility_off_rounded,
-              accent: _showAdvancedTools
-                  ? AppPalette.info
-                  : const Color(0xFF64748B),
+              tone: _showAdvancedTools ? AppTone.info : AppTone.neutral,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -632,11 +630,11 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
             const SizedBox(height: 18),
             AppPanel(
               title: 'Domain cutover map',
-              action: MobileTag(
+              action: AppTag(
                 label:
                     '${domainStates.where((state) => state.isPostgresPrimary).length} primary',
                 icon: Icons.schema_rounded,
-                accent: AppPalette.primary,
+                tone: AppTone.primary,
               ),
               child: Column(
                 children: domainStates
@@ -652,14 +650,12 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
             const SizedBox(height: 18),
             AppPanel(
               title: 'Pilot handoff snapshot',
-              action: MobileTag(
+              action: AppTag(
                 label: diagnostics == null ? 'Loading' : 'Copy ready',
                 icon: diagnostics == null
                     ? Icons.sync_rounded
                     : Icons.assignment_turned_in_rounded,
-                accent: diagnostics == null
-                    ? AppPalette.warning
-                    : AppPalette.success,
+                tone: diagnostics == null ? AppTone.warning : AppTone.success,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -724,7 +720,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
               children: <Widget>[
                 AppPanel(
                   title: 'Operator action center',
-                  action: MobileTag(
+                  action: AppTag(
                     label: actionPlan == null
                         ? 'Loading'
                         : actionPlan.actionLabel.toUpperCase(),
@@ -737,13 +733,13 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : actionPlan.isSmokeAction
                         ? Icons.playlist_add_check_circle_rounded
                         : Icons.assignment_turned_in_rounded,
-                    accent: actionPlan == null
-                        ? AppPalette.warning
+                    tone: actionPlan == null
+                        ? AppTone.warning
                         : actionPlan.isIncidentAction
-                        ? AppPalette.error
+                        ? AppTone.danger
                         : actionPlan.isRecoveryAction
-                        ? AppPalette.warning
-                        : AppPalette.success,
+                        ? AppTone.warning
+                        : AppTone.success,
                   ),
                   child: actionPlan == null
                       ? const AppEmptyState(
@@ -958,7 +954,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                 const SizedBox(height: 18),
                 AppPanel(
                   title: 'Evidence tracker',
-                  action: MobileTag(
+                  action: AppTag(
                     label: evidenceTrackerAsync.asData == null
                         ? 'Loading'
                         : evidenceTracker.statusLabel,
@@ -967,11 +963,11 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : evidenceTracker.isCoreComplete
                         ? Icons.task_alt_rounded
                         : Icons.assignment_late_rounded,
-                    accent: evidenceTrackerAsync.asData == null
-                        ? AppPalette.warning
+                    tone: evidenceTrackerAsync.asData == null
+                        ? AppTone.warning
                         : evidenceTracker.isCoreComplete
-                        ? AppPalette.success
-                        : AppPalette.warning,
+                        ? AppTone.success
+                        : AppTone.warning,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1277,7 +1273,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                 const SizedBox(height: 18),
                 AppPanel(
                   title: 'Pilot readiness signoff',
-                  action: MobileTag(
+                  action: AppTag(
                     label: readinessReport == null
                         ? 'Loading'
                         : readinessReport.statusLabel,
@@ -1288,13 +1284,13 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : readinessReport.shouldMonitor
                         ? Icons.visibility_rounded
                         : Icons.block_rounded,
-                    accent: readinessReport == null
-                        ? AppPalette.warning
+                    tone: readinessReport == null
+                        ? AppTone.warning
                         : readinessReport.isReadyForShift
-                        ? AppPalette.success
+                        ? AppTone.success
                         : readinessReport.shouldMonitor
-                        ? AppPalette.warning
-                        : AppPalette.error,
+                        ? AppTone.warning
+                        : AppTone.danger,
                   ),
                   child: readinessReport == null
                       ? const AppEmptyState(
@@ -1413,14 +1409,14 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                 const SizedBox(height: 18),
                 AppPanel(
                   title: 'Pilot smoke execution',
-                  action: MobileTag(
+                  action: AppTag(
                     label: readinessReport == null ? 'Loading' : 'Floor check',
                     icon: readinessReport == null
                         ? Icons.sync_rounded
                         : Icons.playlist_add_check_circle_rounded,
-                    accent: readinessReport == null
-                        ? AppPalette.warning
-                        : AppPalette.primary,
+                    tone: readinessReport == null
+                        ? AppTone.warning
+                        : AppTone.primary,
                   ),
                   child: diagnostics == null || readinessReport == null
                       ? const AppEmptyState(
@@ -1487,16 +1483,16 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                 const SizedBox(height: 18),
                 AppPanel(
                   title: 'Recovery desk',
-                  action: MobileTag(
+                  action: AppTag(
                     label: attentionEntries.isEmpty
                         ? 'Stable'
                         : '${attentionEntries.length} attention',
                     icon: attentionEntries.isEmpty
                         ? Icons.health_and_safety_rounded
                         : Icons.build_circle_rounded,
-                    accent: attentionEntries.isEmpty
-                        ? AppPalette.success
-                        : AppPalette.error,
+                    tone: attentionEntries.isEmpty
+                        ? AppTone.success
+                        : AppTone.danger,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1629,7 +1625,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                 const SizedBox(height: 18),
                 AppPanel(
                   title: 'Shift closeout',
-                  action: MobileTag(
+                  action: AppTag(
                     label:
                         diagnostics == null ||
                             readinessReport == null ||
@@ -1642,12 +1638,12 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                             recoveryReport == null
                         ? Icons.sync_rounded
                         : Icons.assignment_late_rounded,
-                    accent:
+                    tone:
                         diagnostics == null ||
                             readinessReport == null ||
                             recoveryReport == null
-                        ? AppPalette.warning
-                        : AppPalette.info,
+                        ? AppTone.warning
+                        : AppTone.info,
                   ),
                   child:
                       diagnostics == null ||
@@ -1721,7 +1717,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                 const SizedBox(height: 18),
                 AppPanel(
                   title: 'Rollout decision summary',
-                  action: MobileTag(
+                  action: AppTag(
                     label: rolloutDecisionSummary == null
                         ? 'Loading'
                         : rolloutDecisionSummary.verdictLabel,
@@ -1734,15 +1730,15 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : rolloutDecisionSummary.shouldHoldAndMonitor
                         ? Icons.visibility_rounded
                         : Icons.trending_up_rounded,
-                    accent: rolloutDecisionSummary == null
-                        ? AppPalette.warning
+                    tone: rolloutDecisionSummary == null
+                        ? AppTone.warning
                         : rolloutDecisionSummary.shouldRollbackAndEscalate
-                        ? AppPalette.error
+                        ? AppTone.danger
                         : rolloutDecisionSummary.shouldInvestigateBeforeExpand
-                        ? AppPalette.warning
+                        ? AppTone.warning
                         : rolloutDecisionSummary.shouldHoldAndMonitor
-                        ? AppPalette.primary
-                        : AppPalette.success,
+                        ? AppTone.primary
+                        : AppTone.success,
                   ),
                   child: rolloutDecisionSummary == null
                       ? const AppEmptyState(
@@ -1829,7 +1825,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                 const SizedBox(height: 18),
                 AppPanel(
                   title: 'Wave closeout readiness',
-                  action: MobileTag(
+                  action: AppTag(
                     label: waveCloseoutReadiness == null
                         ? 'Loading'
                         : waveCloseoutReadiness.statusLabel,
@@ -1842,15 +1838,15 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : waveCloseoutReadiness.isCloseoutWithMonitoring
                         ? Icons.visibility_rounded
                         : Icons.task_alt_rounded,
-                    accent: waveCloseoutReadiness == null
-                        ? AppPalette.warning
+                    tone: waveCloseoutReadiness == null
+                        ? AppTone.warning
                         : waveCloseoutReadiness.shouldNotClose
-                        ? AppPalette.error
+                        ? AppTone.danger
                         : waveCloseoutReadiness.shouldCaptureMoreEvidence
-                        ? AppPalette.warning
+                        ? AppTone.warning
                         : waveCloseoutReadiness.isCloseoutWithMonitoring
-                        ? AppPalette.primary
-                        : AppPalette.success,
+                        ? AppTone.primary
+                        : AppTone.success,
                   ),
                   child: waveCloseoutReadiness == null
                       ? const AppEmptyState(
@@ -1957,7 +1953,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                 const SizedBox(height: 18),
                 AppPanel(
                   title: 'Wave signoff pack',
-                  action: MobileTag(
+                  action: AppTag(
                     label: waveSignoffPack == null
                         ? 'Loading'
                         : waveSignoffPack.signoffStatusLabel,
@@ -1970,15 +1966,15 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : waveSignoffPack.isSignoffWithMonitoring
                         ? Icons.visibility_rounded
                         : Icons.verified_rounded,
-                    accent: waveSignoffPack == null
-                        ? AppPalette.warning
+                    tone: waveSignoffPack == null
+                        ? AppTone.warning
                         : waveSignoffPack.isSignoffBlocked
-                        ? AppPalette.error
+                        ? AppTone.danger
                         : waveSignoffPack.isSignoffIncomplete
-                        ? AppPalette.warning
+                        ? AppTone.warning
                         : waveSignoffPack.isSignoffWithMonitoring
-                        ? AppPalette.primary
-                        : AppPalette.success,
+                        ? AppTone.primary
+                        : AppTone.success,
                   ),
                   child: waveSignoffPack == null
                       ? const AppEmptyState(
@@ -2058,7 +2054,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                 const SizedBox(height: 18),
                 AppPanel(
                   title: 'Wave archive pack',
-                  action: MobileTag(
+                  action: AppTag(
                     label: waveArchivePack == null
                         ? 'Loading'
                         : waveArchivePack.archiveStatusLabel,
@@ -2071,15 +2067,15 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                         : waveArchivePack.isArchiveWithAttention
                         ? Icons.archive_rounded
                         : Icons.inventory_2_rounded,
-                    accent: waveArchivePack == null
-                        ? AppPalette.warning
+                    tone: waveArchivePack == null
+                        ? AppTone.warning
                         : waveArchivePack.isArchiveBlocked
-                        ? AppPalette.error
+                        ? AppTone.danger
                         : waveArchivePack.isArchiveIncomplete
-                        ? AppPalette.warning
+                        ? AppTone.warning
                         : waveArchivePack.isArchiveWithAttention
-                        ? AppPalette.primary
-                        : AppPalette.success,
+                        ? AppTone.primary
+                        : AppTone.success,
                   ),
                   child: waveArchivePack == null
                       ? const AppEmptyState(
@@ -2160,7 +2156,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                 const SizedBox(height: 18),
                 AppPanel(
                   title: 'Rollout evidence pack',
-                  action: MobileTag(
+                  action: AppTag(
                     label:
                         diagnostics == null ||
                             readinessReport == null ||
@@ -2173,12 +2169,12 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                             recoveryReport == null
                         ? Icons.sync_rounded
                         : Icons.library_books_rounded,
-                    accent:
+                    tone:
                         diagnostics == null ||
                             readinessReport == null ||
                             recoveryReport == null
-                        ? AppPalette.warning
-                        : AppPalette.primary,
+                        ? AppTone.warning
+                        : AppTone.primary,
                   ),
                   child:
                       diagnostics == null ||
@@ -2248,7 +2244,7 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                 const SizedBox(height: 18),
                 AppPanel(
                   title: 'Incident escalation pack',
-                  action: MobileTag(
+                  action: AppTag(
                     label:
                         diagnostics == null ||
                             readinessReport == null ||
@@ -2261,12 +2257,12 @@ class _SettingsOpsScreenState extends ConsumerState<SettingsOpsScreen> {
                             recoveryReport == null
                         ? Icons.sync_rounded
                         : Icons.crisis_alert_rounded,
-                    accent:
+                    tone:
                         diagnostics == null ||
                             readinessReport == null ||
                             recoveryReport == null
-                        ? AppPalette.warning
-                        : AppPalette.error,
+                        ? AppTone.warning
+                        : AppTone.danger,
                   ),
                   child:
                       diagnostics == null ||
@@ -3549,14 +3545,12 @@ class _PilotSmokeCheckCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                MobileTag(
+                AppTag(
                   label: check.isCritical ? 'CRITICAL' : 'STANDARD',
                   icon: check.isCritical
                       ? Icons.priority_high_rounded
                       : Icons.rule_rounded,
-                  accent: check.isCritical
-                      ? AppPalette.error
-                      : AppPalette.primary,
+                  tone: check.isCritical ? AppTone.danger : AppTone.primary,
                 ),
               ],
             ),
@@ -3610,8 +3604,9 @@ class _CloseoutToggleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final tone = value
-        ? (dangerWhenTrue ? AppPalette.error : AppPalette.success)
-        : (dangerWhenTrue ? AppPalette.success : AppPalette.warning);
+        ? (dangerWhenTrue ? AppTone.danger : AppTone.success)
+        : (dangerWhenTrue ? AppTone.success : AppTone.warning);
+    final toneColors = toneColorsOf(context, tone);
 
     final labelText = value ? trueLabel : falseLabel;
 
@@ -3636,18 +3631,22 @@ class _CloseoutToggleCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  MobileTag(
+                  AppTag(
                     label: labelText,
                     icon: value
                         ? Icons.check_circle_rounded
                         : Icons.warning_amber_rounded,
-                    accent: tone,
+                    tone: tone,
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 12),
-            Switch(value: value, onChanged: onChanged, activeThumbColor: tone),
+            Switch(
+              value: value,
+              onChanged: onChanged,
+              activeThumbColor: toneColors.foreground,
+            ),
           ],
         ),
       ),
@@ -3699,10 +3698,11 @@ class _OutboxAttentionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final tone = entry.isFailed
-        ? AppPalette.error
+        ? AppTone.danger
         : entry.isSyncing
-        ? AppPalette.primary
-        : AppPalette.warning;
+        ? AppTone.primary
+        : AppTone.warning;
+    final toneColors = toneColorsOf(context, tone);
     final customerLabel = entry.customerName?.trim().isNotEmpty == true
         ? entry.customerName!.trim()
         : 'Walk-in customer';
@@ -3714,7 +3714,7 @@ class _OutboxAttentionRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surfaceStrong,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: tone.withValues(alpha: 0.18)),
+        border: Border.all(color: toneColors.border),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -3731,14 +3731,14 @@ class _OutboxAttentionRow extends StatelessWidget {
                     ),
                   ),
                 ),
-                MobileTag(
+                AppTag(
                   label: entry.statusLabel,
                   icon: entry.isFailed
                       ? Icons.error_outline_rounded
                       : entry.isSyncing
                       ? Icons.sync_rounded
                       : Icons.schedule_rounded,
-                  accent: tone,
+                  tone: tone,
                 ),
               ],
             ),
@@ -3761,7 +3761,7 @@ class _OutboxAttentionRow extends StatelessWidget {
             Text(
               errorLabel,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: tone,
+                color: toneColors.foreground,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -3856,10 +3856,10 @@ class _DomainSettingsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final tone = switch (state.pilotSignoffStatus) {
-      'production_safe' => AppPalette.success,
-      'ready_for_cutover' => AppPalette.primary,
-      'rollback_recommended' => AppPalette.error,
-      _ => state.isPostgresPrimary ? AppPalette.success : AppPalette.warning,
+      'production_safe' => AppTone.success,
+      'ready_for_cutover' => AppTone.primary,
+      'rollback_recommended' => AppTone.danger,
+      _ => state.isPostgresPrimary ? AppTone.success : AppTone.warning,
     };
 
     return DecoratedBox(
@@ -3883,12 +3883,12 @@ class _DomainSettingsRow extends StatelessWidget {
                     ),
                   ),
                 ),
-                MobileTag(
+                AppTag(
                   label: state.postureLabel.toUpperCase(),
                   icon: state.isPostgresPrimary
                       ? Icons.verified_rounded
                       : Icons.swap_horiz_rounded,
-                  accent: tone,
+                  tone: tone,
                 ),
               ],
             ),
@@ -3907,7 +3907,7 @@ class _DomainSettingsRow extends StatelessWidget {
               Text(
                 'Next action: ${state.pilotRecommendedAction}',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: tone,
+                  color: toneColorsOf(context, tone).foreground,
                   fontWeight: FontWeight.w800,
                 ),
               ),

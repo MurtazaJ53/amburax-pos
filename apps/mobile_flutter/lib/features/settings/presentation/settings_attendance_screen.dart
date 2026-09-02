@@ -147,7 +147,7 @@ class _SettingsAttendanceScreenState
                 child: ListView(
                   shrinkWrap: true,
                   children: <Widget>[
-                    const MobileSheetHeader(
+                    const AppSheetHeader(
                       eyebrow: 'Attendance desk',
                       title: 'Mark attendance',
                       subtitle:
@@ -373,21 +373,19 @@ class _SettingsAttendanceScreenState
                 : 'Mark your shift, review your recent attendance, and keep your daily operator access connected to this workspace.',
             icon: Icons.fact_check_rounded,
             accent: AppPalette.primary,
-            primaryTag: MobileTag(
+            primaryTag: AppTag(
               label: session.displayRoleLabel,
               icon: Icons.badge_rounded,
-              accent: AppPalette.success,
+              tone: AppTone.success,
             ),
-            secondaryTag: MobileTag(
+            secondaryTag: AppTag(
               label: todayRecord == null
                   ? 'Unmarked today'
                   : _statusLabel(todayRecord.status).toUpperCase(),
               icon: todayRecord == null
                   ? Icons.event_busy_rounded
                   : Icons.event_available_rounded,
-              accent: todayRecord == null
-                  ? AppPalette.warning
-                  : AppPalette.success,
+              tone: todayRecord == null ? AppTone.warning : AppTone.success,
             ),
           ),
           const SizedBox(height: 18),
@@ -408,12 +406,12 @@ class _SettingsAttendanceScreenState
             title: session.isOwnerLike
                 ? 'How staffing works'
                 : 'How your access works',
-            action: MobileTag(
+            action: AppTag(
               label: session.isOwnerLike ? 'TEAM READY' : 'STAFF READY',
               icon: session.isOwnerLike
                   ? Icons.groups_rounded
                   : Icons.person_pin_circle_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,35 +464,35 @@ class _SettingsAttendanceScreenState
                 mainAxisSpacing: 10,
                 childAspectRatio: constraints.maxWidth < 420 ? 1.45 : 1.02,
                 children: <Widget>[
-                  MobileMetricCard(
+                  AppMetric(
                     label: 'Records',
-                    value: '${summary?.totalSessions ?? sessions.length}',
+                    value: Text('${summary?.totalSessions ?? sessions.length}'),
                     caption: 'Attendance sessions visible',
                     icon: Icons.list_alt_rounded,
-                    accent: AppPalette.primary,
+                    tone: AppTone.primary,
                   ),
-                  MobileMetricCard(
+                  AppMetric(
                     label: 'Present',
-                    value: '${summary?.presentCount ?? 0}',
+                    value: Text('${summary?.presentCount ?? 0}'),
                     caption: 'Marked present',
                     icon: Icons.check_circle_rounded,
-                    accent: AppPalette.success,
+                    tone: AppTone.success,
                   ),
-                  MobileMetricCard(
+                  AppMetric(
                     label: 'Leave',
-                    value: '${summary?.leaveCount ?? 0}',
+                    value: Text('${summary?.leaveCount ?? 0}'),
                     caption: 'Leave sessions',
                     icon: Icons.beach_access_rounded,
-                    accent: AppPalette.warning,
+                    tone: AppTone.warning,
                   ),
-                  MobileMetricCard(
+                  AppMetric(
                     label: 'On floor today',
-                    value: '${summary?.activeWorkersToday ?? 0}',
+                    value: Text('${summary?.activeWorkersToday ?? 0}'),
                     caption: session.isOwnerLike
                         ? 'Team active today'
                         : 'Active workers today',
                     icon: Icons.groups_rounded,
-                    accent: AppPalette.info,
+                    tone: AppTone.info,
                   ),
                 ],
               );
@@ -503,14 +501,12 @@ class _SettingsAttendanceScreenState
           const SizedBox(height: 18),
           AppPanel(
             title: session.isOwnerLike ? 'Mark today' : 'Mark my day',
-            action: MobileTag(
+            action: AppTag(
               label: todayRecord == null ? 'Open' : 'Already marked',
               icon: todayRecord == null
                   ? Icons.edit_calendar_rounded
                   : Icons.verified_rounded,
-              accent: todayRecord == null
-                  ? AppPalette.warning
-                  : AppPalette.success,
+              tone: todayRecord == null ? AppTone.warning : AppTone.success,
             ),
             child: currentMembershipId == null && !session.isOwnerLike
                 ? const AppEmptyState(
@@ -574,7 +570,7 @@ class _SettingsAttendanceScreenState
             title: session.isOwnerLike
                 ? 'Recent team sessions'
                 : 'My recent sessions',
-            action: MobileTag(
+            action: AppTag(
               label: sessionsAsync.isLoading
                   ? 'Refreshing'
                   : sessions.isEmpty
@@ -583,7 +579,7 @@ class _SettingsAttendanceScreenState
               icon: sessionsAsync.isLoading
                   ? Icons.sync_rounded
                   : Icons.receipt_long_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
             ),
             child: sessionsAsync.isLoading
                 ? const AppEmptyState(
@@ -629,10 +625,10 @@ class _AttendanceSessionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final accent = switch (record.status) {
-      'PRESENT' => AppPalette.success,
-      'HALF_DAY' => AppPalette.primary,
-      'LEAVE' => AppPalette.warning,
-      _ => AppPalette.error,
+      'PRESENT' => AppTone.success,
+      'HALF_DAY' => AppTone.primary,
+      'LEAVE' => AppTone.warning,
+      _ => AppTone.danger,
     };
 
     return DecoratedBox(
@@ -656,10 +652,10 @@ class _AttendanceSessionCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                MobileTag(
+                AppTag(
                   label: _statusLabel(record.status).toUpperCase(),
                   icon: Icons.event_available_rounded,
-                  accent: accent,
+                  tone: accent,
                 ),
               ],
             ),
@@ -676,25 +672,25 @@ class _AttendanceSessionCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: <Widget>[
-                MobileTag(
+                AppTag(
                   label: record.clockInAt == null
                       ? 'No clock-in'
                       : 'In ${_formatTime(record.clockInAt!)}',
                   icon: Icons.login_rounded,
-                  accent: AppPalette.primary,
+                  tone: AppTone.primary,
                 ),
-                MobileTag(
+                AppTag(
                   label: record.clockOutAt == null
                       ? 'Open shift'
                       : 'Out ${_formatTime(record.clockOutAt!)}',
                   icon: Icons.logout_rounded,
-                  accent: AppPalette.warning,
+                  tone: AppTone.warning,
                 ),
                 if (record.totalHours != null)
-                  MobileTag(
+                  AppTag(
                     label: '${record.totalHours!.toStringAsFixed(1)} h',
                     icon: Icons.schedule_rounded,
-                    accent: AppPalette.info,
+                    tone: AppTone.info,
                   ),
               ],
             ),

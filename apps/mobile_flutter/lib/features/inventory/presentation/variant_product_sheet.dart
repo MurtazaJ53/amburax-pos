@@ -5,7 +5,7 @@ import '../../../core/models/mobile_models.dart';
 import '../../../core/sync/mobile_sync_coordinator.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Create one product that has several size/colour variants. Each variant is
 /// saved as its own inventory row (own price / stock / SKU) sharing a variant
@@ -143,7 +143,7 @@ class _VariantProductSheetState extends ConsumerState<VariantProductSheet> {
           child: ListView(
             shrinkWrap: true,
             children: <Widget>[
-              const MobileSheetHeader(
+              const AppSheetHeader(
                 eyebrow: 'Inventory',
                 title: 'Product with variants',
                 subtitle:

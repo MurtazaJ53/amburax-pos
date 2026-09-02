@@ -146,10 +146,10 @@ class _SettingsStaffScreenState extends ConsumerState<SettingsStaffScreen> {
         children: <Widget>[
           AppPanel(
             title: 'Staff accounts',
-            action: MobileTag(
+            action: AppTag(
               label: '${_staff.length}',
               icon: Icons.groups_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
             ),
             child: _loading
                 ? const Padding(

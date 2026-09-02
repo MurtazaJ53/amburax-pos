@@ -596,11 +596,7 @@ class MobileActionCard extends StatelessWidget {
                     color: accent.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(compact ? 14 : 18),
                   ),
-                  child: Icon(
-                    icon,
-                    color: accent,
-                    size: compact ? 24 : 28,
-                  ),
+                  child: Icon(icon, color: accent, size: compact ? 24 : 28),
                 ),
                 const Spacer(),
                 if (kicker != null) ...<Widget>[
@@ -863,7 +859,9 @@ class MobileListTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: colors.surfaceStrong.withValues(alpha: 0.66),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: colors.borderSoft.withValues(alpha: 0.62)),
+            border: Border.all(
+              color: colors.borderSoft.withValues(alpha: 0.62),
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -913,10 +911,7 @@ class MobileListTile extends StatelessWidget {
                   trailing!,
                 ] else if (onTap != null) ...<Widget>[
                   const SizedBox(width: 10),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: colors.textTertiary,
-                  ),
+                  Icon(Icons.chevron_right_rounded, color: colors.textTertiary),
                 ],
               ],
             ),

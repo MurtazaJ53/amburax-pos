@@ -125,7 +125,12 @@ class AppMetric extends StatelessWidget {
           ],
         ),
         const SizedBox(height: Gap.xs),
-        value,
+        // The figure is the reason the card exists, so the card sets its
+        // size rather than trusting whatever was handed in. A MoneyText
+        // carries its own style and still wins; a bare Text inherits this
+        // instead of rendering at body size and disappearing into the
+        // caption underneath it.
+        DefaultTextStyle.merge(style: theme.textTheme.titleLarge, child: value),
         if (caption != null) ...<Widget>[
           const SizedBox(height: 2),
           Text(

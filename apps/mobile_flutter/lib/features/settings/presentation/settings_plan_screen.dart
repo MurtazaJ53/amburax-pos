@@ -114,15 +114,15 @@ class SettingsPlanScreen extends ConsumerWidget {
                 'See what this workspace includes now, what the next plan unlocks, and when an upgrade is actually worth it.',
             icon: Icons.workspace_premium_rounded,
             accent: AppPalette.warning,
-            primaryTag: MobileTag(
+            primaryTag: AppTag(
               label: '${shop.planLabel} plan',
               icon: Icons.workspace_premium_rounded,
-              accent: AppPalette.warning,
+              tone: AppTone.warning,
             ),
-            secondaryTag: MobileTag(
+            secondaryTag: AppTag(
               label: session?.displayRoleLabel ?? 'GUEST',
               icon: Icons.badge_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
             ),
           ),
           const SizedBox(height: 18),
@@ -139,10 +139,10 @@ class SettingsPlanScreen extends ConsumerWidget {
           else ...<Widget>[
             AppPanel(
               title: 'Current posture',
-              action: MobileTag(
+              action: AppTag(
                 label: _nextPlanLabel(shop),
                 icon: Icons.trending_up_rounded,
-                accent: AppPalette.success,
+                tone: AppTone.success,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,10 +167,10 @@ class SettingsPlanScreen extends ConsumerWidget {
             const SizedBox(height: 18),
             AppPanel(
               title: 'Current vs next',
-              action: MobileTag(
+              action: AppTag(
                 label: _nextPlanSectionTitle(shop),
                 icon: Icons.compare_arrows_rounded,
-                accent: AppPalette.primary,
+                tone: AppTone.primary,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,10 +190,10 @@ class SettingsPlanScreen extends ConsumerWidget {
             const SizedBox(height: 18),
             AppPanel(
               title: 'Plan compare',
-              action: MobileTag(
+              action: AppTag(
                 label: '3 tiers',
                 icon: Icons.view_carousel_rounded,
-                accent: AppPalette.success,
+                tone: AppTone.success,
               ),
               child: Column(
                 children: const <Widget>[
@@ -208,10 +208,10 @@ class SettingsPlanScreen extends ConsumerWidget {
             const SizedBox(height: 18),
             AppPanel(
               title: 'Upgrade signals',
-              action: MobileTag(
+              action: AppTag(
                 label: 'Owner action',
                 icon: Icons.campaign_rounded,
-                accent: AppPalette.warning,
+                tone: AppTone.warning,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -189,17 +189,17 @@ class _SettingsSessionsScreenState
                 'See which phones are trusted, which need review, and revoke or wipe access when a device should no longer touch this workspace.',
             icon: Icons.devices_rounded,
             accent: AppPalette.primary,
-            primaryTag: MobileTag(
+            primaryTag: AppTag(
               label: '${sessions.length} known',
               icon: Icons.smartphone_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
             ),
-            secondaryTag: MobileTag(
+            secondaryTag: AppTag(
               label: riskyCount > 0 ? '$riskyCount risky' : 'Trust stable',
               icon: riskyCount > 0
                   ? Icons.crisis_alert_rounded
                   : Icons.verified_rounded,
-              accent: riskyCount > 0 ? AppPalette.error : AppPalette.success,
+              tone: riskyCount > 0 ? AppTone.danger : AppTone.success,
             ),
           ),
           const SizedBox(height: 12),
@@ -280,20 +280,20 @@ class _SettingsSessionsScreenState
                 spacing: 8,
                 runSpacing: 8,
                 children: <Widget>[
-                  MobileTag(
+                  AppTag(
                     label: '$trustedCount trusted',
                     icon: Icons.verified_rounded,
-                    accent: AppPalette.success,
+                    tone: AppTone.success,
                   ),
-                  MobileTag(
+                  AppTag(
                     label: '$reviewCount review',
                     icon: Icons.visibility_rounded,
-                    accent: AppPalette.warning,
+                    tone: AppTone.warning,
                   ),
-                  MobileTag(
+                  AppTag(
                     label: '$riskyCount risky',
                     icon: Icons.crisis_alert_rounded,
-                    accent: AppPalette.error,
+                    tone: AppTone.danger,
                   ),
                 ],
               ),
@@ -301,12 +301,12 @@ class _SettingsSessionsScreenState
             const SizedBox(height: 18),
             AppPanel(
               title: 'Workspace devices',
-              action: MobileTag(
+              action: AppTag(
                 label: sessions.isEmpty
                     ? 'No sessions'
                     : '${sessions.length} devices',
                 icon: Icons.devices_rounded,
-                accent: AppPalette.primary,
+                tone: AppTone.primary,
               ),
               child: sessionsAsync.isLoading
                   ? const AppEmptyState(
@@ -434,30 +434,28 @@ class _WorkspaceSessionCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: <Widget>[
-                MobileTag(
+                AppTag(
                   label: record.status.toUpperCase(),
                   icon: record.isActive
                       ? Icons.wifi_tethering_rounded
                       : Icons.block_rounded,
-                  accent: record.isActive
-                      ? AppPalette.success
-                      : AppPalette.error,
+                  tone: record.isActive ? AppTone.success : AppTone.danger,
                 ),
-                MobileTag(
+                AppTag(
                   label: record.trustLevel.toUpperCase(),
                   icon: _trustIcon(record.trustLevel),
-                  accent: _trustColor(record.trustLevel),
+                  tone: _trustTone(record.trustLevel),
                 ),
-                MobileTag(
+                AppTag(
                   label: 'Score ${record.trustScore}',
                   icon: Icons.speed_rounded,
-                  accent: AppPalette.primary,
+                  tone: AppTone.primary,
                 ),
                 if (record.wipeRequested)
-                  const MobileTag(
+                  const AppTag(
                     label: 'WIPE PENDING',
                     icon: Icons.delete_sweep_rounded,
-                    accent: AppPalette.error,
+                    tone: AppTone.danger,
                   ),
               ],
             ),
@@ -611,17 +609,17 @@ String _deviceMetaLine(WorkspaceAccessSessionRecord record) {
   return parts.join(' | ');
 }
 
-Color _trustColor(String level) {
+AppTone _trustTone(String level) {
   switch (level.trim().toLowerCase()) {
     case 'trusted':
-      return AppPalette.success;
+      return AppTone.success;
     case 'review':
-      return AppPalette.warning;
+      return AppTone.warning;
     case 'risky':
     case 'blocked':
-      return AppPalette.error;
+      return AppTone.danger;
     default:
-      return AppPalette.primary;
+      return AppTone.primary;
   }
 }
 

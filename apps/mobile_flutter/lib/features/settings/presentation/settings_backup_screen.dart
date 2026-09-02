@@ -153,7 +153,7 @@ class _SettingsBackupScreenState extends ConsumerState<SettingsBackupScreen> {
         children: <Widget>[
           AppPanel(
             title: 'Backup',
-            action: const MobileTag(
+            action: const AppTag(
               label: 'ON THIS DEVICE',
               icon: Icons.save_rounded,
             ),
@@ -193,7 +193,7 @@ class _SettingsBackupScreenState extends ConsumerState<SettingsBackupScreen> {
           const SizedBox(height: 18),
           AppPanel(
             title: L.of(context).backupSaved,
-            action: MobileTag(
+            action: AppTag(
               label: '${_backups.length}',
               icon: Icons.folder_rounded,
             ),
@@ -261,7 +261,7 @@ class _SettingsBackupScreenState extends ConsumerState<SettingsBackupScreen> {
           const SizedBox(height: 18),
           AppPanel(
             title: 'Export to CSV',
-            action: const MobileTag(
+            action: const AppTag(
               label: 'FOR EXCEL',
               icon: Icons.table_chart_rounded,
             ),

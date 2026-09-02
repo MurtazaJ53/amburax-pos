@@ -5,7 +5,6 @@ import '../../../core/backend/backend_api_client.dart';
 import '../../../core/models/mobile_session.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
@@ -96,20 +95,20 @@ class _PurchaseOrdersScreenState extends ConsumerState<PurchaseOrdersScreen> {
             Row(
               children: <Widget>[
                 Expanded(
-                  child: MobileMetricCard(
+                  child: AppMetric(
                     label: 'On order',
-                    value: '$open',
+                    value: Text('$open'),
                     icon: Icons.inventory_2_outlined,
-                    accent: AppPalette.info,
+                    tone: AppTone.info,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: MobileMetricCard(
+                  child: AppMetric(
                     label: 'Overdue',
-                    value: '$overdue',
+                    value: Text('$overdue'),
                     icon: Icons.schedule_rounded,
-                    accent: overdue > 0 ? AppPalette.error : AppPalette.success,
+                    tone: overdue > 0 ? AppTone.danger : AppTone.success,
                   ),
                 ),
               ],
@@ -215,12 +214,14 @@ class _OrderCard extends StatelessWidget {
         .whereType<Map<String, dynamic>>()
         .toList(growable: false);
 
-    final (String label, Color accent) = switch (status) {
-      'draft' => ('DRAFT', AppPalette.info),
-      'ordered' => ('ON ORDER', AppPalette.primary),
-      'partially_received' => ('PART RECEIVED', AppPalette.warning),
-      'received' => ('RECEIVED', AppPalette.success),
-      _ => ('CANCELLED', AppPalette.info),
+    final (String label, AppTone accent) = switch (status) {
+      'draft' => ('DRAFT', AppTone.neutral),
+      'ordered' => ('ON ORDER', AppTone.primary),
+      'partially_received' => ('PART RECEIVED', AppTone.warning),
+      'received' => ('RECEIVED', AppTone.success),
+      // Cancelled was the same blue as draft, so a killed order and an
+      // unsent one read identically in the list.
+      _ => ('CANCELLED', AppTone.danger),
     };
 
     return Padding(
@@ -234,9 +235,9 @@ class _OrderCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 6,
               children: <Widget>[
-                MobileTag(label: label, accent: accent),
+                AppTag(label: label, tone: accent),
                 if (overdue)
-                  const MobileTag(label: 'OVERDUE', accent: AppPalette.error),
+                  const AppTag(label: 'OVERDUE', tone: AppTone.danger),
               ],
             ),
             const SizedBox(height: 8),
@@ -401,7 +402,7 @@ class _ReceiveSheetState extends ConsumerState<_ReceiveSheet> {
         controller: controller,
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
         children: <Widget>[
-          MobileSheetHeader(
+          AppSheetHeader(
             title: 'Book in ${widget.order['reference']}',
             subtitle:
                 'Enter what actually arrived. A short delivery is normal '
@@ -568,7 +569,7 @@ class _OrderComposerSheetState extends ConsumerState<_OrderComposerSheet> {
         controller: controller,
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
         children: <Widget>[
-          const MobileSheetHeader(
+          const AppSheetHeader(
             title: 'New purchase order',
             subtitle:
                 'This moves no stock and owes nothing until you book in '

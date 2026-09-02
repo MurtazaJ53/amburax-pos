@@ -156,10 +156,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           // Headline
           AppPanel(
             title: 'Sales',
-            action: MobileTag(
+            action: AppTag(
               label: '$receiptsV receipt${receiptsV == 1 ? '' : 's'}',
               icon: Icons.receipt_long_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
             ),
             child: Column(
               children: <Widget>[
@@ -201,7 +201,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           // Payment mix
           AppPanel(
             title: 'Payment mix',
-            action: const MobileTag(
+            action: const AppTag(
               label: 'BY MODE',
               icon: Icons.donut_small_rounded,
             ),
@@ -230,12 +230,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             const SizedBox(height: 18),
             AppPanel(
               title: 'Profit & loss',
-              action: MobileTag(
+              action: AppTag(
                 label: '${pl.marginPct.toStringAsFixed(0)}% MARGIN',
                 icon: Icons.trending_up_rounded,
-                accent: pl.netProfit >= 0
-                    ? AppPalette.success
-                    : AppPalette.error,
+                tone: pl.netProfit >= 0 ? AppTone.success : AppTone.danger,
               ),
               child: Column(
                 children: <Widget>[
@@ -285,7 +283,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             const SizedBox(height: 18),
             AppPanel(
               title: 'Top products',
-              action: const MobileTag(
+              action: const AppTag(
                 label: 'BY REVENUE',
                 icon: Icons.inventory_2_rounded,
               ),
@@ -308,7 +306,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             const SizedBox(height: 18),
             AppPanel(
               title: 'Top customers',
-              action: const MobileTag(
+              action: const AppTag(
                 label: 'BY SPEND',
                 icon: Icons.people_alt_rounded,
               ),

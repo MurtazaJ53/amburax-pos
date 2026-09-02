@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/i18n/locale_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_mode_controller.dart';
-import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Language and day/night, one tap from any screen.
 ///
@@ -43,7 +43,7 @@ class _QuickSettingsSheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            const MobileSheetHeader(
+            const AppSheetHeader(
               title: 'Quick settings',
               subtitle: 'Language and display, without leaving this screen.',
               icon: Icons.tune_rounded,

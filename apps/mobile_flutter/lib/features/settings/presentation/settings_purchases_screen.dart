@@ -52,22 +52,22 @@ class SettingsPurchasesScreen extends ConsumerWidget {
           Row(
             children: <Widget>[
               Expanded(
-                child: MobileMetricCard(
+                child: AppMetric(
                   label: 'Stock bought',
-                  value: formatCurrency(summary?.totalSpent ?? 0),
+                  value: Text(formatCurrency(summary?.totalSpent ?? 0)),
                   icon: Icons.local_shipping_rounded,
-                  accent: AppPalette.info,
+                  tone: AppTone.info,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: MobileMetricCard(
+                child: AppMetric(
                   label: 'You owe',
-                  value: formatCurrency(summary?.totalPayable ?? 0),
+                  value: Text(formatCurrency(summary?.totalPayable ?? 0)),
                   icon: Icons.account_balance_wallet_rounded,
-                  accent: (summary?.totalPayable ?? 0) > 0
-                      ? AppPalette.error
-                      : AppPalette.success,
+                  tone: (summary?.totalPayable ?? 0) > 0
+                      ? AppTone.danger
+                      : AppTone.success,
                   caption: '${summary?.supplierCount ?? 0} supplier(s)',
                 ),
               ),
@@ -84,7 +84,7 @@ class SettingsPurchasesScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             AppPanel(
               title: L.of(context).purOutstanding,
-              action: const MobileTag(
+              action: const AppTag(
                 label: 'PAYABLE',
                 icon: Icons.trending_up_rounded,
               ),
@@ -99,7 +99,7 @@ class SettingsPurchasesScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           AppPanel(
             title: L.of(context).purRecent,
-            action: MobileTag(
+            action: AppTag(
               label: '${purchases.length} ENTRIES',
               icon: Icons.receipt_long_rounded,
             ),
@@ -227,7 +227,7 @@ class SettingsPurchasesScreen extends ConsumerWidget {
                   child: ListView(
                     shrinkWrap: true,
                     children: <Widget>[
-                      const MobileSheetHeader(
+                      const AppSheetHeader(
                         eyebrow: 'Stock buying',
                         title: 'Record purchase',
                         subtitle:
@@ -349,7 +349,7 @@ class SettingsPurchasesScreen extends ConsumerWidget {
                               style: TextStyle(fontWeight: FontWeight.w800),
                             ),
                           ),
-                          const MobileTag(
+                          const AppTag(
                             label: 'OPTIONAL',
                             icon: Icons.inventory_2_rounded,
                           ),
@@ -608,7 +608,7 @@ class SettingsPurchasesScreen extends ConsumerWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      MobileSheetHeader(
+                      AppSheetHeader(
                         eyebrow: purchase.supplierName,
                         title: 'Settle due',
                         subtitle:
@@ -807,11 +807,11 @@ class _PurchaseRow extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 2),
-              MobileTag(
+              AppTag(
                 label: settled
                     ? 'PAID'
                     : 'DUE ${formatCurrency(purchase.balanceDue)}',
-                accent: settled ? AppPalette.success : AppPalette.error,
+                tone: settled ? AppTone.success : AppTone.danger,
               ),
               if (canManage && !settled)
                 TextButton(

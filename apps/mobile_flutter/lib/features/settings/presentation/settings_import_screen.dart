@@ -644,7 +644,7 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
           const SizedBox(height: 16),
           AppPanel(
             title: 'Import from Zobaze',
-            action: const MobileTag(
+            action: const AppTag(
               label: 'MIGRATION',
               icon: Icons.swap_horiz_rounded,
             ),
@@ -728,10 +728,7 @@ class _SmartImportCard extends StatelessWidget {
     final colors = AppColors.of(context);
     return AppPanel(
       title: 'Smart import',
-      action: const MobileTag(
-        label: 'ANY APP',
-        icon: Icons.auto_awesome_rounded,
-      ),
+      action: const AppTag(label: 'ANY APP', icon: Icons.auto_awesome_rounded),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -950,10 +947,10 @@ class _DuplicateCleanupPanelState
     final extras = groups.fold<int>(0, (sum, g) => sum + g.extras);
     return AppPanel(
       title: 'Duplicate receipts',
-      action: const MobileTag(
+      action: const AppTag(
         label: 'CLEANUP',
         icon: Icons.cleaning_services_rounded,
-        accent: AppPalette.warning,
+        tone: AppTone.warning,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1053,10 +1050,10 @@ class _OpeningBalanceBackfillPanelState
 
     return AppPanel(
       title: 'Khata opening balances',
-      action: const MobileTag(
+      action: const AppTag(
         label: 'REPAIR',
         icon: Icons.build_rounded,
-        accent: AppPalette.info,
+        tone: AppTone.info,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

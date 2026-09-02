@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_theme.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 class PosScannerSheet extends StatefulWidget {
   const PosScannerSheet({super.key});
@@ -50,23 +50,23 @@ class _PosScannerSheetState extends State<PosScannerSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            const MobileSheetHeader(
+            const AppSheetHeader(
               eyebrow: 'Fast lookup',
               title: 'Scan barcode or exact code',
               subtitle:
                   'Point the camera at a barcode, QR code, or exact inventory code. You can also type the code manually below.',
               icon: Icons.qr_code_scanner_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
               tags: <Widget>[
-                MobileTag(
+                AppTag(
                   label: 'Camera ready',
                   icon: Icons.camera_alt_rounded,
-                  accent: AppPalette.success,
+                  tone: AppTone.success,
                 ),
-                MobileTag(
+                AppTag(
                   label: 'Exact lookup',
                   icon: Icons.keyboard_alt_rounded,
-                  accent: AppPalette.info,
+                  tone: AppTone.info,
                 ),
               ],
             ),

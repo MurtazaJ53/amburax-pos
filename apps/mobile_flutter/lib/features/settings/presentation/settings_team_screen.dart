@@ -78,24 +78,24 @@ class SettingsTeamScreen extends ConsumerWidget {
                 'Add the exact email a staff member will use to sign in. Business Hub will attach that person to this workspace and keep role control with owner/admin users.',
             icon: Icons.groups_rounded,
             accent: AppPalette.primary,
-            primaryTag: MobileTag(
+            primaryTag: AppTag(
               label: shop.planLabel,
               icon: Icons.workspace_premium_rounded,
-              accent: AppPalette.warning,
+              tone: AppTone.warning,
             ),
-            secondaryTag: MobileTag(
+            secondaryTag: AppTag(
               label: session.displayRoleLabel,
               icon: Icons.badge_rounded,
-              accent: AppPalette.success,
+              tone: AppTone.success,
             ),
           ),
           const SizedBox(height: 18),
           AppPanel(
             title: 'How staff joins',
-            action: const MobileTag(
+            action: const AppTag(
               label: 'SIGN-IN FLOW',
               icon: Icons.login_rounded,
-              accent: AppPalette.success,
+              tone: AppTone.success,
             ),
             child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,12 +122,12 @@ class SettingsTeamScreen extends ConsumerWidget {
           const SizedBox(height: 18),
           AppPanel(
             title: 'Team roster',
-            action: MobileTag(
+            action: AppTag(
               label: members.isEmpty
                   ? (membersAsync.isLoading ? 'Refreshing' : 'No members')
                   : '${members.length} attached',
               icon: Icons.groups_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
             ),
             child: members.isEmpty
                 ? AppEmptyState(
@@ -162,10 +162,10 @@ class SettingsTeamScreen extends ConsumerWidget {
           const SizedBox(height: 18),
           AppPanel(
             title: 'Add member',
-            action: const MobileTag(
+            action: const AppTag(
               label: 'OWNER / ADMIN',
               icon: Icons.person_add_alt_1_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,7 +269,7 @@ class SettingsTeamScreen extends ConsumerWidget {
                 child: ListView(
                   shrinkWrap: true,
                   children: <Widget>[
-                    const MobileSheetHeader(
+                    const AppSheetHeader(
                       eyebrow: 'Workspace team',
                       title: 'Add member',
                       subtitle:
@@ -496,21 +496,21 @@ class SettingsTeamScreen extends ConsumerWidget {
                 child: ListView(
                   shrinkWrap: true,
                   children: <Widget>[
-                    MobileSheetHeader(
+                    AppSheetHeader(
                       eyebrow: 'Workspace team',
                       title: member.memberName,
                       subtitle: member.memberEmail,
                       icon: Icons.manage_accounts_rounded,
                       tags: <Widget>[
-                        MobileTag(
+                        AppTag(
                           label: member.roleLabel,
                           icon: Icons.badge_rounded,
-                          accent: AppPalette.primary,
+                          tone: AppTone.primary,
                         ),
-                        MobileTag(
+                        AppTag(
                           label: member.status,
                           icon: Icons.circle_notifications_rounded,
-                          accent: AppPalette.warning,
+                          tone: AppTone.warning,
                         ),
                       ],
                     ),
@@ -718,21 +718,21 @@ class _TeamMemberRow extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: <Widget>[
-                  MobileTag(
+                  AppTag(
                     label: member.roleLabel,
                     icon: Icons.badge_rounded,
-                    accent: AppPalette.primary,
+                    tone: AppTone.primary,
                   ),
-                  MobileTag(
+                  AppTag(
                     label: member.status,
                     icon: Icons.circle_notifications_rounded,
-                    accent: AppPalette.warning,
+                    tone: AppTone.warning,
                   ),
                   if (member.isCurrentUser)
-                    const MobileTag(
+                    const AppTag(
                       label: 'YOU',
                       icon: Icons.person_rounded,
-                      accent: AppPalette.success,
+                      tone: AppTone.success,
                     ),
                 ],
               ),
@@ -863,10 +863,10 @@ class _CloudInvitePanelState extends ConsumerState<_CloudInvitePanel> {
     final colors = AppColors.of(context);
     return AppPanel(
       title: 'Invite a teammate',
-      action: const MobileTag(
+      action: const AppTag(
         label: 'CLOUD',
         icon: Icons.group_add_rounded,
-        accent: AppPalette.info,
+        tone: AppTone.info,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

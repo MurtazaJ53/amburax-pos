@@ -6,7 +6,6 @@ import '../../../core/models/mobile_models.dart';
 import '../../../core/models/mobile_session.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
@@ -133,20 +132,20 @@ class _StockTransfersScreenState extends ConsumerState<StockTransfersScreen> {
             Row(
               children: <Widget>[
                 Expanded(
-                  child: MobileMetricCard(
+                  child: AppMetric(
                     label: 'To receive',
-                    value: '$incoming',
+                    value: Text('$incoming'),
                     icon: Icons.call_received_rounded,
-                    accent: incoming > 0 ? AppPalette.warning : AppPalette.info,
+                    tone: incoming > 0 ? AppTone.warning : AppTone.info,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: MobileMetricCard(
+                  child: AppMetric(
                     label: 'Sent, awaiting',
-                    value: '$outgoing',
+                    value: Text('$outgoing'),
                     icon: Icons.call_made_rounded,
-                    accent: AppPalette.info,
+                    tone: AppTone.info,
                   ),
                 ),
               ],
@@ -260,10 +259,10 @@ class _TransferCard extends StatelessWidget {
         .whereType<Map<String, dynamic>>()
         .toList(growable: false);
 
-    final (String label, Color accent) = switch (status) {
-      'in_transit' => ('IN TRANSIT', AppPalette.warning),
-      'received' => ('RECEIVED', AppPalette.success),
-      _ => ('CANCELLED', AppPalette.info),
+    final (String label, AppTone accent) = switch (status) {
+      'in_transit' => ('IN TRANSIT', AppTone.warning),
+      'received' => ('RECEIVED', AppTone.success),
+      _ => ('CANCELLED', AppTone.danger),
     };
 
     return Padding(
@@ -275,7 +274,7 @@ class _TransferCard extends StatelessWidget {
           children: <Widget>[
             Row(
               children: <Widget>[
-                MobileTag(label: label, accent: accent),
+                AppTag(label: label, tone: accent),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -447,7 +446,7 @@ class _TransferComposerSheetState
         controller: controller,
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
         children: <Widget>[
-          const MobileSheetHeader(
+          const AppSheetHeader(
             title: 'Send stock',
             subtitle:
                 'The stock leaves this shop now. It only appears at the '

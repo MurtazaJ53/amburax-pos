@@ -119,7 +119,7 @@ class _SettingsBusinessScreenState
         children: <Widget>[
           AppPanel(
             title: 'Business',
-            action: const MobileTag(
+            action: const AppTag(
               label: 'ON RECEIPTS',
               icon: Icons.receipt_long_rounded,
             ),
@@ -160,7 +160,7 @@ class _SettingsBusinessScreenState
           const SizedBox(height: 18),
           AppPanel(
             title: 'Payments',
-            action: const MobileTag(
+            action: const AppTag(
               label: 'UPI QR',
               icon: Icons.qr_code_2_rounded,
             ),
@@ -193,10 +193,7 @@ class _SettingsBusinessScreenState
           const SizedBox(height: 18),
           AppPanel(
             title: 'Receipt',
-            action: const MobileTag(
-              label: 'PRINTED',
-              icon: Icons.print_rounded,
-            ),
+            action: const AppTag(label: 'PRINTED', icon: Icons.print_rounded),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[

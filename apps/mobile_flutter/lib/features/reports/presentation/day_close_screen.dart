@@ -106,10 +106,10 @@ class _DayCloseScreenState extends ConsumerState<DayCloseScreen> {
         children: <Widget>[
           AppPanel(
             title: 'Today',
-            action: MobileTag(
+            action: AppTag(
               label: '${z.salesCount} sales',
               icon: Icons.today_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
             ),
             child: Column(
               children: <Widget>[
@@ -136,10 +136,7 @@ class _DayCloseScreenState extends ConsumerState<DayCloseScreen> {
           const SizedBox(height: 18),
           AppPanel(
             title: 'Collected by tender',
-            action: const MobileTag(
-              label: 'TODAY',
-              icon: Icons.payments_rounded,
-            ),
+            action: const AppTag(label: 'TODAY', icon: Icons.payments_rounded),
             child: modeEntries.isEmpty
                 ? const AppEmptyState(
                     icon: Icons.query_stats_rounded,
@@ -158,7 +155,7 @@ class _DayCloseScreenState extends ConsumerState<DayCloseScreen> {
           const SizedBox(height: 18),
           AppPanel(
             title: 'Cash count',
-            action: const MobileTag(
+            action: const AppTag(
               label: 'RECONCILE',
               icon: Icons.account_balance_wallet_rounded,
             ),

@@ -26,10 +26,10 @@ class CategoryManagementScreen extends ConsumerWidget {
         children: <Widget>[
           AppPanel(
             title: 'Product categories',
-            action: MobileTag(
+            action: AppTag(
               label: '${categories.length}',
               icon: Icons.category_rounded,
-              accent: AppPalette.primary,
+              tone: AppTone.primary,
             ),
             child: categories.isEmpty
                 ? const AppEmptyState(

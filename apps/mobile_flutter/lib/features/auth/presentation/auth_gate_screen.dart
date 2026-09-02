@@ -11,7 +11,6 @@ import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../pos/presentation/pos_scanner_sheet.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 class AuthGateScreen extends ConsumerStatefulWidget {
@@ -253,7 +252,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
     final colors = AppColors.of(context);
     return AppPanel(
       title: 'Cloud Sign-in',
-      action: const MobileTag(label: 'CLOUD', icon: Icons.cloud_outlined),
+      action: const AppTag(label: 'CLOUD', icon: Icons.cloud_outlined),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -345,10 +344,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
     final colors = AppColors.of(context);
     return AppPanel(
       title: 'Create your shop',
-      action: const MobileTag(
-        label: 'SIGN UP',
-        icon: Icons.storefront_outlined,
-      ),
+      action: const AppTag(label: 'SIGN UP', icon: Icons.storefront_outlined),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -496,7 +492,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
     final colors = AppColors.of(context);
     return AppPanel(
       title: 'Join a shop',
-      action: const MobileTag(label: 'INVITE', icon: Icons.group_add_outlined),
+      action: const AppTag(label: 'INVITE', icon: Icons.group_add_outlined),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -649,7 +645,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
               const SizedBox(height: 28),
               AppPanel(
                 title: _hasPin ? 'Staff Login' : 'Set up PIN',
-                action: MobileTag(
+                action: AppTag(
                   label: _hasPin ? 'SECURE' : 'FIRST TIME',
                   icon: Icons.lock_outline,
                 ),
@@ -911,7 +907,7 @@ class _BrandedStatus extends StatelessWidget {
     final theme = Theme.of(context);
     return AppPanel(
       title: title,
-      action: MobileTag(label: eyebrow.toUpperCase(), icon: icon),
+      action: AppTag(label: eyebrow.toUpperCase(), icon: icon),
       child: Column(
         children: <Widget>[
           Container(
