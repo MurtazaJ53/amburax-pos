@@ -64,11 +64,32 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-      if (mounted) setState(() => _search = value);
+      if (mounted) {
+        setState(() {
+          _search = value;
+          _resetWindow();
+        });
+      }
     });
   }
 
   static const int _pageSize = 50;
+
+  /// How many products the grid is currently asking the database for.
+  ///
+  /// The catalogue is a local SQLite table, so this grows the LIMIT of one
+  /// query rather than accumulating pages. That is the simpler design here
+  /// and a stricter one: there is only ever a single result set, so a stock
+  /// edit or a sync landing mid-scroll updates every visible tile at once,
+  /// and no merged page can go stale behind the one after it. Accumulating
+  /// pages is what you do when each page costs a round trip; this costs a
+  /// LIMIT.
+  int _visibleCount = _pageSize;
+
+  /// Back to one screenful whenever the result set changes underneath.
+  /// Without this, searching after scrolling deep would ask the database for
+  /// thousands of rows to show a handful of matches.
+  void _resetWindow() => _visibleCount = _pageSize;
 
   double get _cartTotal => CartPricing.subtotal(_cart);
   int get _cartCount =>
@@ -1344,7 +1365,7 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
       search: _search,
       category: _selectedCategory,
       page: 1,
-      pageSize: _pageSize,
+      pageSize: _visibleCount,
       includeCost: session?.canViewCost ?? false,
     );
     final items =
@@ -1361,74 +1382,94 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
       searching: _search.trim().isNotEmpty,
     );
 
-    final allEntries = items.isEmpty ? const [] : groupCatalog(items);
-    final entries = allEntries.take(100).toList(growable: false);
+    final entries = items.isEmpty
+        ? const <Object>[]
+        : groupCatalog(items).toList(growable: false);
 
-    final mainContent = CustomScrollView(
-      slivers: <Widget>[
-        SliverToBoxAdapter(child: _buildHeader(context, items)),
-        if (categories.isNotEmpty)
-          SliverToBoxAdapter(child: _buildCategoryFilters(categories)),
-        SliverToBoxAdapter(child: _buildFavouritesStrip()),
-        SliverToBoxAdapter(child: _buildQuickWeighGrid(items)),
-        if (scopeNotice != null)
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            sliver: SliverToBoxAdapter(
-              child: AppNotice(
-                message: scopeNotice,
-                tone: AppTone.warning,
-                icon: Icons.filter_list_rounded,
+    // A NotificationListener rather than a ScrollController: mainContent is
+    // rendered in three different layout branches, and one controller
+    // attached to more than one scroll view at a time throws.
+    final mainContent = NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.metrics.axis != Axis.vertical) return false;
+        final metrics = notification.metrics;
+        if (shouldGrowWindow(
+          pixels: metrics.pixels,
+          maxScrollExtent: metrics.maxScrollExtent,
+          loaded: items.length,
+          windowSize: _visibleCount,
+          total: catalogTotal,
+        )) {
+          setState(() => _visibleCount += _pageSize);
+        }
+        return false;
+      },
+      child: CustomScrollView(
+        slivers: <Widget>[
+          SliverToBoxAdapter(child: _buildHeader(context, items)),
+          if (categories.isNotEmpty)
+            SliverToBoxAdapter(child: _buildCategoryFilters(categories)),
+          SliverToBoxAdapter(child: _buildFavouritesStrip()),
+          SliverToBoxAdapter(child: _buildQuickWeighGrid(items)),
+          if (scopeNotice != null)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              sliver: SliverToBoxAdapter(
+                child: AppNotice(
+                  message: scopeNotice,
+                  tone: AppTone.warning,
+                  icon: Icons.filter_list_rounded,
+                ),
               ),
             ),
-          ),
-        const SliverToBoxAdapter(child: SizedBox(height: 8)),
-        if (items.isEmpty)
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: _EmptyCatalog(searching: _search.isNotEmpty),
-          )
-        else
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              0,
-              16,
-              AdaptiveLayout.isPhone(context) && _cart.isEmpty ? 24 : 108,
-            ),
-            sliver: SliverGrid.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.60,
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
+          if (items.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: _EmptyCatalog(searching: _search.isNotEmpty),
+            )
+          else
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                0,
+                16,
+                AdaptiveLayout.isPhone(context) && _cart.isEmpty ? 24 : 108,
               ),
-              itemCount: entries.length,
-              itemBuilder: (context, index) {
-                final entry = entries[index];
-                if (entry is VariantGroup) {
-                  return _VariantGroupCard(
-                    group: entry,
-                    qtyInCart: entry.variants.fold<double>(
-                      0,
-                      (sum, v) => sum + _qtyInCart(v.id),
-                    ),
-                    onTap: () => _openVariantPicker(entry),
+              sliver: SliverGrid.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.60,
+                ),
+                itemCount: entries.length,
+                itemBuilder: (context, index) {
+                  final entry = entries[index];
+                  if (entry is VariantGroup) {
+                    return _VariantGroupCard(
+                      group: entry,
+                      qtyInCart: entry.variants.fold<double>(
+                        0,
+                        (sum, v) => sum + _qtyInCart(v.id),
+                      ),
+                      onTap: () => _openVariantPicker(entry),
+                    );
+                  }
+                  final item = entry as InventoryCatalogItem;
+                  return _ProductCard(
+                    item: item,
+                    qtyInCart: _qtyInCart(item.id),
+                    onAdd: () => _addToCart(item),
+                    onInc: () => _changeQtyById(item.id, 1),
+                    onDec: () => _changeQtyById(item.id, -1),
+                    onLongPress: () => _toggleFavourite(item),
                   );
-                }
-                final item = entry as InventoryCatalogItem;
-                return _ProductCard(
-                  item: item,
-                  qtyInCart: _qtyInCart(item.id),
-                  onAdd: () => _addToCart(item),
-                  onInc: () => _changeQtyById(item.id, 1),
-                  onDec: () => _changeQtyById(item.id, -1),
-                  onLongPress: () => _toggleFavourite(item),
-                );
-              },
+                },
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
 
     Widget cartPane() => _CartSheet(
@@ -1567,7 +1608,10 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
                     if (items.length == 1) {
                       _addToCart(items.first);
                       _searchController.clear();
-                      setState(() => _search = '');
+                      setState(() {
+                        _search = '';
+                        _resetWindow();
+                      });
                     }
                   },
                   decoration: InputDecoration(
@@ -1579,7 +1623,10 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
                             icon: const Icon(Icons.close_rounded),
                             onPressed: () {
                               _searchController.clear();
-                              setState(() => _search = '');
+                              setState(() {
+                                _search = '';
+                                _resetWindow();
+                              });
                             },
                           ),
                     filled: true,
@@ -1929,14 +1976,20 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
             return _CategoryChip(
               label: 'All',
               selected: _selectedCategory == null,
-              onTap: () => setState(() => _selectedCategory = null),
+              onTap: () => setState(() {
+                _selectedCategory = null;
+                _resetWindow();
+              }),
             );
           }
           final category = categories[index - 1].category;
           return _CategoryChip(
             label: category,
             selected: _selectedCategory == category,
-            onTap: () => setState(() => _selectedCategory = category),
+            onTap: () => setState(() {
+              _selectedCategory = category;
+              _resetWindow();
+            }),
           );
         },
       ),

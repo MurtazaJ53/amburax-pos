@@ -83,20 +83,21 @@ enum StockLevel { short, empty, low, fine }
   return null;
 }
 
-/// What the catalogue says about the products it is not showing, or null when
-/// it is showing all of them.
+/// What the catalogue says about the products it is not showing yet, or null
+/// when it is showing all of them.
 ///
-/// The phone was silent about this. It fetches one page — 50 products, with
-/// `page: 1` hardcoded and no pagination behind it — so a shop with 5,000
-/// items showed 50 and gave no sign the other 4,950 existed.
+/// The phone used to be silent about this and, worse, permanently truncated:
+/// `page: 1` was hardcoded with no pagination behind it, so a shop with 5,000
+/// items showed 50 and could never show the 51st. The grid now grows its
+/// window as the operator scrolls, so this line reports progress rather than
+/// a wall — it says how big the shop is and that there is more below.
 ///
 /// The wording deliberately differs from the web's, because the truth
 /// differs. The web pages against the server and warns that "some products
 /// may not be found by searching", which is fair there. On the phone the
 /// whole catalogue is in the local database and search is a SQL LIKE across
-/// every row, so anything can be found — it is only *browsing* that stops at
-/// [shown]. Repeating the web's warning here would tell a shopkeeper
-/// something untrue about their own device.
+/// every row, so nothing is unreachable. Repeating the web's warning here
+/// would tell a shopkeeper something untrue about their own device.
 String? catalogueScopeNotice({
   required int shown,
   required int total,
@@ -104,14 +105,37 @@ String? catalogueScopeNotice({
 }) {
   if (total <= shown) return null;
 
-  final hidden = total - shown;
-  final subject = hidden == 1 ? 'product' : 'products';
-
   if (searching) {
-    // Search already covers the whole catalogue, so the only thing worth
-    // saying is that the list is capped — not that anything is unreachable.
-    return 'Showing the first $shown matches. Narrow the search to see fewer.';
+    // Search already covers the whole catalogue, so the useful advice is to
+    // narrow it — not to keep scrolling through near-misses.
+    return 'Showing $shown of $total matches · keep scrolling, or narrow the '
+        'search';
   }
-  return 'Showing $shown of $total · $hidden more $subject — search or scan '
-      'to find them';
+  return 'Showing $shown of $total · keep scrolling, or search to jump '
+      'straight to an item';
+}
+
+/// Whether a scrolling catalogue should widen its window.
+///
+/// Three conditions, and the middle one is the one that matters. A scroll
+/// notification fires many times per second, and the query that answers it is
+/// asynchronous, so without [loaded] >= [windowSize] the listener keeps
+/// firing while the previous fetch is still in flight and walks the limit up
+/// in leaps — asking for thousands of rows to fill one screen. Waiting until
+/// the window is actually full makes each widening the consequence of a
+/// completed fetch rather than of a gesture.
+///
+/// [runway] is generous because the fetch is a local SQLite query. It only
+/// has to beat the thumb, not a network.
+bool shouldGrowWindow({
+  required double pixels,
+  required double maxScrollExtent,
+  required int loaded,
+  required int windowSize,
+  required int total,
+  double runway = 800,
+}) {
+  if (loaded >= total) return false;
+  if (loaded < windowSize) return false;
+  return pixels >= maxScrollExtent - runway;
 }

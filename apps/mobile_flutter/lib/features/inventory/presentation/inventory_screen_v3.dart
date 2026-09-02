@@ -78,13 +78,26 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
   String _search = '';
   String? _selectedCategory;
   bool _showLowStockOnly = false;
+
+  static const int _pageStep = 60;
+
+  /// How many rows the list is currently asking the database for. Grows as
+  /// the operator scrolls; see the note on the till's copy of this — the
+  /// catalogue is local, so this widens one query's LIMIT rather than
+  /// stitching pages together.
+  int _visibleCount = _pageStep;
+
+  void _resetWindow() => _visibleCount = _pageStep;
   Timer? _searchDebounce;
 
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      setState(() => _search = value);
+      setState(() {
+        _search = value;
+        _resetWindow();
+      });
       // Also pull matching items from the server (in case they're outside the
       // locally-cached window) and merge them in; the catalog stream updates.
       ref.read(mobileSyncCoordinatorProvider).searchInventoryFromServer(value);
@@ -106,43 +119,41 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
     final catalogFilter = InventoryCatalogFilter(
       search: _search,
       category: _selectedCategory,
-      pageSize: 250,
+      pageSize: _visibleCount,
       lowStockOnly: _showLowStockOnly,
     );
     final items =
         ref.watch(inventoryCatalogPageProvider(catalogFilter)).asData?.value ??
         const <InventoryCatalogItem>[];
 
-    final filteredItems = items.where((item) {
-      if (_search.isNotEmpty &&
-          !item.name.toLowerCase().contains(_search.toLowerCase())) {
-        return false;
-      }
-      if (_selectedCategory != null && item.category != _selectedCategory) {
-        return false;
-      }
-      if (_showLowStockOnly && item.stock > 5) {
-        return false;
-      }
-      return true;
-    }).toList();
+    // The query already applied all three filters. Re-applying them here was
+    // not merely redundant, it disagreed with the database twice:
+    //
+    //   * search matched the name only, while the query matches name, SKU and
+    //     size — so searching by barcode found rows and then threw them away;
+    //   * low stock hardcoded `stock > 5`, while the query uses each item's
+    //     own reorder_level — so an item that should reorder at 50 was hidden
+    //     from the low-stock filter, and one that should reorder at 2 was
+    //     shown in it.
+    //
+    // Deleting the second filter is the fix for both.
+
+    final totalCount =
+        ref.watch(inventoryCatalogCountProvider(catalogFilter)).asData?.value ??
+        items.length;
 
     return Scaffold(
       backgroundColor: AppColors.of(context).background,
       body: _buildCatalog(
         context,
         categories,
-        filteredItems,
+        items,
         catalogueScopeNotice(
-          shown: filteredItems.length,
-          total:
-              ref
-                  .watch(inventoryCatalogCountProvider(catalogFilter))
-                  .asData
-                  ?.value ??
-              filteredItems.length,
+          shown: items.length,
+          total: totalCount,
           searching: _search.trim().isNotEmpty,
         ),
+        totalCount,
       ),
       // Add item FAB
       floatingActionButton: FloatingActionButton.extended(
@@ -289,87 +300,107 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
     List<InventoryCategorySummary> categories,
     List<InventoryCatalogItem> items,
     String? scopeNotice,
+    int totalCount,
   ) {
     final colors = AppColors.of(context);
-    return CustomScrollView(
-      slivers: <Widget>[
-        SliverAppBar(
-          floating: true,
-          snap: true,
-          primary: false,
-          automaticallyImplyLeading: false,
-          backgroundColor: colors.surface,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          toolbarHeight: 74,
-          titleSpacing: 16,
-          title: Padding(
-            padding: const EdgeInsets.only(right: 4, top: 6),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: PremiumSearchBar(
-                    controller: _searchController,
-                    hintText: L.of(context).invSearchHint,
-                    onChanged: _onSearchChanged,
-                    onClear: () {
-                      _searchDebounce?.cancel();
-                      setState(() => _search = '');
-                    },
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.metrics.axis != Axis.vertical) return false;
+        final metrics = notification.metrics;
+        if (shouldGrowWindow(
+          pixels: metrics.pixels,
+          maxScrollExtent: metrics.maxScrollExtent,
+          loaded: items.length,
+          windowSize: _visibleCount,
+          total: totalCount,
+        )) {
+          setState(() => _visibleCount += _pageStep);
+        }
+        return false;
+      },
+      child: CustomScrollView(
+        slivers: <Widget>[
+          SliverAppBar(
+            floating: true,
+            snap: true,
+            primary: false,
+            automaticallyImplyLeading: false,
+            backgroundColor: colors.surface,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            toolbarHeight: 74,
+            titleSpacing: 16,
+            title: Padding(
+              padding: const EdgeInsets.only(right: 4, top: 6),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: PremiumSearchBar(
+                      controller: _searchController,
+                      hintText: L.of(context).invSearchHint,
+                      onChanged: _onSearchChanged,
+                      onClear: () {
+                        _searchDebounce?.cancel();
+                        setState(() {
+                          _search = '';
+                          _resetWindow();
+                        });
+                      },
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                _ToolbarIconButton(
-                  icon: Icons.category_rounded,
-                  tooltip: 'Categories',
-                  onTap: () => context.push('/categories'),
-                ),
-                const SizedBox(width: 6),
-                _ToolbarIconButton(
-                  icon: Icons.playlist_add_rounded,
-                  tooltip: 'Bulk add',
-                  onTap: () => _showBulkAddSheet(context),
-                ),
-              ],
-            ),
-          ),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(50),
-            child: _buildChipsBar(categories),
-          ),
-        ),
-        // Buying decisions are a daily job, so surface the reorder list here
-        // rather than leaving reorder_level as data nobody acts on.
-        SliverToBoxAdapter(child: _buildReorderBanner(context)),
-        if (scopeNotice != null)
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            sliver: SliverToBoxAdapter(
-              child: AppNotice(
-                message: scopeNotice,
-                tone: AppTone.warning,
-                icon: Icons.filter_list_rounded,
+                  const SizedBox(width: 8),
+                  _ToolbarIconButton(
+                    icon: Icons.category_rounded,
+                    tooltip: 'Categories',
+                    onTap: () => context.push('/categories'),
+                  ),
+                  const SizedBox(width: 6),
+                  _ToolbarIconButton(
+                    icon: Icons.playlist_add_rounded,
+                    tooltip: 'Bulk add',
+                    onTap: () => _showBulkAddSheet(context),
+                  ),
+                ],
               ),
             ),
-          ),
-        if (items.isEmpty)
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: EmptyStateWidget(
-              icon: Icons.inventory_2_rounded,
-              title: 'No items found',
-              message: _search.isEmpty
-                  ? 'Start adding products to your inventory'
-                  : 'Try a different search term or filter',
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(50),
+              child: _buildChipsBar(categories),
             ),
-          )
-        else
-          SliverList.builder(
-            itemCount: items.length,
-            itemBuilder: (context, index) => _buildItemRow(items[index]),
           ),
-        const SliverToBoxAdapter(child: SizedBox(height: 96)),
-      ],
+          // Buying decisions are a daily job, so surface the reorder list here
+          // rather than leaving reorder_level as data nobody acts on.
+          SliverToBoxAdapter(child: _buildReorderBanner(context)),
+          if (scopeNotice != null)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              sliver: SliverToBoxAdapter(
+                child: AppNotice(
+                  message: scopeNotice,
+                  tone: AppTone.warning,
+                  icon: Icons.filter_list_rounded,
+                ),
+              ),
+            ),
+          if (items.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: EmptyStateWidget(
+                icon: Icons.inventory_2_rounded,
+                title: 'No items found',
+                message: _search.isEmpty
+                    ? 'Start adding products to your inventory'
+                    : 'Try a different search term or filter',
+              ),
+            )
+          else
+            SliverList.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) => _buildItemRow(items[index]),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 96)),
+        ],
+      ),
     );
   }
 
@@ -390,6 +421,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
             onTap: () => setState(() {
               _selectedCategory = null;
               _showLowStockOnly = false;
+              _resetWindow();
             }),
           ),
           const SizedBox(width: 8),
@@ -399,8 +431,10 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
             _buildCategoryChip(
               label: category.category,
               isSelected: _selectedCategory == category.category,
-              onTap: () =>
-                  setState(() => _selectedCategory = category.category),
+              onTap: () => setState(() {
+                _selectedCategory = category.category;
+                _resetWindow();
+              }),
             ),
           ],
         ],
@@ -417,7 +451,10 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
           : colors.surfaceStrong,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        onTap: () => setState(() => _showLowStockOnly = !_showLowStockOnly),
+        onTap: () => setState(() {
+          _showLowStockOnly = !_showLowStockOnly;
+          _resetWindow();
+        }),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),

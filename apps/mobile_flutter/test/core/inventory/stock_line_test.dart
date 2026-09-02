@@ -117,25 +117,34 @@ void main() {
       );
     });
 
-    test('browsing a large shop says how many are missing and what to do', () {
+    test('browsing a large shop reports progress, not a wall', () {
+      // The grid grows as the operator scrolls, so this says how big the shop
+      // is and that more is coming. It must not imply the rest is
+      // unreachable — that was true before paging and is not true now.
       expect(
         catalogueScopeNotice(shown: 50, total: 5000, searching: false),
-        'Showing 50 of 5000 · 4950 more products — search or scan to find them',
+        'Showing 50 of 5000 · keep scrolling, or search to jump straight to '
+        'an item',
       );
     });
 
-    test('one hidden product is a product, not products', () {
+    test('the count follows the window as it grows', () {
       expect(
-        catalogueScopeNotice(shown: 50, total: 51, searching: false),
-        'Showing 50 of 51 · 1 more product — search or scan to find them',
+        catalogueScopeNotice(shown: 250, total: 5000, searching: false),
+        startsWith('Showing 250 of 5000'),
+      );
+      // And goes away entirely once the window has caught up.
+      expect(
+        catalogueScopeNotice(shown: 5000, total: 5000, searching: false),
+        isNull,
       );
     });
 
     test('searching gets different advice, because search sees everything', () {
       // The local catalogue is complete and search is a LIKE over every row,
-      // so telling a searching shopkeeper to "search to find them" would be
-      // useless — and the web's warning that products may be unfindable
-      // would be untrue here.
+      // so nothing is unreachable. The useful advice is to narrow the search,
+      // and the web's warning that products may be unfindable would be untrue
+      // on this device.
       final notice = catalogueScopeNotice(
         shown: 50,
         total: 300,
@@ -143,7 +152,7 @@ void main() {
       );
       expect(
         notice,
-        'Showing the first 50 matches. Narrow the search to see fewer.',
+        'Showing 50 of 300 matches · keep scrolling, or narrow the search',
       );
       expect(notice, isNot(contains('scan')));
     });
@@ -152,6 +161,63 @@ void main() {
       expect(
         catalogueScopeNotice(shown: 50, total: 8, searching: true),
         isNull,
+      );
+    });
+  });
+
+  group('shouldGrowWindow', () {
+    bool grow({
+      double pixels = 5000,
+      double maxScrollExtent = 5000,
+      int loaded = 50,
+      int windowSize = 50,
+      int total = 5000,
+    }) {
+      return shouldGrowWindow(
+        pixels: pixels,
+        maxScrollExtent: maxScrollExtent,
+        loaded: loaded,
+        windowSize: windowSize,
+        total: total,
+      );
+    }
+
+    test('grows when the operator nears the end of a full window', () {
+      expect(grow(), isTrue);
+      expect(grow(pixels: 4300), isTrue, reason: 'inside the 800px runway');
+    });
+
+    test('does not grow while the operator is still far up the list', () {
+      expect(grow(pixels: 1000), isFalse);
+      expect(grow(pixels: 4199), isFalse, reason: 'outside the runway');
+    });
+
+    test('does not grow while the previous fetch is still in flight', () {
+      // The condition that stops runaway growth. Scroll notifications fire
+      // many times a second and the query answering them is asynchronous, so
+      // without this the limit walks up in leaps and asks for thousands of
+      // rows to fill one screen.
+      expect(grow(loaded: 30, windowSize: 50), isFalse);
+      expect(grow(loaded: 49, windowSize: 50), isFalse);
+      expect(grow(loaded: 50, windowSize: 50), isTrue);
+    });
+
+    test('stops once everything is loaded', () {
+      expect(grow(loaded: 5000, windowSize: 5000, total: 5000), isFalse);
+      // And never asks past the end even if the counts disagree briefly.
+      expect(grow(loaded: 5010, windowSize: 5000, total: 5000), isFalse);
+    });
+
+    test('a shop that fits on one screen never grows', () {
+      expect(
+        grow(
+          loaded: 12,
+          windowSize: 50,
+          total: 12,
+          pixels: 0,
+          maxScrollExtent: 0,
+        ),
+        isFalse,
       );
     });
   });
