@@ -15,7 +15,21 @@ services:
     restart: always
 
   db:
-    image: citusdata/citus:12.1
+    # Plain Postgres, deliberately - and this used to say citusdata/citus:12.1.
+    #
+    # Citus can spread one table across machines by a key, and shop id is
+    # exactly the shape this data has. But no table was ever distributed, so
+    # the extension did nothing except sit in the image, and the droplet does
+    # not even run this file: scripts/go-live/deploy.sh picks the first compose
+    # file it finds, which is docker-compose.demo.yml, and that has always been
+    # postgres:16-alpine. So "production runs Citus" was never true.
+    #
+    # Carrying an unused sharding extension is the one option with no upside:
+    # it costs a bigger image and invites the belief that sharding is already
+    # solved. If the load test says one box is not enough, turning Citus on is
+    # a deliberate migration made against real numbers - put the image back
+    # here, then distribute tables by shop id.
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}

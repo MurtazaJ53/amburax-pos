@@ -204,7 +204,10 @@ The foundation is already here: the backend is **row-level multi-tenant** (`Shop
 - Accessibility pass (contrast, focus, screen-reader labels), and a polished empty/onboarding state.
 
 ### Architecture & scalability
-- Managed Postgres (Citus is already the prod image) for horizontal shard-by-tenant scaling.
+- Managed Postgres for horizontal shard-by-tenant scaling. Note that Citus is
+  **not** running: the image was pinned in `docker-compose.prod.yml`, which the
+  droplet does not use, and no table was ever distributed. Sharding is a
+  deliberate future migration, not a switch already flipped.
 - Async everything heavy via Celery; server-computed projections + read caching.
 - Event-sourced core makes audit, replay, and analytics natural — lean into it.
 - Consider an event/outbox stream (e.g. per-tenant) for integrations and webhooks.

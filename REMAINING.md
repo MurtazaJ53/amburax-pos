@@ -132,24 +132,33 @@ that already hold them are unaffected.
 
 | Item | Why |
 |---|---|
-| Delete `findExisting` in `lib/import-detect.ts` | Dead code I wrote. The rehearsal's `updated` count replaced it, produced by the real matching rules rather than a second guess at them. Only its own test references it. |
+| ~~Delete `findExisting` in `lib/import-detect.ts`~~ — **done** | Removed in `5b7c127`. The name still appears in the web app, but that is `findExistingCustomer` in `lib/customer-match.ts`, which is live and used by the POS checkout. This row was stale, not outstanding. |
 | ~~Verify rehearsal counts across chunks~~ — **done, correct** | Proven on 1 Sep with a 600-row file: 550 unique SKUs plus 50 duplicates placed deliberately *after* the 500-row boundary, so they land in the second chunk. Two `/import` calls, and the result was `550 added · 50 updated · 0 skipped` — the duplicates counted as updates, not as a second creation. The rehearsal also listed all 50 with row numbers spanning the boundary (`ct-0000 (rows 1, 551)`), so duplicate detection runs over the whole file rather than per chunk. The feared divergence cannot happen: each chunk is written before the next is processed, so a later chunk sees what an earlier one created. |
-| One unexplained test failure | Seen once in a full backend run, not reproducible in five runs since. I removed the one nondeterminism I had introduced — a fixture deriving a phone number from `hash()`, which Python randomises per process. Likely that. **Not proven.** |
+| One unexplained test failure — **still not reproduced** | Seen once, long ago. Chased again on 2 September 2026: three more full runs (1540 passed each), plus five repeats of every suite that reads the current date — attendance, sales, projections, purchases, payments, notifications, inventory, reconcile. All green. The `hash()`-derived fixture that was the leading suspect is gone and no other per-process nondeterminism turned up. The remaining suspicion is a **day-boundary**: Django runs on `Asia/Kolkata` while timestamps are stored in UTC, so between 18:30 and midnight IST "today" differs depending on which clock a test asks. Those runs were inside that window and still passed, so it is a suspicion and nothing more. **Not proven, and not chased further until it is seen again** — there is no failure to debug, and inventing one costs more than it finds. |
 
 ---
 
 ## 4. Decisions I need from you
 
-### Citus: use it or drop it
+### ~~Citus: use it or drop it~~ — dropped, 2 September 2026
 
-Production runs Citus, a Postgres that can spread one table across machines
-by a key. Shop id is exactly the shape this data has. **No table is
-distributed**, so it behaves as ordinary Postgres.
+**The premise of this item was wrong, and that is the finding.** It said
+"production runs Citus". Production does not. `scripts/go-live/deploy.sh`
+picks the first compose file it finds, which is `docker-compose.demo.yml`,
+and that has always been `postgres:16-alpine`. The only Citus in this repo
+was an image pin in `docker-compose.prod.yml`, a file the droplet does not
+use, and no table was ever distributed anywhere.
 
-Not a bug, and enabling it today buys nothing. It matters because it is the
-real answer to "what happens at a hundred times the shops", and it is far
-easier to switch on while the data is small. Carrying it unused is the one
-option with no upside either way.
+So there was never a running extension to switch on — only a belief that
+sharding was half-solved, which is worse than not having it, because it is the
+kind of thing somebody repeats to a customer. The pin is now
+`postgres:16-alpine` in both files, with a comment saying what was there and
+how to put it back. `docs/04` and `docs/05` said "Citus image in prod" and
+"Citus is already the prod image"; both are corrected.
+
+If one box turns out not to be enough, turning Citus on is a deliberate
+migration made against numbers from the load test below — not a switch
+somebody assumes is already flipped.
 
 ### ~~A `UNIQUE` constraint on `sku`~~ — done
 
@@ -172,11 +181,33 @@ different code from the one on their shelf label.
 ## 5. Load test — Phase 4 of the scale plan
 
 Seed a hundred times the data, drive real traffic, measure. Turns every
-estimate in the scale review into an observation, and settles the Citus
-question with evidence instead of reasoning.
+estimate in the scale review into an observation.
 
-Deliberately last: it would currently measure the un-migrated state, so its
-numbers go stale the moment section 2 runs. **Never against production.**
+**Both halves now exist.** `seed_load` fills one shop; `scripts/load_test.py`
+signs in and times the six reads a slow morning is actually felt through —
+inventory list, stock on hand, sales history, dashboard, best sellers,
+debtors — reporting p50/p95/max and the row count beside each, so a fast empty
+answer is never mistaken for a fast one.
+
+```bash
+python manage.py seed_load <shop-id> --confirm      # on the staging box
+python scripts/load_test.py --base-url http://127.0.0.1:8001/api/v1     --email owner@example.com --password ... --shop-id <shop-id> --rounds 30
+```
+
+The driver refuses hosts that look like the live shop. Overriding that needs
+`--i-know-this-is-not-production`, and the reason is not politeness: a load
+test against the box a shop is selling from is an outage you caused on
+purpose, and the numbers are wrong anyway because a real till competes for the
+same disk.
+
+Exercised on 2 September 2026 against a local API with a small seeded shop
+(300 products, 200 customers, 400 sales) purely to prove the tooling runs and
+reports: worst p95 was 430 ms on the sales list. **Those numbers mean nothing
+about scale** — SQLite, one machine, a fiftieth of the intended data. The real
+run still needs a staging box with Postgres and the full seed.
+
+Still deliberately after section 2: run before the media migration and the
+numbers go stale the moment it happens. **Never against production.**
 
 ---
 

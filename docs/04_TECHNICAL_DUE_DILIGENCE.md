@@ -16,14 +16,14 @@ _2026-07-20. Answers the five diligence asks with the **actual** stack and code.
 | Layer | Technology |
 |-------|-----------|
 | **Mobile (primary client)** | Flutter (Dart), Riverpod (state), **Drift/SQLite** (offline DB), go_router, mobile_scanner, esc_pos/blue_thermal_printer, pdf/printing, local_auth, flutter_contacts |
-| **Backend (source of truth)** | **Django 6, Django REST Framework**, PostgreSQL (Citus image in prod), **Celery + Redis** (async), **Channels** (realtime), OpenTelemetry |
+| **Backend (source of truth)** | **Django 6, Django REST Framework**, PostgreSQL 16 (plain; the Citus image was dropped on 2 September 2026, unused), **Celery + Redis** (async), **Channels** (realtime), OpenTelemetry |
 | **Data access** | Django ORM (no Prisma/Sequelize). Migrations per app under `platform_apps/*/migrations/` |
 | **Desktop (secondary)** | **Tauri 2** (`apps/desktop`) wrapping the legacy Vite `dist/` build |
 | **Admin web (secondary)** | Next.js (`apps/admin_web`) |
 | **Legacy (archived)** | React + Vite + Capacitor + Firebase Functions, under `legacy/` |
 
 ### Hosting / deployment
-- Containerized via **`docker-compose.prod.yml`** (repo root): services = `api` (gunicorn), `celery_default`, `celery_erpnext`, `celery_beat`, `db` (Citus/Postgres), `redis`, **`pgbouncer`** (transaction-pooled DB connections). The `api` image is built from `apps/backend/Dockerfile` (python:3.13-slim, non-root user).
+- Containerized via **`docker-compose.prod.yml`** (repo root): services = `api` (gunicorn), `celery_default`, `celery_erpnext`, `celery_beat`, `db` (Postgres 16), `redis`, **`pgbouncer`** (transaction-pooled DB connections). The `api` image is built from `apps/backend/Dockerfile` (python:3.13-slim, non-root user).
 - DB URL, Redis URL, secrets injected via env (see §3). Not committed.
 
 ### Data flow (offline-first)
