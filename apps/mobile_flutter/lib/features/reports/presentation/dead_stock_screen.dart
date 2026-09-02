@@ -8,7 +8,6 @@ import '../../../core/models/mobile_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 final deadStockProvider = StreamProvider.autoDispose
@@ -40,7 +39,8 @@ class _DeadStockScreenState extends ConsumerState<DeadStockScreen> {
     final tiedUp = items.fold<double>(0, (sum, i) => sum + i.tiedUpValue);
     final neverSold = items.where((i) => i.neverSold).length;
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: L.of(context).deadStockTitle,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

@@ -7,7 +7,7 @@ import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Money amounts arrive from DRF as JSON strings.
 double parseMoney(Object? value) {
@@ -88,27 +88,29 @@ class DayBookScreen extends ConsumerWidget {
     final cashInHand = parseMoney(payload['cash_in_hand']);
     final summaryText = '${payload['summary_text'] ?? ''}';
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Day book',
-      trailing: summaryText.isEmpty
-          ? null
-          : IconButton(
-              tooltip: 'Copy today’s figures',
-              icon: const Icon(Icons.copy_rounded),
-              // The server writes this wording so every surface says the same
-              // thing; rebuilding it here would let the two drift apart.
-              // Clipboard rather than a share sheet: it pastes into WhatsApp,
-              // a message to the accountant, or anywhere else, and needs no
-              // extra dependency to do it.
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: summaryText));
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Copied. Paste it anywhere.')),
-                  );
-                }
-              },
-            ),
+      actions: <Widget>[
+        if (summaryText.isNotEmpty)
+          IconButton(
+            tooltip: 'Copy today’s figures',
+            icon: const Icon(Icons.copy_rounded),
+            // The server writes this wording so every surface says the same
+            // thing; rebuilding it here would let the two drift apart.
+            // Clipboard rather than a share sheet: it pastes into WhatsApp,
+            // a message to the accountant, or anywhere else, and needs no
+            // extra dependency to do it.
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: summaryText));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Copied. Paste it anywhere.')),
+                );
+              }
+            },
+          ),
+      ],
       child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(dayBookProvider),
         child: async.isLoading && payload.isEmpty

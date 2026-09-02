@@ -10,7 +10,6 @@ import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 /// Django REST Framework serialises DecimalField as a JSON *string*
@@ -174,7 +173,8 @@ class _SettingsBillingScreenState extends ConsumerState<SettingsBillingScreen> {
     final hasAccess = subscription['has_paid_access'] == true;
     final daysLeft = planCount(subscription['days_remaining']);
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: L.of(context).billingTitle,
       child: async.isLoading
           ? const Center(

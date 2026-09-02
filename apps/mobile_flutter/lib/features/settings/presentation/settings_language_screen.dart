@@ -5,7 +5,7 @@ import '../../../core/i18n/locale_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Language options. The label is deliberately written *in* the language
 /// itself: someone who can't read English still has to recognise their own
@@ -44,7 +44,8 @@ class SettingsLanguageScreen extends ConsumerWidget {
     final controller = ref.watch(localeControllerProvider);
     final selected = controller.locale?.languageCode;
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: l.settingsLanguage,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

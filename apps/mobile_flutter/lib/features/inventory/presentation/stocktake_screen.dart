@@ -8,7 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../pos/presentation/pos_scanner_sheet.dart';
-import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// Quantities arrive from DRF as JSON strings.
 double parseQuantity(Object? value) {
@@ -312,7 +312,8 @@ class _StocktakeScreenState extends ConsumerState<StocktakeScreen> {
         .where((r) => r['status'] != 'open')
         .toList(growable: false);
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Stocktake',
       child: RefreshIndicator(
         onRefresh: () async {

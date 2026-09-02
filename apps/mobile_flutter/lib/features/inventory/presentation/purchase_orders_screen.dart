@@ -5,7 +5,6 @@ import '../../../core/backend/backend_api_client.dart';
 import '../../../core/models/mobile_session.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 double _num(Object? value) {
@@ -85,7 +84,8 @@ class _PurchaseOrdersScreenState extends ConsumerState<PurchaseOrdersScreen> {
     final overdue = (payload['overdue_count'] as num?)?.toInt() ?? 0;
     final canOrder = session != null && _canOrder(session);
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Purchase orders',
       child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(purchaseOrdersProvider),

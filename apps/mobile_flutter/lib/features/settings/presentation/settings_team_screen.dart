@@ -28,7 +28,8 @@ class SettingsTeamScreen extends ConsumerWidget {
         membersAsync.asData?.value ?? const <WorkspaceTeamMemberRecord>[];
 
     if (session == null) {
-      return MobileStandaloneScaffold(
+      return AppScreen(
+        scrollable: false,
         title: 'Workspace team',
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
@@ -48,7 +49,8 @@ class SettingsTeamScreen extends ConsumerWidget {
     }
 
     if (!session.isOwnerLike) {
-      return MobileStandaloneScaffold(
+      return AppScreen(
+        scrollable: false,
         title: 'Workspace team',
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
@@ -67,7 +69,8 @@ class SettingsTeamScreen extends ConsumerWidget {
       );
     }
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Workspace team',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

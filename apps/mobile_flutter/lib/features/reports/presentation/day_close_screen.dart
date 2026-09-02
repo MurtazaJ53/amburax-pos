@@ -11,7 +11,6 @@ import '../../../core/util/whatsapp.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 /// End-of-day close: today's takings, per-mode totals, and a cash count with
@@ -99,7 +98,8 @@ class _DayCloseScreenState extends ConsumerState<DayCloseScreen> {
     final modeEntries = z.tenderBreakdown.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Day close',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

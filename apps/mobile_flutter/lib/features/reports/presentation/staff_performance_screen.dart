@@ -8,7 +8,6 @@ import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 /// Parse the money fields, which DRF serialises as JSON strings.
@@ -61,7 +60,8 @@ class _StaffPerformanceScreenState
     final rows = async.asData?.value ?? const <Map<String, dynamic>>[];
     final total = rows.fold<double>(0, (sum, r) => sum + _money(r['gross']));
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: L.of(context).staffPerformance,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

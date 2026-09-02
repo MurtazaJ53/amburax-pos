@@ -6,7 +6,6 @@ import '../../../core/models/mobile_models.dart';
 import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 /// Manage product categories — rename a category across every item.
@@ -19,7 +18,8 @@ class CategoryManagementScreen extends ConsumerWidget {
         ref.watch(inventoryCategoriesProvider).asData?.value ??
         const <InventoryCategorySummary>[];
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Categories',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

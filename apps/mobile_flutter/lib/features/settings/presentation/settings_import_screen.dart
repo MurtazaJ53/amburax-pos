@@ -21,7 +21,6 @@ import '../../../core/models/mobile_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import 'universal_import_sheet.dart';
 import '../../../ui/ui.dart';
 
@@ -533,7 +532,8 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Import data',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

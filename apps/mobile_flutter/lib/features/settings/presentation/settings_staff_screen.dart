@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 const List<String> _roles = <String>['owner', 'manager', 'staff'];
@@ -139,7 +138,8 @@ class _SettingsStaffScreenState extends ConsumerState<SettingsStaffScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Staff & PINs',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

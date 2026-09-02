@@ -5,7 +5,7 @@ import '../../../core/backend/backend_api_client.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../shell/presentation/mobile_surface.dart';
+import '../../../ui/ui.dart';
 
 /// One alert, as the server records it.
 class ShopNotification {
@@ -169,7 +169,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final rows = async.asData?.value ?? const <ShopNotification>[];
     final unread = rows.where((r) => !r.isRead).length;
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Alerts',
       child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(notificationsProvider),

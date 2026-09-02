@@ -7,7 +7,6 @@ import '../../../core/models/mobile_models.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 /// Lets a user who belongs to multiple shops switch the active workspace
@@ -82,7 +81,8 @@ class _ShopSwitcherScreenState extends ConsumerState<ShopSwitcherScreen> {
     final session = ref.watch(mobileSessionProvider).asData?.value;
     final currentShopId = session?.shopId ?? '';
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Switch shop',
       child: _loading
           ? const Center(

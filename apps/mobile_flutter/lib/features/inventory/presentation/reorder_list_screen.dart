@@ -10,7 +10,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/whatsapp.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 final reorderListProvider = StreamProvider.autoDispose<List<ReorderItem>>(
@@ -114,7 +113,8 @@ class _ReorderListScreenState extends ConsumerState<ReorderListScreen> {
         .whereType<double>()
         .fold<double>(0, (sum, c) => sum + c);
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: L.of(context).reorderTitle,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

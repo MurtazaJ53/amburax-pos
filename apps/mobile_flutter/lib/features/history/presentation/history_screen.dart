@@ -1336,7 +1336,10 @@ class _HistorySaleRow extends StatelessWidget {
                     color: tone.background,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(Icons.receipt_long_rounded, color: tone.foreground),
+                  child: Icon(
+                    Icons.receipt_long_rounded,
+                    color: tone.foreground,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(

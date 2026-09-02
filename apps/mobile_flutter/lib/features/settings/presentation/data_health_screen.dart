@@ -10,7 +10,6 @@ import '../../../core/sync/mobile_sync_coordinator.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 final dataHealthProvider = Provider.autoDispose<DataHealthReport>((ref) {
@@ -214,7 +213,8 @@ class _DataHealthScreenState extends ConsumerState<DataHealthScreen> {
     final colors = AppColors.of(context);
     final report = ref.watch(dataHealthProvider);
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: L.of(context).healthTitle,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

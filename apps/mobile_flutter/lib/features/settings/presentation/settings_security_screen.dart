@@ -222,7 +222,8 @@ class _SettingsSecurityScreenState
         verifiedUntil != null && verifiedUntil.isAfter(DateTime.now());
 
     if (session == null) {
-      return MobileStandaloneScaffold(
+      return AppScreen(
+        scrollable: false,
         title: 'Security',
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
@@ -242,7 +243,8 @@ class _SettingsSecurityScreenState
     }
 
     if (!MobileRuntimeConfig.backendSyncEnabled) {
-      return MobileStandaloneScaffold(
+      return AppScreen(
+        scrollable: false,
         title: 'Security',
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
@@ -285,7 +287,8 @@ class _SettingsSecurityScreenState
     }
 
     if (!session.isOwnerLike) {
-      return MobileStandaloneScaffold(
+      return AppScreen(
+        scrollable: false,
         title: 'Security',
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
@@ -307,7 +310,8 @@ class _SettingsSecurityScreenState
     }
 
     final status = _status;
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Security',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

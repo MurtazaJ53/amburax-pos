@@ -307,7 +307,8 @@ class _SettingsAttendanceScreenState
         sessionsAsync.asData?.value ?? const <AttendanceSessionRecord>[];
 
     if (session == null) {
-      return MobileStandaloneScaffold(
+      return AppScreen(
+        scrollable: false,
         title: 'Attendance',
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
@@ -327,7 +328,8 @@ class _SettingsAttendanceScreenState
     }
 
     if (!shop.supportsAttendance) {
-      return MobileStandaloneScaffold(
+      return AppScreen(
+        scrollable: false,
         title: 'Attendance',
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
@@ -361,7 +363,8 @@ class _SettingsAttendanceScreenState
                 orElse: () => null,
               );
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Attendance',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

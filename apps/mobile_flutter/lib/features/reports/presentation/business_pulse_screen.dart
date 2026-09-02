@@ -6,7 +6,6 @@ import '../../../core/models/mobile_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 final bestSellersProvider = FutureProvider.autoDispose
@@ -44,7 +43,8 @@ class _BusinessPulseScreenState extends ConsumerState<BusinessPulseScreen> {
         ref.watch(cashFlowProvider(_days)).asData?.value ??
         CashFlowSnapshot.empty;
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Business pulse',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

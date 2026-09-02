@@ -315,7 +315,8 @@ class _SettingsExpensesScreenState
     final expenses = expensesAsync.asData?.value ?? const <ExpenseRecord>[];
 
     if (session == null) {
-      return MobileStandaloneScaffold(
+      return AppScreen(
+        scrollable: false,
         title: L.of(context).settingsExpenses,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
@@ -335,7 +336,8 @@ class _SettingsExpensesScreenState
     }
 
     if (!shop.supportsExpenses) {
-      return MobileStandaloneScaffold(
+      return AppScreen(
+        scrollable: false,
         title: L.of(context).settingsExpenses,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
@@ -357,7 +359,8 @@ class _SettingsExpensesScreenState
     final topExpenses = [...expenses]
       ..sort((left, right) => right.amount.compareTo(left.amount));
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: L.of(context).settingsExpenses,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

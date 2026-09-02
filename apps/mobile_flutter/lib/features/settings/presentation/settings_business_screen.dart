@@ -6,7 +6,6 @@ import '../../../core/models/mobile_models.dart';
 import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/sync/mobile_sync_coordinator.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 const List<String> _currencies = <String>['INR', 'USD', 'GBP', 'AED'];
@@ -112,7 +111,8 @@ class _SettingsBusinessScreenState
     _hydrate(shop);
     final colors = AppColors.of(context);
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Business details',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

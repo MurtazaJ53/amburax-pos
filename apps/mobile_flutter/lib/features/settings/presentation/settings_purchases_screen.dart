@@ -11,7 +11,6 @@ import '../../../core/sync/mobile_sync_coordinator.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 /// Stock buying and supplier dues. Purchases are money-out with a running
@@ -37,15 +36,17 @@ class SettingsPurchasesScreen extends ConsumerWidget {
     final session = ref.watch(mobileSessionProvider).asData?.value;
     final canManage = session != null && !session.isReadOnly;
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: L.of(context).purSuppliers,
-      trailing: canManage
-          ? IconButton(
-              icon: const Icon(Icons.add_rounded),
-              tooltip: 'Record purchase',
-              onPressed: () => _openPurchaseSheet(context, ref),
-            )
-          : null,
+      actions: <Widget>[
+        if (canManage)
+          IconButton(
+            icon: const Icon(Icons.add_rounded),
+            tooltip: 'Record purchase',
+            onPressed: () => _openPurchaseSheet(context, ref),
+          ),
+      ],
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
         children: <Widget>[

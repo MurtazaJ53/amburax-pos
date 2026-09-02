@@ -6,7 +6,6 @@ import '../../../core/models/mobile_models.dart';
 import '../../../core/models/mobile_session.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 /// Quantities arrive from DRF as JSON strings.
@@ -122,7 +121,8 @@ class _StockTransfersScreenState extends ConsumerState<StockTransfersScreen> {
     final outgoing = (payload['outgoing_in_transit'] as num?)?.toInt() ?? 0;
     final canMove = session != null && _canMove(session);
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Stock transfers',
       child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(stockTransfersProvider),

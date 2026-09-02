@@ -15,7 +15,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/whatsapp.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 final khataDebtorsProvider = StreamProvider.autoDispose<List<KhataDebtor>>(
@@ -194,7 +193,8 @@ class _KhataCollectionScreenState extends ConsumerState<KhataCollectionScreen> {
     final totalDue = all.fold<double>(0, (sum, d) => sum + d.balance);
     final noPhone = all.where((d) => !d.hasPhone).length;
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: L.of(context).collectTitle,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

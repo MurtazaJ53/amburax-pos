@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/backup/backup_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 class SettingsBackupScreen extends ConsumerStatefulWidget {
@@ -146,7 +145,8 @@ class _SettingsBackupScreenState extends ConsumerState<SettingsBackupScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: L.of(context).backupTitle,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

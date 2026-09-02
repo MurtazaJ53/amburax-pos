@@ -9,7 +9,6 @@ import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
-import '../../shell/presentation/mobile_surface.dart';
 import '../../../ui/ui.dart';
 
 String _ymd(DateTime d) =>
@@ -120,7 +119,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final canViewProfit =
         ref.watch(mobileSessionProvider).asData?.value?.canViewCost ?? false;
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Reports',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

@@ -110,7 +110,8 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
         .toList(growable: false);
 
     if (session == null) {
-      return MobileStandaloneScaffold(
+      return AppScreen(
+        scrollable: false,
         title: 'Pulse desk',
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
@@ -130,7 +131,8 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
     }
 
     if (!session.isOwnerLike) {
-      return MobileStandaloneScaffold(
+      return AppScreen(
+        scrollable: false,
         title: 'Pulse desk',
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
@@ -149,7 +151,8 @@ class _SettingsPulseScreenState extends ConsumerState<SettingsPulseScreen> {
       );
     }
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Pulse desk',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),

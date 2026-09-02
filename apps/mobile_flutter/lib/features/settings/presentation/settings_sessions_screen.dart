@@ -139,7 +139,8 @@ class _SettingsSessionsScreenState
         .length;
 
     if (session == null) {
-      return MobileStandaloneScaffold(
+      return AppScreen(
+        scrollable: false,
         title: 'Sessions',
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
@@ -159,7 +160,8 @@ class _SettingsSessionsScreenState
     }
 
     if (!session.isOwnerLike) {
-      return MobileStandaloneScaffold(
+      return AppScreen(
+        scrollable: false,
         title: 'Sessions',
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
@@ -178,7 +180,8 @@ class _SettingsSessionsScreenState
       );
     }
 
-    return MobileStandaloneScaffold(
+    return AppScreen(
+      scrollable: false,
       title: 'Sessions',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
