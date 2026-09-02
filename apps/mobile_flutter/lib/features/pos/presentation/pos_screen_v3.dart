@@ -33,6 +33,7 @@ import '../../../ui/ui.dart';
 import 'checkout_payment_sheet.dart';
 import 'pos_catalog_grouping.dart';
 import 'pos_scanner_sheet.dart';
+import '../../../core/inventory/stock_line.dart';
 
 /// Point of Sale — clean product list, editable cart, prominent total.
 class PosScreenV3 extends ConsumerStatefulWidget {
@@ -1948,7 +1949,10 @@ class _ProductCard extends StatelessWidget {
     final colors = AppColors.of(context);
     final theme = Theme.of(context);
     final selected = qtyInCart > 0;
-    final category = item.category.trim();
+    final badge = stockBadge(
+      stock: item.stock,
+      reorderLevel: item.effectiveReorderLevel,
+    );
 
     return GestureDetector(
       onLongPress: onLongPress,
@@ -1979,13 +1983,18 @@ class _ProductCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: <Widget>[
                   _CardImage(name: item.name, imagePath: item.imagePath),
-                  if (item.isLowStock)
-                    const Positioned(
+                  if (badge != null)
+                    Positioned(
                       top: 8,
                       left: 8,
                       child: _MiniBadge(
-                        label: 'Low',
-                        color: AppPalette.warning,
+                        label: badge.label,
+                        color: switch (badge.level) {
+                          StockLevel.short => AppPalette.error,
+                          StockLevel.empty ||
+                          StockLevel.low => AppPalette.warning,
+                          StockLevel.fine => AppPalette.success,
+                        },
                       ),
                     ),
                   if (selected)
@@ -2015,9 +2024,7 @@ class _ProductCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    category.isNotEmpty
-                        ? category
-                        : '${formatQuantity(item.stock)} in stock',
+                    stockCaption(stock: item.stock, unit: item.unit),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -2129,7 +2136,7 @@ class _VariantGroupCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${formatQuantity(group.totalStock)} in stock',
+                  stockCaption(stock: group.totalStock),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
