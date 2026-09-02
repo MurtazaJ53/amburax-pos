@@ -1231,6 +1231,7 @@ class InventoryCatalogItem {
     required this.stock,
     required this.createdAt,
     this.sku,
+    this.barcode,
     this.subcategory,
     this.size,
     this.description,
@@ -1259,6 +1260,11 @@ class InventoryCatalogItem {
   final double stock;
   final DateTime createdAt;
   final String? sku;
+
+  /// The EAN/UPC printed on the packet. Distinct from [sku], which is the
+  /// shop's own code — a scan has to match either.
+  final String? barcode;
+
   final String? subcategory;
   final String? size;
   final String? description;

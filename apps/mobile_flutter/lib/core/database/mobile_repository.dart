@@ -662,10 +662,15 @@ class InventoryRepository {
     }
     if (normalized.isNotEmpty) {
       where.add(
-        "(LOWER(name) LIKE ? OR LOWER(COALESCE(sku, '')) LIKE ? OR LOWER(COALESCE(size, '')) LIKE ?)",
+        "(LOWER(name) LIKE ? OR LOWER(COALESCE(sku, '')) LIKE ? "
+        "OR LOWER(COALESCE(barcode, '')) LIKE ? OR LOWER(COALESCE(size, '')) LIKE ?)",
       );
       final like = '%$normalized%';
+      // Four placeholders now: name, sku, barcode, size. A bind list that
+      // does not match the placeholder count fails at runtime, not compile
+      // time, so these two have to be edited together.
       variables
+        ..add(Variable<String>(like))
         ..add(Variable<String>(like))
         ..add(Variable<String>(like))
         ..add(Variable<String>(like));
@@ -704,10 +709,15 @@ class InventoryRepository {
     }
     if (normalized.isNotEmpty) {
       where.add(
-        "(LOWER(i.name) LIKE ? OR LOWER(COALESCE(i.sku, '')) LIKE ? OR LOWER(COALESCE(i.size, '')) LIKE ?)",
+        "(LOWER(i.name) LIKE ? OR LOWER(COALESCE(i.sku, '')) LIKE ? "
+        "OR LOWER(COALESCE(i.barcode, '')) LIKE ? OR LOWER(COALESCE(i.size, '')) LIKE ?)",
       );
       final like = '%$normalized%';
+      // Four placeholders now: name, sku, barcode, size. A bind list that
+      // does not match the placeholder count fails at runtime, not compile
+      // time, so these two have to be edited together.
       variables
+        ..add(Variable<String>(like))
         ..add(Variable<String>(like))
         ..add(Variable<String>(like))
         ..add(Variable<String>(like));
@@ -720,6 +730,7 @@ class InventoryRepository {
         i.name,
         i.price,
         i.sku,
+        i.barcode,
         COALESCE(i.category, 'General') AS category,
         i.subcategory,
         i.size,
@@ -774,6 +785,7 @@ class InventoryRepository {
           i.name,
           i.price,
           i.sku,
+          i.barcode,
           COALESCE(i.category, 'General') AS category,
           i.subcategory,
           i.size,
@@ -798,10 +810,15 @@ class InventoryRepository {
           AND (
             LOWER(i.id) = ?
             OR LOWER(COALESCE(i.sku, '')) = ?
+            OR LOWER(COALESCE(i.barcode, '')) = ?
           )
         LIMIT 1;
       ''',
-          variables: [Variable<String>(value), Variable<String>(value)],
+          variables: [
+            Variable<String>(value),
+            Variable<String>(value),
+            Variable<String>(value),
+          ],
           readsFrom: {_db.inventoryEntries, _db.inventoryPrivateEntries},
         )
         .get();
@@ -822,7 +839,7 @@ class InventoryRepository {
         .customSelect(
           '''
         SELECT
-          i.id, i.name, i.price, i.sku,
+          i.id, i.name, i.price, i.sku, i.barcode,
           COALESCE(i.category, 'General') AS category,
           i.subcategory, i.size, i.description, i.hsn_code,
           COALESCE(i.gst_rate, 0) AS gst_rate,
@@ -910,6 +927,9 @@ class InventoryRepository {
             // Absent rather than null when the payload is silent: an import or
             // a partial merge that does not mention stock history must not
             // erase what a full sync already established.
+            barcode: (data.containsKey('barcode'))
+                ? Value(_asStringOrNull(data['barcode']))
+                : const Value.absent(),
             hasStockHistory:
                 (data.containsKey('hasStockHistory') ||
                     data.containsKey('has_stock_history'))
@@ -1067,6 +1087,7 @@ class InventoryRepository {
       name: row.readNullable<String>('name') ?? 'Unnamed item',
       price: row.readNullable<double>('price') ?? 0,
       sku: row.readNullable<String>('sku'),
+      barcode: row.readNullable<String>('barcode'),
       category: row.readNullable<String>('category') ?? 'General',
       subcategory: row.readNullable<String>('subcategory'),
       size: row.readNullable<String>('size'),

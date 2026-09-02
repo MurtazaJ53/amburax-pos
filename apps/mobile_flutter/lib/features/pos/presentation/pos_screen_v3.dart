@@ -622,18 +622,26 @@ class _PosScreenV3State extends ConsumerState<PosScreenV3> {
       return;
     }
 
-    final needle = code.trim().toLowerCase();
-    final match = items.where((item) {
-      final sku = item.sku?.toLowerCase() ?? '';
-      return sku == needle || item.id.toLowerCase() == needle;
-    }).toList();
-    if (match.isEmpty) {
+    // Ask the database, not the grid. This used to search `items`, which is
+    // only what the grid had loaded — fifty products in a shop of five
+    // thousand — so scanning anything not already on screen silently found
+    // nothing. It also matched the SKU only, never the barcode, so a product
+    // whose barcode differs from its shop code could not be scanned at all.
+    final session = ref.read(mobileSessionProvider).asData?.value;
+    final match = await ref
+        .read(inventoryRepositoryProvider)
+        .findByExactLookup(
+          code.trim(),
+          includeCost: session?.canViewCost ?? false,
+        );
+    if (!mounted) return;
+    if (match == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('No product matches "$code".')));
       return;
     }
-    _addToCart(match.first);
+    _addToCart(match);
   }
 
   /// Add an arbitrary line to the cart (custom/open item, or a weighed item)

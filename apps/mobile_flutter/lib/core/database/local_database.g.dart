@@ -308,6 +308,17 @@ class $InventoryEntriesTable extends InventoryEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _barcodeMeta = const VerificationMeta(
+    'barcode',
+  );
+  @override
+  late final GeneratedColumn<String> barcode = GeneratedColumn<String>(
+    'barcode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _categoryMeta = const VerificationMeta(
     'category',
   );
@@ -521,6 +532,7 @@ class $InventoryEntriesTable extends InventoryEntries
     name,
     price,
     sku,
+    barcode,
     category,
     subcategory,
     size,
@@ -577,6 +589,12 @@ class $InventoryEntriesTable extends InventoryEntries
       context.handle(
         _skuMeta,
         sku.isAcceptableOrUnknown(data['sku']!, _skuMeta),
+      );
+    }
+    if (data.containsKey('barcode')) {
+      context.handle(
+        _barcodeMeta,
+        barcode.isAcceptableOrUnknown(data['barcode']!, _barcodeMeta),
       );
     }
     if (data.containsKey('category')) {
@@ -735,6 +753,10 @@ class $InventoryEntriesTable extends InventoryEntries
         DriftSqlType.string,
         data['${effectivePrefix}sku'],
       ),
+      barcode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}barcode'],
+      ),
       category: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}category'],
@@ -821,6 +843,14 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
   final String name;
   final double price;
   final String? sku;
+
+  /// The EAN/UPC printed on the packet, from the backend's `barcode`.
+  ///
+  /// Separate from [sku] on purpose, because they are different things: the
+  /// SKU is the shop's own code and the barcode is the manufacturer's. The
+  /// phone used to have only the SKU, so a product whose barcode differed
+  /// from its SKU could not be scanned at all.
+  final String? barcode;
   final String category;
   final String? subcategory;
   final String? size;
@@ -851,6 +881,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
     required this.name,
     required this.price,
     this.sku,
+    this.barcode,
     required this.category,
     this.subcategory,
     this.size,
@@ -878,6 +909,9 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
     map['price'] = Variable<double>(price);
     if (!nullToAbsent || sku != null) {
       map['sku'] = Variable<String>(sku);
+    }
+    if (!nullToAbsent || barcode != null) {
+      map['barcode'] = Variable<String>(barcode);
     }
     map['category'] = Variable<String>(category);
     if (!nullToAbsent || subcategory != null) {
@@ -928,6 +962,9 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
       name: Value(name),
       price: Value(price),
       sku: sku == null && nullToAbsent ? const Value.absent() : Value(sku),
+      barcode: barcode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(barcode),
       category: Value(category),
       subcategory: subcategory == null && nullToAbsent
           ? const Value.absent()
@@ -977,6 +1014,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
       name: serializer.fromJson<String>(json['name']),
       price: serializer.fromJson<double>(json['price']),
       sku: serializer.fromJson<String?>(json['sku']),
+      barcode: serializer.fromJson<String?>(json['barcode']),
       category: serializer.fromJson<String>(json['category']),
       subcategory: serializer.fromJson<String?>(json['subcategory']),
       size: serializer.fromJson<String?>(json['size']),
@@ -1005,6 +1043,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
       'name': serializer.toJson<String>(name),
       'price': serializer.toJson<double>(price),
       'sku': serializer.toJson<String?>(sku),
+      'barcode': serializer.toJson<String?>(barcode),
       'category': serializer.toJson<String>(category),
       'subcategory': serializer.toJson<String?>(subcategory),
       'size': serializer.toJson<String?>(size),
@@ -1031,6 +1070,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
     String? name,
     double? price,
     Value<String?> sku = const Value.absent(),
+    Value<String?> barcode = const Value.absent(),
     String? category,
     Value<String?> subcategory = const Value.absent(),
     Value<String?> size = const Value.absent(),
@@ -1054,6 +1094,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
     name: name ?? this.name,
     price: price ?? this.price,
     sku: sku.present ? sku.value : this.sku,
+    barcode: barcode.present ? barcode.value : this.barcode,
     category: category ?? this.category,
     subcategory: subcategory.present ? subcategory.value : this.subcategory,
     size: size.present ? size.value : this.size,
@@ -1083,6 +1124,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
       name: data.name.present ? data.name.value : this.name,
       price: data.price.present ? data.price.value : this.price,
       sku: data.sku.present ? data.sku.value : this.sku,
+      barcode: data.barcode.present ? data.barcode.value : this.barcode,
       category: data.category.present ? data.category.value : this.category,
       subcategory: data.subcategory.present
           ? data.subcategory.value
@@ -1127,6 +1169,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
           ..write('name: $name, ')
           ..write('price: $price, ')
           ..write('sku: $sku, ')
+          ..write('barcode: $barcode, ')
           ..write('category: $category, ')
           ..write('subcategory: $subcategory, ')
           ..write('size: $size, ')
@@ -1155,6 +1198,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
     name,
     price,
     sku,
+    barcode,
     category,
     subcategory,
     size,
@@ -1182,6 +1226,7 @@ class InventoryEntry extends DataClass implements Insertable<InventoryEntry> {
           other.name == this.name &&
           other.price == this.price &&
           other.sku == this.sku &&
+          other.barcode == this.barcode &&
           other.category == this.category &&
           other.subcategory == this.subcategory &&
           other.size == this.size &&
@@ -1207,6 +1252,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
   final Value<String> name;
   final Value<double> price;
   final Value<String?> sku;
+  final Value<String?> barcode;
   final Value<String> category;
   final Value<String?> subcategory;
   final Value<String?> size;
@@ -1231,6 +1277,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
     this.name = const Value.absent(),
     this.price = const Value.absent(),
     this.sku = const Value.absent(),
+    this.barcode = const Value.absent(),
     this.category = const Value.absent(),
     this.subcategory = const Value.absent(),
     this.size = const Value.absent(),
@@ -1256,6 +1303,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
     required String name,
     required double price,
     this.sku = const Value.absent(),
+    this.barcode = const Value.absent(),
     this.category = const Value.absent(),
     this.subcategory = const Value.absent(),
     this.size = const Value.absent(),
@@ -1284,6 +1332,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
     Expression<String>? name,
     Expression<double>? price,
     Expression<String>? sku,
+    Expression<String>? barcode,
     Expression<String>? category,
     Expression<String>? subcategory,
     Expression<String>? size,
@@ -1309,6 +1358,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
       if (name != null) 'name': name,
       if (price != null) 'price': price,
       if (sku != null) 'sku': sku,
+      if (barcode != null) 'barcode': barcode,
       if (category != null) 'category': category,
       if (subcategory != null) 'subcategory': subcategory,
       if (size != null) 'size': size,
@@ -1336,6 +1386,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
     Value<String>? name,
     Value<double>? price,
     Value<String?>? sku,
+    Value<String?>? barcode,
     Value<String>? category,
     Value<String?>? subcategory,
     Value<String?>? size,
@@ -1361,6 +1412,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
       name: name ?? this.name,
       price: price ?? this.price,
       sku: sku ?? this.sku,
+      barcode: barcode ?? this.barcode,
       category: category ?? this.category,
       subcategory: subcategory ?? this.subcategory,
       size: size ?? this.size,
@@ -1397,6 +1449,9 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
     }
     if (sku.present) {
       map['sku'] = Variable<String>(sku.value);
+    }
+    if (barcode.present) {
+      map['barcode'] = Variable<String>(barcode.value);
     }
     if (category.present) {
       map['category'] = Variable<String>(category.value);
@@ -1465,6 +1520,7 @@ class InventoryEntriesCompanion extends UpdateCompanion<InventoryEntry> {
           ..write('name: $name, ')
           ..write('price: $price, ')
           ..write('sku: $sku, ')
+          ..write('barcode: $barcode, ')
           ..write('category: $category, ')
           ..write('subcategory: $subcategory, ')
           ..write('size: $size, ')
@@ -7626,6 +7682,7 @@ typedef $$InventoryEntriesTableCreateCompanionBuilder =
       required String name,
       required double price,
       Value<String?> sku,
+      Value<String?> barcode,
       Value<String> category,
       Value<String?> subcategory,
       Value<String?> size,
@@ -7652,6 +7709,7 @@ typedef $$InventoryEntriesTableUpdateCompanionBuilder =
       Value<String> name,
       Value<double> price,
       Value<String?> sku,
+      Value<String?> barcode,
       Value<String> category,
       Value<String?> subcategory,
       Value<String?> size,
@@ -7699,6 +7757,11 @@ class $$InventoryEntriesTableFilterComposer
 
   ColumnFilters<String> get sku => $composableBuilder(
     column: $table.sku,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get barcode => $composableBuilder(
+    column: $table.barcode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7822,6 +7885,11 @@ class $$InventoryEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get barcode => $composableBuilder(
+    column: $table.barcode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get category => $composableBuilder(
     column: $table.category,
     builder: (column) => ColumnOrderings(column),
@@ -7933,6 +8001,9 @@ class $$InventoryEntriesTableAnnotationComposer
 
   GeneratedColumn<String> get sku =>
       $composableBuilder(column: $table.sku, builder: (column) => column);
+
+  GeneratedColumn<String> get barcode =>
+      $composableBuilder(column: $table.barcode, builder: (column) => column);
 
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
@@ -8046,6 +8117,7 @@ class $$InventoryEntriesTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<double> price = const Value.absent(),
                 Value<String?> sku = const Value.absent(),
+                Value<String?> barcode = const Value.absent(),
                 Value<String> category = const Value.absent(),
                 Value<String?> subcategory = const Value.absent(),
                 Value<String?> size = const Value.absent(),
@@ -8070,6 +8142,7 @@ class $$InventoryEntriesTableTableManager
                 name: name,
                 price: price,
                 sku: sku,
+                barcode: barcode,
                 category: category,
                 subcategory: subcategory,
                 size: size,
@@ -8096,6 +8169,7 @@ class $$InventoryEntriesTableTableManager
                 required String name,
                 required double price,
                 Value<String?> sku = const Value.absent(),
+                Value<String?> barcode = const Value.absent(),
                 Value<String> category = const Value.absent(),
                 Value<String?> subcategory = const Value.absent(),
                 Value<String?> size = const Value.absent(),
@@ -8120,6 +8194,7 @@ class $$InventoryEntriesTableTableManager
                 name: name,
                 price: price,
                 sku: sku,
+                barcode: barcode,
                 category: category,
                 subcategory: subcategory,
                 size: size,

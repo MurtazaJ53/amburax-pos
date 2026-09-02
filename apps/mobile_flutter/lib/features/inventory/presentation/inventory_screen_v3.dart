@@ -800,6 +800,11 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
     final skuController = TextEditingController(
       text: duplicateOf != null ? '' : (source?.sku ?? ''),
     );
+    // A duplicate gets neither code: two products cannot share a barcode any
+    // more than they can share a shelf label.
+    final barcodeController = TextEditingController(
+      text: duplicateOf != null ? '' : (source?.barcode ?? ''),
+    );
     final hsnController = TextEditingController(text: source?.hsnCode ?? '');
     final gstController = TextEditingController(
       text: source != null ? source.gstRate.toString() : '0',
@@ -914,6 +919,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                     stock: openingStock,
                     category: categoryController.text.trim(),
                     sku: skuController.text.trim(),
+                    barcode: barcodeController.text.trim(),
                     hsnCode: hsnController.text.trim(),
                     gstRate: gstRate,
                     priceIncludesTax: priceIncludesTax,
@@ -933,6 +939,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                     openingStock: openingStock,
                     category: categoryController.text.trim(),
                     sku: skuController.text.trim(),
+                    barcode: barcodeController.text.trim(),
                     hsnCode: hsnController.text.trim(),
                     gstRate: gstRate,
                     priceIncludesTax: priceIncludesTax,
@@ -1185,8 +1192,17 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                           TextFormField(
                             textCapitalization: TextCapitalization.sentences,
                             controller: skuController,
+                            decoration: const InputDecoration(
+                              labelText: 'SKU / shop code (optional)',
+                              helperText: 'Your own code for this item',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: barcodeController,
                             decoration: InputDecoration(
-                              labelText: 'SKU / barcode (optional)',
+                              labelText: 'Barcode (EAN/UPC, optional)',
+                              helperText: 'The code printed on the packet',
                               suffixIcon: IconButton(
                                 icon: const Icon(Icons.qr_code_scanner_rounded),
                                 tooltip: 'Scan barcode',
@@ -1199,7 +1215,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                                         builder: (_) => const PosScannerSheet(),
                                       );
                                   if (code != null && code.trim().isNotEmpty) {
-                                    skuController.text = code.trim();
+                                    barcodeController.text = code.trim();
                                   }
                                 },
                               ),
@@ -1268,6 +1284,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
       stockController.dispose();
       categoryController.dispose();
       skuController.dispose();
+      barcodeController.dispose();
       hsnController.dispose();
       gstController.dispose();
       costController.dispose();

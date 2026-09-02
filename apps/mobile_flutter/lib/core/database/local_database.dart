@@ -32,6 +32,14 @@ class InventoryEntries extends Table {
   TextColumn get name => text()();
   RealColumn get price => real()();
   TextColumn get sku => text().nullable()();
+
+  /// The EAN/UPC printed on the packet, from the backend's `barcode`.
+  ///
+  /// Separate from [sku] on purpose, because they are different things: the
+  /// SKU is the shop's own code and the barcode is the manufacturer's. The
+  /// phone used to have only the SKU, so a product whose barcode differed
+  /// from its SKU could not be scanned at all.
+  TextColumn get barcode => text().nullable()();
   TextColumn get category => text().withDefault(const Constant('General'))();
   TextColumn get subcategory => text().nullable()();
   TextColumn get size => text().nullable()();
@@ -314,7 +322,7 @@ class BusinessHubDatabase extends _$BusinessHubDatabase {
   BusinessHubDatabase.forTesting(super.executor) : super();
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -322,6 +330,9 @@ class BusinessHubDatabase extends _$BusinessHubDatabase {
       await m.createAll();
     },
     onUpgrade: (m, from, to) async {
+      if (from < 18) {
+        await m.addColumn(inventoryEntries, inventoryEntries.barcode);
+      }
       if (from < 17) {
         await m.addColumn(inventoryEntries, inventoryEntries.hasStockHistory);
       }
