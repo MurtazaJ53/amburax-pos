@@ -285,8 +285,8 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
             child: ElevatedButton(
               onPressed: _isLoggingIn ? null : _handleCloudLogin,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppPalette.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: AppPalette.primaryPale,
+                foregroundColor: AppPalette.primaryDark,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -296,7 +296,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
+                        color: AppPalette.primaryDark,
                         strokeWidth: 2,
                       ),
                     )
@@ -451,8 +451,8 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
             child: ElevatedButton(
               onPressed: _isLoggingIn ? null : _handleRegister,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppPalette.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: AppPalette.primaryPale,
+                foregroundColor: AppPalette.primaryDark,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -462,7 +462,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
+                        color: AppPalette.primaryDark,
                         strokeWidth: 2,
                       ),
                     )
@@ -547,8 +547,8 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
             child: ElevatedButton(
               onPressed: _isLoggingIn ? null : _handleJoin,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppPalette.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: AppPalette.primaryPale,
+                foregroundColor: AppPalette.primaryDark,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -558,7 +558,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
+                        color: AppPalette.primaryDark,
                         strokeWidth: 2,
                       ),
                     )
@@ -690,60 +690,11 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                       ),
                     ),
                     const SizedBox(height: 28),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: const LinearGradient(
-                            colors: [
-                              AppPalette.primaryLight,
-                              AppPalette.primary,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppPalette.primary.withValues(alpha: 0.35),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton(
-                          onPressed: _isLoggingIn ? null : _handleLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: _isLoggingIn
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  _hasPin
-                                      ? 'UNLOCK TERMINAL'
-                                      : 'SET PIN & UNLOCK',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2,
-                                  ),
-                                ),
-                        ),
-                      ),
+                    AppButton(
+                      label: _hasPin ? 'Unlock terminal' : 'Set PIN and unlock',
+                      onPressed: _isLoggingIn ? null : _handleLogin,
+                      busy: _isLoggingIn,
+                      fullWidth: true,
                     ),
                   ],
                 ),
@@ -756,8 +707,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
   }
 }
 
-/// Gradient brand hero echoing the legacy web login: sky-blue logo badge,
-/// wordmark and tagline.
+/// Brand hero: logo badge, wordmark and tagline.
 class _BrandHero extends StatelessWidget {
   const _BrandHero();
 
@@ -772,18 +722,7 @@ class _BrandHero extends StatelessWidget {
           height: 84,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(26),
-            gradient: const LinearGradient(
-              colors: [AppPalette.primaryLight, AppPalette.primaryDark],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppPalette.primary.withValues(alpha: 0.45),
-                blurRadius: 28,
-                offset: const Offset(0, 12),
-              ),
-            ],
+            color: AppPalette.primaryDark,
           ),
           child: const Icon(
             Icons.storefront_rounded,
@@ -846,17 +785,7 @@ class _AuthScaffold extends StatelessWidget {
     final colors = AppColors.of(context);
     return Scaffold(
       body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: <Color>[
-              colors.background,
-              colors.backgroundSoft,
-              colors.background,
-            ],
-          ),
-        ),
+        decoration: BoxDecoration(color: colors.background),
         child: Stack(
           children: <Widget>[
             // Sky-blue brand aura (matches the legacy app palette).

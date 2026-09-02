@@ -106,18 +106,11 @@ class _MobileShellScreenState extends ConsumerState<MobileShellScreen> {
       },
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        // The gradient this replaced ran from #EFF6FC to #F1F7FC — two shades
+        // apart, invisible on a phone, and repainting the whole screen every
+        // frame to do it.
         body: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[
-                colors.background,
-                colors.backgroundSoft,
-                colors.backgroundSoft,
-              ],
-            ),
-          ),
+          decoration: BoxDecoration(color: colors.background),
           child: Stack(
             children: <Widget>[
               if (!compactChrome) ...const <Widget>[

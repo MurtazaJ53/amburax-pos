@@ -6,6 +6,7 @@ import '../../../core/models/mobile_models.dart';
 import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/sync/mobile_sync_coordinator.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../ui/ui.dart';
 
 const List<String> _currencies = <String>['INR', 'USD', 'GBP', 'AED'];
@@ -238,12 +239,12 @@ class _SettingsBusinessScreenState
             child: FilledButton.icon(
               onPressed: _saving ? null : () => _save(shop),
               icon: _saving
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: AppPalette.primaryDark,
                       ),
                     )
                   : const Icon(Icons.check_rounded),

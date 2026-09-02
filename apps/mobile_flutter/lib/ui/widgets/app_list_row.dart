@@ -15,6 +15,7 @@ class AppListRow extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.leadingIcon,
+    this.leading,
     this.trailing,
     this.onTap,
     this.tone = AppTone.neutral,
@@ -29,6 +30,11 @@ class AppListRow extends StatelessWidget {
   final String? subtitle;
 
   final IconData? leadingIcon;
+
+  /// Replaces the icon tile entirely. For the rare row whose leading mark is
+  /// not an icon — a step number, an avatar, a colour swatch. Takes
+  /// precedence over [leadingIcon].
+  final Widget? leading;
 
   /// Sits before the chevron. Usually an `AppTag`.
   final Widget? trailing;
@@ -72,7 +78,10 @@ class AppListRow extends StatelessWidget {
               ),
               child: Row(
                 children: <Widget>[
-                  if (leadingIcon != null) ...<Widget>[
+                  if (leading != null) ...<Widget>[
+                    leading!,
+                    const SizedBox(width: Gap.sm),
+                  ] else if (leadingIcon != null) ...<Widget>[
                     Container(
                       width: 38,
                       height: 38,

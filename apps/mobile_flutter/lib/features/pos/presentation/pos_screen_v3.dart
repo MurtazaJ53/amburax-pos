@@ -2163,7 +2163,7 @@ class _VariantGroupCard extends StatelessWidget {
   }
 }
 
-/// Full-width product image for a grid card, or a gradient initial fallback.
+/// Full-width product image for a grid card, or a tinted initial fallback.
 class _CardImage extends StatelessWidget {
   const _CardImage({required this.name, this.imagePath});
 
@@ -2177,24 +2177,17 @@ class _CardImage extends StatelessWidget {
       return Image.file(
         File(path),
         fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _fallback(),
+        errorBuilder: (_, _, _) => _fallback(context),
       );
     }
-    return _fallback();
+    return _fallback(context);
   }
 
-  Widget _fallback() {
+  Widget _fallback(BuildContext context) {
     final letter = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[
-            AppPalette.primary.withValues(alpha: 0.16),
-            AppPalette.primary.withValues(alpha: 0.06),
-          ],
-        ),
+        color: toneColorsOf(context, AppTone.primary).background,
       ),
       child: Center(
         child: Text(
@@ -2348,24 +2341,17 @@ class _ProductTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _letterTile();
+    return _letterTile(context);
   }
 
-  Widget _letterTile() {
+  Widget _letterTile(BuildContext context) {
     final letter = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
     return Container(
       width: _size,
       height: _size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[
-            AppPalette.primary.withValues(alpha: 0.18),
-            AppPalette.primary.withValues(alpha: 0.08),
-          ],
-        ),
+        color: toneColorsOf(context, AppTone.primary).background,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
@@ -2446,7 +2432,7 @@ class _CategoryChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     return Material(
-      color: selected ? AppPalette.primary : colors.surface,
+      color: selected ? AppPalette.primaryPale : colors.surface,
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -2464,7 +2450,7 @@ class _CategoryChip extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: selected ? Colors.white : colors.textSecondary,
+              color: selected ? AppPalette.primaryDark : colors.textSecondary,
             ),
           ),
         ),
@@ -2548,10 +2534,13 @@ class _CartBar extends StatelessWidget {
     return SafeArea(
       minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Material(
-        color: AppPalette.primary,
+        // Deliberately the one solid surface left in the app: this is the
+        // control the till exists to reach, and it has to be unmistakable
+        // with a queue waiting. White on primaryDark measures 8.24:1. The
+        // elevation and coloured shadow are gone — that lift, not the fill,
+        // is what read as heavy.
+        color: AppPalette.primaryDark,
         borderRadius: BorderRadius.circular(20),
-        elevation: 8,
-        shadowColor: AppPalette.primary.withValues(alpha: 0.4),
         child: InkWell(
           onTap: saving ? null : onTap,
           borderRadius: BorderRadius.circular(20),
@@ -3042,14 +3031,14 @@ class _MiniToggleChip extends StatelessWidget {
       height: 30,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: selected ? AppPalette.primary : Colors.transparent,
+        color: selected ? AppPalette.primaryPale : Colors.transparent,
         borderRadius: BorderRadius.circular(9),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontWeight: FontWeight.w800,
-          color: selected ? Colors.white : AppPalette.primary,
+          color: selected ? AppPalette.primaryDark : AppPalette.primary,
         ),
       ),
     );

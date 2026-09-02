@@ -664,12 +664,12 @@ class _SettingsImportScreenState extends ConsumerState<SettingsImportScreen> {
                 FilledButton.icon(
                   onPressed: _busy ? null : _import,
                   icon: _busy
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: AppPalette.primaryDark,
                           ),
                         )
                       : const Icon(Icons.upload_file_rounded),

@@ -10,9 +10,9 @@ final class AppPalette {
   static const Color primaryHover = Color(0xFF075985);
   static const Color primaryDark = Color(0xFF0C4A6E);
   static const Color primaryLight = Color(0xFF0EA5E9);
-  
+
   // Pale ground for buttons
-  static const Color primaryPale = Color(0xFFE0F2FE); 
+  static const Color primaryPale = Color(0xFFE0F2FE);
 
   // Secondary accent
   static const Color accent = Color(0xFF075985);
@@ -32,7 +32,7 @@ final class AppPalette {
   static const Color surfaceStrongDark = Color(0xFF334155);
   static const Color borderSoftDark = Color(0xFF334155);
   static const Color borderDark = Color(0xFF475569);
-  
+
   static const Color textPrimaryDark = Color(0xFFF8FAFC);
   static const Color textSecondaryDark = Color(0xFFCBD5E1);
   static const Color textTertiaryDark = Color(0xFF94A3B8);
@@ -63,7 +63,11 @@ final class AppPaletteLight {
   static const Color textPrimary = Color(0xFF0F2942);
   static const Color textSecondary = Color(0xFF3D5A73);
   static const Color textTertiary = Color(0xFF64748B);
-  static const Color textDisabled = Color(0xFFA1A1AA);
+  // #A1A1AA was a neutral zinc grey, the one token in the light set that was
+  // not tuned to the palette's hue. Next to text that is all cool navy it read
+  // as washed out. The web's copy of this palette already carries the tuned
+  // value; the app is catching up to it.
+  static const Color textDisabled = Color(0xFF93A8BC);
 }
 
 class _ThemeTokens {
@@ -96,36 +100,36 @@ class _ThemeTokens {
 
 final class AppTheme {
   static ThemeData get dark => _build(
-        const _ThemeTokens(
-          brightness: Brightness.dark,
-          background: AppPalette.backgroundDark,
-          backgroundSoft: AppPalette.backgroundSoftDark,
-          surface: AppPalette.surfaceDark,
-          surfaceStrong: AppPalette.surfaceStrongDark,
-          borderSoft: AppPalette.borderSoftDark,
-          border: AppPalette.borderDark,
-          textPrimary: AppPalette.textPrimaryDark,
-          textSecondary: AppPalette.textSecondaryDark,
-          textTertiary: AppPalette.textTertiaryDark,
-          textDisabled: AppPalette.textDisabledDark,
-        ),
-      );
+    const _ThemeTokens(
+      brightness: Brightness.dark,
+      background: AppPalette.backgroundDark,
+      backgroundSoft: AppPalette.backgroundSoftDark,
+      surface: AppPalette.surfaceDark,
+      surfaceStrong: AppPalette.surfaceStrongDark,
+      borderSoft: AppPalette.borderSoftDark,
+      border: AppPalette.borderDark,
+      textPrimary: AppPalette.textPrimaryDark,
+      textSecondary: AppPalette.textSecondaryDark,
+      textTertiary: AppPalette.textTertiaryDark,
+      textDisabled: AppPalette.textDisabledDark,
+    ),
+  );
 
   static ThemeData get light => _build(
-        const _ThemeTokens(
-          brightness: Brightness.light,
-          background: AppPaletteLight.background,
-          backgroundSoft: AppPaletteLight.backgroundSoft,
-          surface: AppPaletteLight.surface,
-          surfaceStrong: AppPaletteLight.surfaceStrong,
-          borderSoft: AppPaletteLight.borderSoft,
-          border: AppPaletteLight.border,
-          textPrimary: AppPaletteLight.textPrimary,
-          textSecondary: AppPaletteLight.textSecondary,
-          textTertiary: AppPaletteLight.textTertiary,
-          textDisabled: AppPaletteLight.textDisabled,
-        ),
-      );
+    const _ThemeTokens(
+      brightness: Brightness.light,
+      background: AppPaletteLight.background,
+      backgroundSoft: AppPaletteLight.backgroundSoft,
+      surface: AppPaletteLight.surface,
+      surfaceStrong: AppPaletteLight.surfaceStrong,
+      borderSoft: AppPaletteLight.borderSoft,
+      border: AppPaletteLight.border,
+      textPrimary: AppPaletteLight.textPrimary,
+      textSecondary: AppPaletteLight.textSecondary,
+      textTertiary: AppPaletteLight.textTertiary,
+      textDisabled: AppPaletteLight.textDisabled,
+    ),
+  );
 
   static ThemeData _build(_ThemeTokens t) {
     final isDark = t.brightness == Brightness.dark;
@@ -152,113 +156,112 @@ final class AppTheme {
     );
 
     // Apply Google Fonts (Outfit)
-    final textTheme = GoogleFonts.outfitTextTheme(base.textTheme).apply(
-      bodyColor: t.textPrimary,
-      displayColor: t.textPrimary,
-    ).copyWith(
-      displayLarge: GoogleFonts.outfit(
-        fontSize: 32,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.5,
-        height: 1.1,
-        color: t.textPrimary,
-      ),
-      displayMedium: GoogleFonts.outfit(
-        fontSize: 28,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.3,
-        height: 1.15,
-        color: t.textPrimary,
-      ),
-      displaySmall: GoogleFonts.outfit(
-        fontSize: 24,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.2,
-        height: 1.2,
-        color: t.textPrimary,
-      ),
-      headlineLarge: GoogleFonts.outfit(
-        fontSize: 22,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.2,
-        height: 1.25,
-        color: t.textPrimary,
-      ),
-      headlineMedium: GoogleFonts.outfit(
-        fontSize: 20,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.1,
-        height: 1.3,
-        color: t.textPrimary,
-      ),
-      headlineSmall: GoogleFonts.outfit(
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0,
-        height: 1.35,
-        color: t.textPrimary,
-      ),
-      titleLarge: GoogleFonts.outfit(
-        fontSize: 17,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0,
-        height: 1.4,
-        color: t.textPrimary,
-      ),
-      titleMedium: GoogleFonts.outfit(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.1,
-        height: 1.4,
-        color: t.textPrimary,
-      ),
-      titleSmall: GoogleFonts.outfit(
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.1,
-        height: 1.4,
-        color: t.textPrimary,
-      ),
-      bodyLarge: GoogleFonts.outfit(
-        fontSize: 16,
-        color: t.textSecondary,
-        fontWeight: FontWeight.w400,
-        letterSpacing: 0.2,
-        height: 1.5,
-      ),
-      bodyMedium: GoogleFonts.outfit(
-        fontSize: 15,
-        color: t.textSecondary,
-        fontWeight: FontWeight.w400,
-        letterSpacing: 0.2,
-        height: 1.5,
-      ),
-      bodySmall: GoogleFonts.outfit(
-        fontSize: 14,
-        color: t.textTertiary,
-        fontWeight: FontWeight.w400,
-        letterSpacing: 0.2,
-        height: 1.5,
-      ),
-      labelLarge: GoogleFonts.outfit(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.3,
-        color: t.textPrimary,
-      ),
-      labelMedium: GoogleFonts.outfit(
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.3,
-        color: t.textPrimary,
-      ),
-      labelSmall: GoogleFonts.outfit(
-        fontSize: 12,
-        color: t.textTertiary,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.4,
-      ),
-    );
+    final textTheme = GoogleFonts.outfitTextTheme(base.textTheme)
+        .apply(bodyColor: t.textPrimary, displayColor: t.textPrimary)
+        .copyWith(
+          displayLarge: GoogleFonts.outfit(
+            fontSize: 32,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+            height: 1.1,
+            color: t.textPrimary,
+          ),
+          displayMedium: GoogleFonts.outfit(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.3,
+            height: 1.15,
+            color: t.textPrimary,
+          ),
+          displaySmall: GoogleFonts.outfit(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
+            height: 1.2,
+            color: t.textPrimary,
+          ),
+          headlineLarge: GoogleFonts.outfit(
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.2,
+            height: 1.25,
+            color: t.textPrimary,
+          ),
+          headlineMedium: GoogleFonts.outfit(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.1,
+            height: 1.3,
+            color: t.textPrimary,
+          ),
+          headlineSmall: GoogleFonts.outfit(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0,
+            height: 1.35,
+            color: t.textPrimary,
+          ),
+          titleLarge: GoogleFonts.outfit(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0,
+            height: 1.4,
+            color: t.textPrimary,
+          ),
+          titleMedium: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.1,
+            height: 1.4,
+            color: t.textPrimary,
+          ),
+          titleSmall: GoogleFonts.outfit(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.1,
+            height: 1.4,
+            color: t.textPrimary,
+          ),
+          bodyLarge: GoogleFonts.outfit(
+            fontSize: 16,
+            color: t.textSecondary,
+            fontWeight: FontWeight.w400,
+            letterSpacing: 0.2,
+            height: 1.5,
+          ),
+          bodyMedium: GoogleFonts.outfit(
+            fontSize: 15,
+            color: t.textSecondary,
+            fontWeight: FontWeight.w400,
+            letterSpacing: 0.2,
+            height: 1.5,
+          ),
+          bodySmall: GoogleFonts.outfit(
+            fontSize: 14,
+            color: t.textTertiary,
+            fontWeight: FontWeight.w400,
+            letterSpacing: 0.2,
+            height: 1.5,
+          ),
+          labelLarge: GoogleFonts.outfit(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.3,
+            color: t.textPrimary,
+          ),
+          labelMedium: GoogleFonts.outfit(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.3,
+            color: t.textPrimary,
+          ),
+          labelSmall: GoogleFonts.outfit(
+            fontSize: 12,
+            color: t.textTertiary,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.4,
+          ),
+        );
 
     return base.copyWith(
       extensions: <ThemeExtension<dynamic>>[
@@ -277,7 +280,10 @@ final class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: t.borderSoft.withValues(alpha: 0.5), width: 1),
+          side: BorderSide(
+            color: t.borderSoft.withValues(alpha: 0.5),
+            width: 1,
+          ),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
@@ -322,7 +328,9 @@ final class AppTheme {
           disabledBackgroundColor: t.surfaceStrong,
           disabledForegroundColor: t.textDisabled,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           textStyle: GoogleFonts.outfit(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -336,7 +344,9 @@ final class AppTheme {
           foregroundColor: t.textPrimary,
           side: BorderSide(color: t.border, width: 1),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           textStyle: GoogleFonts.outfit(
             fontSize: 16,
             fontWeight: FontWeight.w600,

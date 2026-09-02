@@ -12,6 +12,7 @@ import '../../../core/providers/mobile_data_providers.dart';
 import '../../../core/runtime/update_check.dart';
 import '../../../core/session/mobile_session_controller.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../ui/ui.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/premium_components.dart';
@@ -618,116 +619,85 @@ class _GettingStartedCardState extends ConsumerState<_GettingStartedCard> {
   @override
   Widget build(BuildContext context) {
     if (!_loaded || !_visible) return const SizedBox.shrink();
-    final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: <Color>[AppPalette.primary, AppPalette.primaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+
+    // This card used to be a navy gradient slab carrying white text, which
+    // made the first thing a new shopkeeper saw the heaviest thing on the
+    // screen. The web hit the same wall and wrote down why: white text forces
+    // a dark fill to stay legible, so the fix is to stop using white text.
+    // Pale ground, dark ink — the same card the web shows, and it now matches
+    // every other card in the app instead of shouting over them.
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.md),
+      child: AppPanel(
+        title: 'Getting started',
+        action: AppButton(
+          label: 'Dismiss',
+          variant: AppButtonVariant.text,
+          tone: AppTone.neutral,
+          onPressed: _dismiss,
         ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              const Icon(Icons.rocket_launch_rounded, color: Colors.white),
-              const SizedBox(width: 8),
-              Text(
-                'Getting started',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: _dismiss,
-                child: const Text(
-                  'Dismiss',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          _step(
-            '1',
-            'Set your business details',
-            'Name, phone, receipt footer',
-            () => context.push('/settings/business'),
-          ),
-          const SizedBox(height: 8),
-          _step(
-            '2',
-            'Add your first product',
-            'Build your inventory',
-            () => context.go('/inventory'),
-          ),
-          const SizedBox(height: 8),
-          _step(
-            '3',
-            'Make your first sale',
-            'Open the POS',
-            () => context.go('/pos'),
-          ),
-        ],
+        child: Column(
+          children: <Widget>[
+            _step(
+              1,
+              'Set your business details',
+              'Name, phone, receipt footer',
+              () => context.push('/settings/business'),
+            ),
+            _step(
+              2,
+              'Add your first product',
+              'Build your inventory',
+              () => context.go('/inventory'),
+            ),
+            _step(
+              3,
+              'Make your first sale',
+              'Open the POS',
+              () => context.go('/pos'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _step(String n, String title, String subtitle, VoidCallback onTap) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: <Widget>[
-              CircleAvatar(
-                radius: 13,
-                backgroundColor: Colors.white,
-                child: Text(
-                  n,
-                  style: const TextStyle(
-                    color: AppPalette.primary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded, color: Colors.white),
-            ],
-          ),
+  Widget _step(int n, String title, String subtitle, VoidCallback onTap) {
+    return AppListRow(
+      title: title,
+      subtitle: subtitle,
+      onTap: onTap,
+      // Numbered rather than iconed because this genuinely is a sequence:
+      // there is no point adding a product before the shop has a name on the
+      // receipt, and no point opening the till before there is a product.
+      leading: _StepNumber(n),
+    );
+  }
+}
+
+class _StepNumber extends StatelessWidget {
+  const _StepNumber(this.n);
+
+  final int n;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = toneColorsOf(context, AppTone.primary);
+    return Container(
+      width: 28,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: c.background,
+        shape: BoxShape.circle,
+        border: Border.all(color: c.border, width: Strokes.hairline),
+      ),
+      child: Text(
+        '$n',
+        style: TextStyle(
+          color: c.foreground,
+          fontWeight: FontWeight.w700,
+          fontSize: 13,
         ),
       ),
     );

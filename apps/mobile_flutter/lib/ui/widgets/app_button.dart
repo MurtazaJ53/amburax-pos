@@ -120,10 +120,7 @@ class _AppButtonState extends State<AppButton> {
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null && !_busy;
     final c = toneColorsOf(context, widget.tone);
-    final onTone = _onToneOf(c.foreground);
-    final spinnerColour = widget.variant == AppButtonVariant.filled
-        ? onTone
-        : c.foreground;
+    final spinnerColour = c.foreground;
 
     final Widget leading = _busy
         ? _Spinner(colour: spinnerColour)
@@ -153,11 +150,21 @@ class _AppButtonState extends State<AppButton> {
     );
 
     final Widget button = switch (widget.variant) {
+      // Pale ground, dark ink — not a solid fill under white text.
+      //
+      // The first version of this used a solid tone fill with white on top,
+      // which is the thing the web spent four attempts getting away from: its
+      // palette file records that white text forces a dark fill to stay
+      // legible, and a dark fill is what makes a light screen look heavy. The
+      // app's own filledButtonTheme already had it right and this was
+      // overriding it. The ink measures well past 4.5:1 on the pale ground in
+      // both themes, and the border keeps the button's edge readable.
       AppButtonVariant.filled => FilledButton(
         onPressed: enabled ? _handlePress : null,
         style: FilledButton.styleFrom(
-          backgroundColor: c.foreground,
-          foregroundColor: onTone,
+          backgroundColor: c.background,
+          foregroundColor: c.foreground,
+          side: BorderSide(color: c.border, width: Strokes.hairline),
           minimumSize: const Size(0, TapTarget.large),
         ),
         child: child,
@@ -193,15 +200,6 @@ class _AppButtonState extends State<AppButton> {
     );
   }
 }
-
-/// Text that reads on top of a solid tone fill.
-///
-/// Warning is the case that matters: amber takes dark text, and hardcoding
-/// white here would make every "unsaved changes" button illegible.
-Color _onToneOf(Color fill) =>
-    ThemeData.estimateBrightnessForColor(fill) == Brightness.dark
-    ? Colors.white
-    : const Color(0xFF0B1220);
 
 class _Spinner extends StatelessWidget {
   const _Spinner({required this.colour});

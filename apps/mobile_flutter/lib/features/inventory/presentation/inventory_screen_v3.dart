@@ -384,7 +384,9 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
     final colors = AppColors.of(context);
     final selected = _showLowStockOnly;
     return Material(
-      color: selected ? AppPalette.error : colors.surfaceStrong,
+      color: selected
+          ? AppPalette.error.withValues(alpha: 0.12)
+          : colors.surfaceStrong,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: () => setState(() => _showLowStockOnly = !_showLowStockOnly),
@@ -397,7 +399,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
               Icon(
                 Icons.warning_amber_rounded,
                 size: 15,
-                color: selected ? Colors.white : AppPalette.error,
+                color: AppPalette.error,
               ),
               const SizedBox(width: 6),
               Text(
@@ -405,7 +407,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : colors.textSecondary,
+                  color: selected ? AppPalette.error : colors.textSecondary,
                 ),
               ),
             ],
@@ -466,7 +468,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
   }) {
     return Material(
       color: isSelected
-          ? AppPalette.primary
+          ? AppPalette.primaryPale
           : AppColors.of(context).surfaceStrong,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
@@ -480,7 +482,7 @@ class _InventoryScreenV3State extends ConsumerState<InventoryScreenV3> {
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: isSelected
-                  ? Colors.white
+                  ? AppPalette.primaryDark
                   : AppColors.of(context).textSecondary,
             ),
           ),

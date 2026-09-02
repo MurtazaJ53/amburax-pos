@@ -507,7 +507,7 @@ class _PlanOptionCard extends StatelessWidget {
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: AppPalette.primaryDark,
                     ),
                   )
                 : const Text('Pay'),

@@ -251,7 +251,7 @@ class _VariantProductSheetState extends ConsumerState<VariantProductSheet> {
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: AppPalette.primaryDark,
                         ),
                       )
                     : const Icon(Icons.check_rounded),

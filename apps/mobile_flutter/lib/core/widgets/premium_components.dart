@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Premium component library for Business Hub - Electric Ocean Theme
-/// Minimalist, Vibrant Gradients, Soft Rounded UI
+import '../theme/app_colors.dart';
+import '../../ui/tokens.dart';
+import '../../ui/tone.dart';
+import '../../ui/widgets/app_button.dart';
 
-/// Hero Metric Card - Display the most important metric prominently with a beautiful gradient
+/// Widgets shared by the dashboard, inventory and customer screens.
+///
+/// Named for a visual direction — "Electric Ocean", vibrant gradients — that
+/// the app has since moved away from. The gradients are gone; the file stays
+/// only until Phase 3 rebuilds those three screens against `lib/ui/`, at
+/// which point it is deleted rather than renamed.
+
+/// The single largest figure on a screen — today's takings, stock value.
 class HeroMetricCard extends StatelessWidget {
   const HeroMetricCard({
     super.key,
@@ -23,88 +32,84 @@ class HeroMetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = AppColors.of(context);
+    final c = toneColorsOf(context, AppTone.primary);
 
-    // Electric Ocean Gradient
-    final gradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.secondary,
-      ],
-    );
-
+    // This was a full-bleed gradient slab with a drop shadow and 48pt white
+    // figures — the loudest object on the home screen, for a number that is
+    // usually zero before the shop opens. It is now the same flat card as
+    // everything around it, which is what the web does with the same figure.
+    //
+    // The white text is the specific thing that had to go. White forces a
+    // dark fill to stay legible, and a dark fill on a light background is
+    // what read as heavy. Ink on a pale ground carries the same emphasis
+    // without the weight.
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(Gap.lg),
       decoration: BoxDecoration(
-        gradient: gradient,
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.primary.withValues(alpha: 0.3),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
+        color: colors.surface,
+        borderRadius: Radii.lgAll,
+        border: Border.all(color: colors.borderSoft, width: Strokes.hairline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Label
           Text(
             label.toUpperCase(),
             style: GoogleFonts.outfit(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-              color: Colors.white.withValues(alpha: 0.8),
+              letterSpacing: 1.2,
+              color: colors.textTertiary,
             ),
           ),
-          const SizedBox(height: 16),
-          // Value
+          const SizedBox(height: Gap.sm),
           Text(
             value,
             style: GoogleFonts.outfit(
-              fontSize: 48,
+              fontSize: 40,
               fontWeight: FontWeight.w800,
-              letterSpacing: -1.5,
+              letterSpacing: -1.2,
               height: 1.1,
-              color: Colors.white,
+              color: colors.textPrimary,
+              fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
             ),
           ),
-          const SizedBox(height: 12),
-          // Caption with optional trend
+          const SizedBox(height: Gap.xs),
           Row(
             children: [
               Expanded(
                 child: Text(
                   caption,
                   style: GoogleFonts.outfit(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: colors.textSecondary,
                   ),
                 ),
               ),
               if (trend != null) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: Gap.xs),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
-                    vertical: 6,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
+                    color: c.background,
+                    borderRadius: Radii.mdAll,
+                    border: Border.all(
+                      color: c.border,
+                      width: Strokes.hairline,
+                    ),
                   ),
                   child: Text(
                     trend!,
                     style: GoogleFonts.outfit(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: c.foreground,
                     ),
                   ),
                 ),
@@ -117,7 +122,14 @@ class HeroMetricCard extends StatelessWidget {
   }
 }
 
-/// Primary Action Button - Main call-to-action with vibrant gradient
+/// The one thing a screen is asking the shopkeeper to do.
+///
+/// Now a thin wrapper over [AppButton] rather than a second implementation.
+/// It was a gradient fill with a coloured drop shadow and white text; the
+/// shadow and the gradient are gone, and the label sits as ink on a solid
+/// tone that meets contrast in both themes. Its `loading` flag maps onto
+/// AppButton's busy state, which also disables the button — the old one
+/// stayed tappable while loading and only removed its own onTap.
 class PrimaryActionButton extends StatelessWidget {
   const PrimaryActionButton({
     super.key,
@@ -134,63 +146,12 @@ class PrimaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Container(
-      width: double.infinity,
-      height: 60,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.secondary,
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.primary.withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: loading ? null : onPressed,
-          borderRadius: BorderRadius.circular(20),
-          child: Center(
-            child: loading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (icon != null) ...[
-                        Icon(icon, size: 24, color: Colors.white),
-                        const SizedBox(width: 12),
-                      ],
-                      Text(
-                        label,
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      ),
+    return AppButton(
+      label: label,
+      onPressed: onPressed,
+      icon: icon,
+      busy: loading,
+      fullWidth: true,
     );
   }
 }
@@ -230,7 +191,7 @@ class QuickActionTile extends StatelessWidget {
             color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: Material(
@@ -371,7 +332,9 @@ class EnhancedListItem extends StatelessWidget {
                         style: GoogleFonts.outfit(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                       ),
                     ],
@@ -384,13 +347,17 @@ class EnhancedListItem extends StatelessWidget {
                         ? Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.05,
+                              ),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
                               Icons.chevron_right_rounded,
                               size: 20,
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
                             ),
                           )
                         : const SizedBox.shrink()),
@@ -436,17 +403,14 @@ class PremiumSearchBar extends StatelessWidget {
             color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: TextField(
-      textCapitalization: TextCapitalization.sentences,
+        textCapitalization: TextCapitalization.sentences,
         controller: controller,
         onChanged: onChanged,
-        style: GoogleFonts.outfit(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
+        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600),
         decoration: InputDecoration(
           hintText: hintText,
           hintStyle: GoogleFonts.outfit(
