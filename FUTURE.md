@@ -8,49 +8,57 @@ For what is outstanding *now*, see `REMAINING.md`.
 
 ---
 
-## Password reset
+## Password reset — built, 1 September 2026
 
-There is no password reset. No "forgot password" link, no reset endpoint, no
-token — and nothing to send one with, because no mail server is configured on
-the deployment. An owner who forgets their password on a Tuesday morning
-cannot open their own till.
+Done, and no longer future work. A shop owner who forgets their password can
+now get back in without phoning anybody:
 
-The only way back is an operator with a shell:
+- `POST /api/v1/session/password-reset/` takes an email and emails a link.
+- `POST /api/v1/session/password-reset/confirm/` takes `{token, password}`.
+- "Forgot password?" on the sign-in screen, `/forgot-password` to ask, and
+  `/reset-password?token=...` to choose the new password. Both go through
+  server-side proxy routes, like every other call in the web app.
+- The token is single use, expires an hour after it is sent, and is stored
+  only as a SHA-256 hash. Asking again retires the previous link, and a
+  completed reset bumps `token_version`, so sessions issued before it stop
+  working — an intruder's session does not survive the reset meant to end it.
+- Covered by `platform_apps/users/tests_password_reset.py`.
 
-```bash
-docker compose exec api python manage.py changepassword owner@example.com
-```
+Two decisions worth keeping in view.
 
-That path is now covered by `platform_apps/users/tests_password_recovery.py`,
-which pins the two things that had never been checked: the command finds the
-account by **email** (this project has no usernames, and Django resolves by
-`USERNAME_FIELD`), and the password it sets is one the real sign-in endpoint
-accepts. Before those tests it was an assumption.
+**The reply never says whether the account exists.** Anybody can type anybody's
+address into that form, so the 200 is identical either way — the same sentence
+and the same JSON body, with no `email_sent` flag to read the answer off. The
+reset token is never shown on screen; a token on screen would be a one-click
+takeover of any address a stranger can type.
 
-Doing this properly needs working mail first. A reset flow that emails a link,
-on a deployment where mail silently goes nowhere, would be one more control
-that looks like it works — which is the failure this whole codebase has been
-spending its time removing. So: mail, then reset, in that order.
+**A send that fails says so.** If Resend does not accept the message, the
+endpoint answers 502 and the screen says nothing was sent, rather than telling
+somebody to watch an inbox nothing is coming to. That reply does differ from
+the unknown-address one, so during a mail outage a prober could learn that an
+address exists. That is the deliberate trade: it is reachable only while mail
+is broken for everybody, and the alternative is lying to a locked-out
+shopkeeper.
 
-**Updated 1 September 2026: mail is no longer the blocker it was.** There is
-no SMTP and there never will be — this project sends through Resend, and it is
-already wired: `platform_apps/common/emailer.py` posts to the Resend API, and
-production refuses to boot without `RESEND_API_KEY`. The key **is** set on the
-droplet. Creating an invite returns a real Resend error, not a skip:
+**Still needed before this works in production: a verified Resend domain.**
+The key is set on the droplet, but the sandbox refuses to send from an
+unverified domain:
 
 ```
 422: Invalid `to` field. Please use our testing email address
      instead of domains like `example.com`.
 ```
 
-That is Resend's sandbox refusing to send from an unverified domain, which is
-the only thing left. Verify a domain, set `RESEND_FROM` to an address on it,
-restart the api container — then password reset is ordinary work with a
-working transport underneath it, rather than a control pretending to function.
+Until a domain is verified and `RESEND_FROM` points at an address on it, every
+request returns the honest 502 above and no link is delivered. The flow itself
+was exercised end to end against a local API on 1 September 2026 — link,
+reset page, confirm, sign in — with a mailer that reported success.
 
-**Before the pilot**, tell the client plainly that password recovery goes
-through the operator, and make sure somebody other than them has the shop's
-details written down.
+**The operator path stays.** `manage.py changepassword owner@example.com` is
+still the answer when mail cannot reach somebody at all, and
+`platform_apps/users/tests_password_recovery.py` still pins it. Before the
+pilot, make sure somebody other than the owner has the shop's details written
+down.
 
 ---
 

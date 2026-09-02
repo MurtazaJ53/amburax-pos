@@ -149,3 +149,33 @@ def send_invite_email(
         f"This invite expires in 7 days."
     )
     return send_email(to=to, subject=subject, html=html, text=text)
+
+
+def send_password_reset_email(*, to: str, reset_link: str, ttl_label: str) -> dict:
+    """Compose and send a password reset link.
+
+    Returns the same structured result as send_email, because the caller has
+    to be able to tell a shop owner the truth about whether the message left
+    the building.
+    """
+    subject = "Reset your Business Hub password"
+    html = f"""
+    <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:520px;margin:auto">
+      <h2 style="color:#0d6e8c">Reset your password</h2>
+      <p>Somebody asked to reset the password for this Business Hub account.
+         If that was you, choose a new password here:</p>
+      <p><a href="{reset_link}" style="display:inline-block;background:#0d6e8c;color:#fff;
+                padding:10px 20px;text-decoration:none;border-radius:5px">Choose a new password</a></p>
+      <p style="color:#54617a;font-size:13px">Or paste this link into your browser:<br>
+         <span style="word-break:break-all">{reset_link}</span></p>
+      <p style="color:#54617a;font-size:13px">This link works once and expires in {ttl_label}.
+         If you didn't ask for it, ignore this email — your password stays as it is.</p>
+    </div>
+    """
+    text = (
+        "Somebody asked to reset the password for this Business Hub account.\n"
+        f"If that was you, open this link to choose a new password:\n{reset_link}\n"
+        f"The link works once and expires in {ttl_label}.\n"
+        "If you didn't ask for it, ignore this email - your password stays as it is."
+    )
+    return send_email(to=to, subject=subject, html=html, text=text)

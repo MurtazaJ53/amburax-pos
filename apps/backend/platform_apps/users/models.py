@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import hashlib
+from datetime import timedelta
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 from platform_apps.common.models import SourceTrackedModel, UUIDStampedModel
 from platform_apps.users.managers import PlatformUserManager
@@ -70,3 +74,48 @@ class UserPasskeyCredential(UUIDStampedModel):
 
     def __str__(self) -> str:
         return self.label or self.credential_id
+
+
+class PasswordResetToken(UUIDStampedModel):
+    """One outstanding "forgot password" link.
+
+    Only a hash of the token is stored. The raw value exists in exactly two
+    places: the email that was sent, and the link the person clicks. A dump of
+    this table therefore hands an attacker nothing usable — which matters more
+    here than anywhere else in the schema, because a reset token is a way to
+    take over an account without knowing its password.
+
+    A token is spent by `used_at`, not by deletion, so a second click on the
+    same link is refused rather than silently starting a fresh reset.
+    """
+
+    #: How long a link stays good. Long enough to survive a slow inbox, short
+    #: enough that a forwarded email stops being a key by the next morning.
+    TTL = timedelta(hours=1)
+
+    user = models.ForeignKey(
+        PlatformUser,
+        on_delete=models.CASCADE,
+        related_name="password_reset_tokens",
+    )
+    token_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(blank=True, null=True)
+    #: What the mailer reported. Kept so an operator can answer "did it
+    #: actually go out?" without guessing from logs.
+    delivery_status = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "-created_at"])]
+
+    @staticmethod
+    def hash_token(raw_token: str) -> str:
+        return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+    def is_live(self, *, now=None) -> bool:
+        now = now or timezone.now()
+        return self.used_at is None and self.expires_at > now
+
+    def __str__(self) -> str:
+        return f"Password reset for {self.user_id} (expires {self.expires_at:%Y-%m-%d %H:%M})"

@@ -310,6 +310,21 @@ export function AuthLogin({
                 </div>
               </div>
 
+              {/* The way back in for somebody who cannot get in. It belongs
+                  next to the field they just failed to fill, not buried under
+                  the fold: this link is only ever looked for by a person who
+                  is already stuck. It sends an emailed link - the reset token
+                  is never shown on this screen, because anybody can type
+                  anybody's address into that form. */}
+              <div className="flex justify-end -mt-1">
+                <a
+                  href="/forgot-password"
+                  className="text-[11px] font-bold text-[var(--primary-dark)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] rounded"
+                >
+                  Forgot password?
+                </a>
+              </div>
+
               <button
                 type="submit"
                 disabled={isLoading}

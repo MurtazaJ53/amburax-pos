@@ -1,15 +1,16 @@
-"""Can a locked-out shop owner be let back in?
+"""Can a locked-out shop owner be let back in by an operator?
 
-There is no password reset in this product. No "forgot password" link, no
-reset endpoint, no token — and on a deployment with no mail server there
-would be nothing to send one with anyway. That is a real gap, and it is
-written down in FUTURE.md rather than papered over here.
+There is now a self-serve password reset as well — a "forgot password" link,
+a request endpoint, an expiring single-use token, and mail out through Resend.
+It is covered next door in tests_password_reset.py.
 
-What exists instead is an operator with a shell. These tests pin that path
-down, because it is the only one a locked-out client has and nobody had ever
-run it: an owner who forgets their password on a Tuesday morning cannot open
-their own till, and "we think there is a management command" is not an answer
-to give somebody whose shop is shut.
+This file keeps covering the other path: an operator with a shell. It is not a
+leftover. Mail can fail (the domain has to be verified before Resend will send
+anywhere), a person can lose access to the inbox itself, and the reset link is
+no use to either. When that happens the management command is the only way
+back in, so it stays pinned: an owner who forgets their password on a Tuesday
+morning cannot open their own till, and "we think there is a management
+command" is not an answer to give somebody whose shop is shut.
 
 Two things have to hold. The command must find the account by email, since
 this project replaced username with email and Django's own command resolves
@@ -88,9 +89,17 @@ class OperatorPasswordRecoveryTests(TestCase):
         with self.assertRaises(CommandError):
             self._reset_to("nobody@example.com", "a-new-password-1")
 
-    def test_no_self_service_reset_endpoint_is_advertised(self):
-        # Pinning the gap deliberately. If somebody adds a reset route later,
-        # this test fails and sends them here to delete the note in FUTURE.md
-        # and the operator-only wording that goes with it.
-        for path in ("/api/v1/session/password-reset/", "/api/v1/session/forgot-password/"):
-            self.assertEqual(self.client.post(path, {}, format="json").status_code, 404)
+    def test_the_self_service_reset_endpoint_exists_alongside_this_one(self):
+        # This used to assert 404 on both, pinning the gap. The gap is closed:
+        # /session/password-reset/ is live (see tests_password_reset.py), so
+        # what is pinned here is that the operator path did not get replaced
+        # by it. A bare POST with no email is a validation error, not a 404 -
+        # that difference is the whole point of the assertion.
+        response = self.client.post("/api/v1/session/password-reset/", {}, format="json")
+        self.assertEqual(response.status_code, 400, response.content)
+
+        # And nothing answers a route that was never built.
+        self.assertEqual(
+            self.client.post("/api/v1/session/forgot-password/", {}, format="json").status_code,
+            404,
+        )
